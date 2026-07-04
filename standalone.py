@@ -726,62 +726,83 @@ def main():
     display.show()
     time.sleep(0.5)
     
-    # Calibration phase
-    if calibration_mode:
-        print("Starting calibration mode...")
+    # Setup and calibration loop
+    while True:
+        if calibration_mode:
+            print("Starting calibration mode...")
+            display.fill(0)
+            display.text("RL Color Sensor", 10, 10)
+            display.text("Calibration", 20, 25)
+            display.text("Press any btn", 15, 45)
+            display.show()
+            
+            # Wait for any button press to start
+            while switch_up.value() and switch_down.value() and switch_select.value():
+                time.sleep(0.05)
+            time.sleep(0.5)  # Debounce
+            
+            # Capture favorite color
+            favorite_color = capture_favorite_color()
+            
+            display.fill(0)
+            display.text("Instructions:", 10, 5)
+            display.text("SELECT=save color", 5, 20)
+            display.text("DOWN=move servo", 5, 30)  # Flipped
+            display.text("UP=start RL", 5, 40)      # Flipped
+            display.text("Press to begin", 10, 55)
+            display.show()
+            
+            # Wait for button release and press
+            while not switch_up.value() or not switch_down.value() or not switch_select.value():
+                time.sleep(0.05)
+            while switch_up.value() and switch_down.value() and switch_select.value():
+                time.sleep(0.05)
+            time.sleep(0.5)
+            
+            points = calibrate_states(NUM_STATES)
+            calibration_mode = False
+        
+        # Create environment with calibrated states
+        numStates = len(points)
+        indices = [i for i in range(0, numStates)]
+        env = Environment(points, indices, favorite_color, DISTANCE_METRIC)
+        
+        # Configure goal state and confirm screen
         display.fill(0)
-        display.text("RL Color Sensor", 10, 10)
-        display.text("Calibration", 20, 25)
-        display.text("Press any btn", 15, 45)
+        display.text("Ready to train", 10, 5)
+        display.text(f"States: {numStates}", 10, 20)
+        display.text(f"Goal: State {env.highest_reward_state}", 10, 35)
+        display.text("SEL=start UP=redo", 5, 50)
         display.show()
         
-        # Wait for any button press to start
-        while switch_up.value() and switch_down.value() and switch_select.value():
+        # Wait for button release first
+        while not switch_up.value() or not switch_select.value():
             time.sleep(0.05)
-        time.sleep(0.5)  # Debounce
+        time.sleep(0.1)
         
-        # Capture favorite color
-        favorite_color = capture_favorite_color()
-        
-        display.fill(0)
-        display.text("Instructions:", 10, 5)
-        display.text("SELECT=save color", 5, 20)
-        display.text("DOWN=move servo", 5, 30)  # Flipped
-        display.text("UP=start RL", 5, 40)      # Flipped
-        display.text("Press to begin", 10, 55)
-        display.show()
-        
-        # Wait for button release and press
-        while not switch_up.value() or not switch_down.value() or not switch_select.value():
+        # Wait for selection
+        chosen = None
+        while chosen is None:
+            if not switch_select.value():
+                chosen = "start"
+            elif not switch_up.value():
+                chosen = "redo"
             time.sleep(0.05)
-        while switch_up.value() and switch_down.value() and switch_select.value():
-            time.sleep(0.05)
-        time.sleep(0.5)
-        
-        points = calibrate_states(NUM_STATES)
-        calibration_mode = False
-    
+            
+        if chosen == "start":
+            while not switch_select.value():
+                time.sleep(0.05)
+            time.sleep(0.5)
+            break
+        else:
+            calibration_mode = True
+            while not switch_up.value():
+                time.sleep(0.05)
+            time.sleep(0.5)
+            
     # Re-enable the timers after calibration
     tim.init(period=50, mode=Timer.PERIODIC, callback=check_switch)
     batt.init(period=10000, mode=Timer.PERIODIC, callback=displaybatt)
-    
-    # Create environment with calibrated states
-    numStates = len(points)
-    indices = [i for i in range(0, numStates)]
-    env = Environment(points, indices, favorite_color, DISTANCE_METRIC)
-    
-    # Configure goal state
-    display.fill(0)
-    display.text("RL Training", 20, 10)
-    display.text(f"States: {numStates}", 20, 25)
-    display.text(f"Goal: State {env.highest_reward_state}", 10, 40)
-    display.text("Press to start", 10, 55)
-    display.show()
-    
-    # Wait for button press to start training
-    while switch_up.value() and switch_down.value() and switch_select.value():
-        time.sleep(0.05)
-    time.sleep(0.5)
     
     # Q-Learning parameters
     EPSILON = 0.1 # Student TODO: Try changing the Q learning Values

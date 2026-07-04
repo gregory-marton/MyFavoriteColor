@@ -89,6 +89,9 @@ def test_new_standalone_flow():
 
     # Mock sensor outputs
     import standalone
+    standalone.calibration_mode = True
+    standalone.points = []
+    standalone.favorite_color = None
     standalone.sensor.read_rgbw = lambda: (6400, 9600, 12800, 0)
     machine.state.adc[3] = 2048
 
