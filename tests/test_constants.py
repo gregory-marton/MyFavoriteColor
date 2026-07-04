@@ -8,3 +8,4 @@ def test_constants_defined():
     assert standalone.TIMESTEPS == 15
     assert standalone.COLOR_INTEGRATION_TIME == standalone.IT_640MS
     assert standalone.WHITE_BALANCE_RGB == (1.0, 1.066, 1.948)
+    assert standalone.MOTOR_SETTLE_TIME == 2.0

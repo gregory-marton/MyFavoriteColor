@@ -16,21 +16,6 @@ import servo, icons, sensors
 import machine, os, sys
 import struct
 
-# Students: play with these first!
-NUM_STATES = 7
-EPISODES = 10
-TIMESTEPS = 15
-COLOR_INTEGRATION_TIME = IT_640MS
-WHITE_BALANCE_RGB = (1.0, 1.066, 1.948)
-DISTANCE_METRIC = "Perceptual"  # Perceptual or Euclidean, see below.
-
-def dist_euclidean(c1, c2):
-    return math.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2)))
-
-_PERCEPTUAL_WEIGHTS = (0.30, 0.59, 0.11)  # R, G, B
-def dist_perceptual(c1, c2):
-    return math.sqrt(sum(w * (a - b) ** 2 for w, a, b in zip(_PERCEPTUAL_WEIGHTS, c1, c2)))
-
 # VEML6040 I2C Peripheral Address and Registers
 VEML6040_I2C_ADDR = 0x10
 _VEML6040_REG_CONF    = 0x00
@@ -51,6 +36,22 @@ IT_160MS  = (0b010 << 4)
 IT_320MS  = (0b011 << 4)
 IT_640MS  = (0b100 << 4)
 IT_1280MS = (0b101 << 4)
+
+# Students: play with these first!
+NUM_STATES = 7
+EPISODES = 10
+TIMESTEPS = 15
+COLOR_INTEGRATION_TIME = IT_640MS
+WHITE_BALANCE_RGB = (1.0, 1.066, 1.948)
+DISTANCE_METRIC = "Perceptual"  # Perceptual or Euclidean, see below.
+MOTOR_SETTLE_TIME = 2.0         # Seconds to wait for motor/sensor to stabilize
+
+def dist_euclidean(c1, c2):
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2)))
+
+_PERCEPTUAL_WEIGHTS = (0.30, 0.59, 0.11)  # R, G, B
+def dist_perceptual(c1, c2):
+    return math.sqrt(sum(w * (a - b) ** 2 for w, a, b in zip(_PERCEPTUAL_WEIGHTS, c1, c2)))
 
 DISTANCE_FUNCS = {
     "Perceptual": dist_perceptual,
@@ -418,7 +419,7 @@ class Environment:
         # Reset to first state position (180 degrees)
         self.current_angle = 180
         s.write_angle(self.current_angle)
-        time.sleep(2)
+        time.sleep(MOTOR_SETTLE_TIME)
         self.current_state = self.nearestNeighbor(sensor.rgb)
         return self.current_state 
 
@@ -446,11 +447,11 @@ class Environment:
             if self.current_angle > 0:
                 self.current_angle = max(0, self.current_angle - self.angle)
                 s.write_angle(self.current_angle)
-            time.sleep(2)
+            time.sleep(MOTOR_SETTLE_TIME)
         elif action == self.action_space[1]:  # RIGHT (increase angle - move left physically)
             self.current_angle = min(180, self.current_angle + self.angle)
             s.write_angle(self.current_angle)
-            time.sleep(2)
+            time.sleep(MOTOR_SETTLE_TIME)
 
         self.current_state = self.nearestNeighbor(sensor.rgb)
 
