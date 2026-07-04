@@ -46,6 +46,12 @@ WHITE_BALANCE_RGB = (1.0, 1.066, 1.948)
 DISTANCE_METRIC = "Perceptual"  # Perceptual or Euclidean, see below.
 MOTOR_SETTLE_TIME = 2.0         # Seconds to wait for motor/sensor to stabilize
 
+# RL Hyperparameters
+ALPHA = 0.1                     # Q-learning learning rate
+GAMMA = 0.9                     # Q-learning discount factor (future reward importance)
+EPSILON = 0.1                   # Q-learning exploration rate
+MAX_REWARD = 200                # Maximum reward for exact color match
+
 def dist_euclidean(c1, c2):
     return math.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2)))
 
@@ -58,7 +64,7 @@ DISTANCE_FUNCS = {
     "Euclidean": dist_euclidean,
 }
 
-def compute_state_rewards(state_colors, favorite_color, distance_fn, max_reward=200):
+def compute_state_rewards(state_colors, favorite_color, distance_fn, max_reward=MAX_REWARD):
     distances = [distance_fn(c, favorite_color) for c in state_colors]
     max_d = max(distances) if max(distances) > 0 else 1
     rewards = [round(max_reward * (1 - d / max_d)) for d in distances]
@@ -350,7 +356,7 @@ def setloggingmode():
 
 # Q-Learning Agent Class
 class QLearningAgent:
-    def __init__(self, env, alpha=0.1, gamma=0.9, epsilon=0.1): # Student TODO: Try changing alpha and gamma
+    def __init__(self, env, alpha=ALPHA, gamma=GAMMA, epsilon=EPSILON): # Student TODO: Try changing alpha and gamma
         self.env = env
         self.alpha = alpha
         self.gamma = gamma
@@ -391,6 +397,8 @@ class QLearningAgent:
         self.qtable[self.last_state][self.last_action] += self.alpha * (target - predict)
         print(f'Reward: {reward}, Q-table: {self.qtable}')
 
+START_ANGLE = 180  # Default sweep starting position (in degrees)
+
 # Environment Class
 class Environment:
     def __init__(self, points, index, favorite_color=None, distance_metric="Perceptual"):
@@ -412,12 +420,12 @@ class Environment:
         self.end_state = [0, len(index)-1]
         self.current_state = None
         self.action_space = ["LEFT", "RIGHT"]
-        self.current_angle = 180  # Start at 180 degrees (reversed)
+        self.current_angle = START_ANGLE  # Start at starting angle
         self.angle = 20  # Fixed 20 degrees between states
 
     def reset(self):
-        # Reset to first state position (180 degrees)
-        self.current_angle = 180
+        # Reset to starting position
+        self.current_angle = START_ANGLE
         s.write_angle(self.current_angle)
         time.sleep(MOTOR_SETTLE_TIME)
         self.current_state = self.nearestNeighbor(sensor.rgb)
@@ -449,7 +457,7 @@ class Environment:
                 s.write_angle(self.current_angle)
             time.sleep(MOTOR_SETTLE_TIME)
         elif action == self.action_space[1]:  # RIGHT (increase angle - move left physically)
-            self.current_angle = min(180, self.current_angle + self.angle)
+            self.current_angle = min(START_ANGLE, self.current_angle + self.angle)
             s.write_angle(self.current_angle)
             time.sleep(MOTOR_SETTLE_TIME)
 
@@ -468,6 +476,8 @@ class Environment:
 
         return self.current_state, reward, done
 
+
+POT_THRESHOLD = 2  # degrees; potentiometer change threshold to trigger update
 
 def capture_favorite_color():
     """Point the sensor at any real-world object and press SELECT to lock in
@@ -490,7 +500,7 @@ def capture_favorite_color():
 
     last_shown = None
     last_pot_angle = -1
-    pot_threshold = 2  # degrees; matches calibrate_states()'s pot-mode throttle
+    pot_threshold = POT_THRESHOLD
     servo_angle = 180
 
     while True:
@@ -542,11 +552,11 @@ def calibrate_states(target_num_states=None):
     state_colors = []
     current_position = 0
     button_pressed = False
-    servo_angle = 180  # Start at 180 degrees (reversed)
+    servo_angle = START_ANGLE  # Start at starting angle (reversed)
     ANGLE_INCREMENT = 20  # 20 degrees between states
     pot_mode = True  # Toggle for potentiometer control
     last_pot_angle = -1  # Track last pot angle to reduce updates
-    pot_threshold = 2  # Only update if angle changes by more than this
+    pot_threshold = POT_THRESHOLD
     
     # First, let's read a pot value to understand the range
     initial_pot = sens.readpot()
@@ -853,9 +863,9 @@ def main():
                 time.sleep(2)
                 break
         
-        # Reset to start position (180 degrees)
-        s.write_angle(180)
-        env.reset_cur_angle(180)
+        # Reset to starting position
+        s.write_angle(START_ANGLE)
+        env.reset_cur_angle(START_ANGLE)
         
         rewards_history.append(rew)
         timesteps.append(ti)
