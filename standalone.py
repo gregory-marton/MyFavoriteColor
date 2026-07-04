@@ -174,7 +174,6 @@ num_states_configured = 0
 flags = [False, False, False, False, False]
 playFlag = False
 triggered = False
-LOGGING = True
 calibration_mode = True  # Start in calibration mode
 rewards_history = []     # Store rewards for each episode
 
@@ -287,21 +286,6 @@ def check_switch(p):
 def displaybatt(p):
     batterycharge = sens.readbattery()
     display.showbattery(batterycharge)
-    # Disabled logging during RL activity to prevent interference
-    # if LOGGING:
-    #     # Log current state information
-    #     current_point = []
-    #     if len(points) > 0:
-    #         try:
-    #             # Get current RGB reading
-    #             r, g, b = sensor.rgb
-    #             current_point = [r, g, b]
-    #         except:
-    #             current_point = [0, 0, 0]
-    #     try:
-    #         savetolog(time.time(), screenID, highlightedIcon, current_point, points)
-    #     except Exception as e:
-    #         print(f"Warning: Could not save to log: {e}")
     return batterycharge
 
 def resetflags():
@@ -316,49 +300,6 @@ def shakemotor(point):
         time.sleep(0.1)
         s.write_angle(max(0, motorpos - 5))
         time.sleep(0.1)
-
-def setloggingmode():
-    # Default to logging enabled
-    log_enabled = True
-    
-    try:
-        if not switch_down.value() and not switch_up.value() and not switch_select.value():
-            try:
-                resetlog()
-                setprefs()
-            except:
-                print("Warning: Could not reset log files")
-            display.showmessage("LOG: ON")
-            print("resetting the log file")
-            log_enabled = True
-            
-        if not switch_down.value() and not switch_up.value() and switch_select.value():
-            try:
-                resetprefs()
-            except:
-                print("Warning: Could not reset preferences")
-            print("turn OFF the logging")
-            display.showmessage("LOG: OFF")
-            log_enabled = False
-
-        if switch_down.value() and switch_up.value() and switch_select.value():
-            print("default: turn ON the logging")
-            log_enabled = True
-            
-        # Try to import prefs module and get log setting
-        try:
-            import prefs
-            if hasattr(prefs, 'log'):
-                log_enabled = prefs.log
-        except ImportError:
-            print("Warning: prefs module not found, using default logging setting")
-        except AttributeError:
-            print("Warning: prefs.log attribute not found, using default logging setting")
-            
-    except Exception as e:
-        print(f"Error in setloggingmode: {e}")
-        
-    return log_enabled
 
 # Q-Learning Agent Class
 class QLearningAgent:
@@ -727,8 +668,57 @@ def calibrate_states(target_num_states=None):
         
         time.sleep(0.05)  # Small delay to prevent excessive CPU usage
 
+def run_exploration_mode(env):
+    global favorite_color, calibration_mode
+    tim.deinit()
+    batt.deinit()
+    
+    resetflags()
+    while not switch_select.value() or not switch_up.value() or not switch_down.value():
+        time.sleep(0.05)
+        
+    print("Entering Live Exploration Mode...")
+    while True:
+        r, g, b = sensor.rgb
+        distance_fn = DISTANCE_FUNCS[DISTANCE_METRIC]
+        points = list(env.states.values())
+        max_d = max([distance_fn(c, favorite_color) for c in points]) if points else 1
+        max_d = max_d if max_d > 0 else 1
+        
+        d = distance_fn((r, g, b), favorite_color)
+        current_reward = round(MAX_REWARD * (1 - d / max_d))
+        
+        display.fill(0)
+        display.text("Exploration Mode", 15, 5)
+        display.text(f"RGB: {r},{g},{b}", 10, 20)
+        display.text(f"Reward: {current_reward}", 10, 35)
+        display.text("SEL=NewFav UP=Train", 5, 48)
+        display.text("DWN=Recalibrate", 15, 56)
+        display.show()
+        
+        if not switch_select.value():
+            favorite_color = (r, g, b)
+            display.fill(0)
+            display.text("Locked New Fav!", 15, 20)
+            display.show()
+            time.sleep(1.5)
+            while not switch_select.value():
+                time.sleep(0.05)
+        elif not switch_up.value():
+            while not switch_up.value():
+                time.sleep(0.05)
+            time.sleep(0.5)
+            return "train"
+        elif not switch_down.value():
+            calibration_mode = True
+            while not switch_down.value():
+                time.sleep(0.05)
+            time.sleep(0.5)
+            return "calibrate"
+        time.sleep(0.05)
+
 def main():
-    global calibration_mode, state_colors, points, flags, tim, batt, favorite_color, LOGGING, rewards_history
+    global calibration_mode, state_colors, points, flags, tim, batt, favorite_color, rewards_history
     
     # Clear display and start fresh
     display.fill(0)
@@ -751,9 +741,7 @@ def main():
             sys.exit()
         time.sleep(0.05)
         
-    # Initialize welcome message and logging state
     display.welcomemessage()
-    LOGGING = setloggingmode()
     
     # Temporarily disable the timers during calibration
     tim.deinit()
@@ -838,8 +826,7 @@ def main():
     batt.init(period=10000, mode=Timer.PERIODIC, callback=displaybatt)
     
     # Q-Learning parameters
-    EPSILON = 0.1 # Student TODO: Try changing the Q learning Values
-    agent = QLearningAgent(env, epsilon=EPSILON)
+    agent = QLearningAgent(env)
     
     rewards_history = []
     timesteps = []
@@ -927,10 +914,17 @@ def main():
     display.show()
     time.sleep(5)
 
+    # Run Live Exploration Mode
+    action = run_exploration_mode(env)
+    if action == "train":
+        env = Environment(list(env.states.values()), list(env.states.keys()), favorite_color=favorite_color, distance_metric=DISTANCE_METRIC)
+        main()
+    elif action == "calibrate":
+        main()
+
 # Initialize timer objects globally (uninitialized)
 tim = Timer(0)
 batt = Timer(1)
-LOGGING = True
 
 if __name__ == "__main__":
     main()
