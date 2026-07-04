@@ -725,16 +725,36 @@ def calibrate_states(target_num_states=None):
         time.sleep(0.05)  # Small delay to prevent excessive CPU usage
 
 def main():
-    global calibration_mode, state_colors, points, flags, tim, batt, favorite_color
-    
-    # Temporarily disable the timers during calibration
-    tim.deinit()
-    batt.deinit()
+    global calibration_mode, state_colors, points, flags, tim, batt, favorite_color, LOGGING
     
     # Clear display and start fresh
     display.fill(0)
     display.show()
     time.sleep(0.5)
+    
+    # 2-second startup delay escape hatch
+    display.fill(0)
+    display.text("Starting in 2s...", 10, 20)
+    display.text("Press UP to REPL", 10, 40)
+    display.show()
+    
+    start_time = time.ticks_ms()
+    while time.ticks_diff(time.ticks_ms(), start_time) < 2000:
+        if not switch_up.value():
+            print("Auto-run aborted by user. Exiting to REPL.")
+            display.fill(0)
+            display.text("Aborted to REPL", 10, 25)
+            display.show()
+            sys.exit()
+        time.sleep(0.05)
+        
+    # Initialize welcome message and logging state
+    display.welcomemessage()
+    LOGGING = setloggingmode()
+    
+    # Temporarily disable the timers during calibration
+    tim.deinit()
+    batt.deinit()
     
     # Setup and calibration loop
     while True:
@@ -883,23 +903,11 @@ def main():
         
         resetflags()
 
-# Initialize timers (moved to after sensor initialization)
+# Initialize timer objects globally (uninitialized)
 tim = Timer(0)
 batt = Timer(1)
-
-# Display welcome message
-display.welcomemessage()
-LOGGING = setloggingmode()
-
-# Initialize timers AFTER welcome message
-tim.init(period=50, mode=Timer.PERIODIC, callback=check_switch)
-# Increase battery check interval to reduce sensor reads
-batt.init(period=10000, mode=Timer.PERIODIC, callback=displaybatt)  # Changed from 3000ms to 10000ms
+LOGGING = True
 
 if __name__ == "__main__":
-    # Don't show homescreen selector - go straight to main
-    # Clear display and go to calibration
-    display.fill(0)
-    display.show()
     main()
 

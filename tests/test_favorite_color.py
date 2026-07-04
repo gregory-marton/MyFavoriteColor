@@ -30,20 +30,20 @@ class FavColorSimulator:
 def test_capture_favorite_color():
     machine.reset_mock_state()
     sim = FavColorSimulator()
-    time.sleep = sim.sleep_hook
+    original_sleep = time.sleep
+    try:
+        def wrapped_sleep(secs):
+            original_sleep(secs)
+            sim.sleep_hook(secs)
+        time.sleep = wrapped_sleep
 
-    # Mock sensor to return (120, 150, 180)
-    machine.state.i2c_mem[(0x10, 0x08)] = b'\x00\x1e' # 1920 (>> 6 = 30 * wr=4 -> 120)
-    # Let's just mock sensor.rgb property directly to be simple and independent of sensor gains:
-    import standalone
-    standalone.sensor.read_rgbw = lambda: (7680, 9600, 11520, 0) # R=120, G=150, B=180
-    
-    # Mock pot value to return 2048 (approx 90 degrees)
-    machine.state.adc[3] = 2048
+        import standalone
+        standalone.sensor.read_rgbw = lambda: (7680, 9600, 11520, 0)
+        machine.state.adc[3] = 2048
 
-    # Call capture_favorite_color
-    rgb = standalone.capture_favorite_color()
-    
-    assert rgb == (120, 160, 255)
-    # Check that servo was written to 90 degrees (mapped from 2048 pot value)
-    assert machine.state.pwm[2] == 76 # duty value for ~90 degrees (1500us)
+        rgb = standalone.capture_favorite_color()
+        
+        assert rgb == (120, 160, 255)
+        assert machine.state.pwm[2] == 76
+    finally:
+        time.sleep = original_sleep

@@ -12,5 +12,14 @@ if fakes_path not in sys.path:
 builtins.const = lambda x: x
 
 # Mock MicroPython time functions on the standard time module
-time.sleep_ms = lambda ms: time.sleep(ms / 1000.0)
-time.sleep_us = lambda us: time.sleep(us / 1000000.0)
+_mock_time_ms = 1000000
+
+def fake_sleep(secs):
+    global _mock_time_ms
+    _mock_time_ms += int(secs * 1000)
+
+time.sleep = fake_sleep
+time.sleep_ms = lambda ms: fake_sleep(ms / 1000.0)
+time.sleep_us = lambda us: fake_sleep(us / 1000000.0)
+time.ticks_ms = lambda: _mock_time_ms
+time.ticks_diff = lambda t1, t2: t1 - t2

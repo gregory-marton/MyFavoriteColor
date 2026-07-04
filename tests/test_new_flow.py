@@ -14,6 +14,11 @@ class NewFlowSimulator:
         self.calibrated_states = 0
 
     def sleep_hook(self, secs):
+        # Ignore sleeps during startup delay countdown
+        import standalone
+        if any(t[0].startswith("Starting in") for t in standalone.display.buffer):
+            return
+
         # We trigger state transitions on button-polling sleeps (0.05 seconds)
         if secs == 0.05:
             if self.phase == "FAV_COLOR_WAIT":
@@ -85,18 +90,24 @@ class NewFlowSimulator:
 def test_new_standalone_flow():
     machine.reset_mock_state()
     sim = NewFlowSimulator()
-    time.sleep = sim.sleep_hook
+    original_sleep = time.sleep
+    try:
+        def wrapped_sleep(secs):
+            original_sleep(secs)
+            sim.sleep_hook(secs)
+        time.sleep = wrapped_sleep
 
-    # Mock sensor outputs
-    import standalone
-    standalone.calibration_mode = True
-    standalone.points = []
-    standalone.favorite_color = None
-    standalone.sensor.read_rgbw = lambda: (6400, 9600, 12800, 0)
-    machine.state.adc[3] = 2048
+        import standalone
+        standalone.calibration_mode = True
+        standalone.points = []
+        standalone.favorite_color = None
+        standalone.sensor.read_rgbw = lambda: (6400, 9600, 12800, 0)
+        machine.state.adc[3] = 2048
 
-    standalone.main()
-    
-    assert len(standalone.points) == 7
-    assert standalone.calibration_mode is False
-    assert sim.episode_counter == 10
+        standalone.main()
+        
+        assert len(standalone.points) == 7
+        assert standalone.calibration_mode is False
+        assert sim.episode_counter == 10
+    finally:
+        time.sleep = original_sleep

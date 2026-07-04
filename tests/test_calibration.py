@@ -25,13 +25,18 @@ class CalibSimulator:
 def test_calibrate_states_fixed_count():
     machine.reset_mock_state()
     sim = CalibSimulator()
-    time.sleep = sim.sleep_hook
+    original_sleep = time.sleep
+    try:
+        def wrapped_sleep(secs):
+            original_sleep(secs)
+            sim.sleep_hook(secs)
+        time.sleep = wrapped_sleep
 
-    import standalone
-    standalone.sensor.read_rgbw = lambda: (6400, 9600, 12800, 0)
+        import standalone
+        standalone.sensor.read_rgbw = lambda: (6400, 9600, 12800, 0)
 
-    # We want to calibrate exactly 3 states
-    # This should fail because calibrate_states doesn't accept any arguments yet!
-    colors = standalone.calibrate_states(3)
-    
-    assert len(colors) == 3
+        colors = standalone.calibrate_states(3)
+        
+        assert len(colors) == 3
+    finally:
+        time.sleep = original_sleep
