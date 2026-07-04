@@ -14,3 +14,8 @@
   3. Verify all tests pass and ensure no regressions.
 - Do not bypass test writing. Every new logic pathway or change must have corresponding tests.
 - Keep commits small, logical, and scoped to a single red-green cycle.
+
+# Git and History Management
+- Never perform destructive history resets (`git reset --hard`) without first mapping the exact commit graph (`git log --oneline`).
+- Verify the specific commit hash and parent graph to avoid discarding intermediate, unrelated changes.
+- If discarding a specific commit, target the immediate parent or use non-destructive operations (`git revert`).
