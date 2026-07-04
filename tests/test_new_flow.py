@@ -19,6 +19,28 @@ class NewFlowSimulator:
         if any(t[0].startswith("Starting in") for t in standalone.display.buffer):
             return
 
+        # Check if display has entered Exploration Mode, or we are already in the exploration sequence
+        is_exploring = (
+            self.phase in ("EXPLORATION_LOCKED", "EXPLORATION_RESTART", "EXPLORATION_DONE") or
+            any("Exploration Mode" == t[0] for t in standalone.display.buffer)
+        )
+        if is_exploring:
+            if self.phase != "EXPLORATION_LOCKED" and self.phase != "EXPLORATION_RESTART" and self.phase != "EXPLORATION_DONE":
+                machine.state.pins[9] = 0 # press SELECT
+                self.phase = "EXPLORATION_LOCKED"
+            elif self.phase == "EXPLORATION_LOCKED":
+                machine.state.pins[9] = 1 # release SELECT
+                self.phase = "EXPLORATION_RESTART"
+            elif self.phase == "EXPLORATION_RESTART":
+                machine.state.pins[10] = 0 # press UP to restart RL
+                self.phase = "EXPLORATION_DONE"
+
+        if self.phase == "EXPLORATION_DONE":
+            if any(t[0].startswith("Episode 0") for t in standalone.display.buffer):
+                # Release UP button
+                machine.state.pins[10] = 1
+                raise ValueError("Training restarted successfully")
+
         # We trigger state transitions on button-polling sleeps (0.05 seconds)
         if secs == 0.05:
             if self.phase == "FAV_COLOR_WAIT":
@@ -93,7 +115,7 @@ def test_new_standalone_flow():
     original_sleep = time.sleep
     try:
         def wrapped_sleep(secs):
-            original_sleep(secs)
+            original_sleep(secs * 0.001)
             sim.sleep_hook(secs)
         time.sleep = wrapped_sleep
 
@@ -104,11 +126,12 @@ def test_new_standalone_flow():
         standalone.sensor.read_rgbw = lambda: (6400, 9600, 12800, 0)
         machine.state.adc[3] = 2048
 
-        standalone.main()
+        with pytest.raises(ValueError, match="Training restarted successfully"):
+            standalone.main()
         
         assert len(standalone.points) == 7
         assert standalone.calibration_mode is False
-        assert sim.episode_counter == 10
+        assert sim.episode_counter >= 10
 
         # Assertions for new calibration and training display features
         assert any("RGB: 100,160,255" in msg for msg in standalone.display.history)
@@ -118,5 +141,10 @@ def test_new_standalone_flow():
         # Assertions for virtual reward calculation and grand total
         assert standalone.rewards_history[0] == 1500
         assert any("15000" in msg for msg in standalone.display.history)
+
+        # Assertions for live-exploration mode
+        assert any("Exploration Mode" in msg for msg in standalone.display.history)
+        assert any("SEL=NewFav UP=Train" in msg for msg in standalone.display.history)
+        assert any("DWN=Recalibrate" in msg for msg in standalone.display.history)
     finally:
         time.sleep = original_sleep

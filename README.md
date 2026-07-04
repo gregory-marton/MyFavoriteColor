@@ -222,3 +222,18 @@ after saving a state, the screen also shows live/just-read RGB values,
 purely so a student can see the sensor is actually responding as they
 aim the arm, before committing to a state.
 
+## Future work
+
+### Auto-dispatch between activities based on switch position
+
+The device currently hosts two activities: this RL one (switch in I2C
+mode) and a kNN one (switch in analog mode). Right now each requires
+re-flashing `standalone.py` between them.
+
+A `main.py` dispatcher could eliminate that: probe the I2C bus at boot,
+and if the VEML6040 color sensor answers at address `0x10` (switch in
+I2C mode) run `qrl.py`; otherwise run `knn.py`. Students would just flip
+the switch — no re-flashing. Each file stays under the 36KB upload limit
+individually; the one-time setup cost is uploading three files instead of
+one.
+

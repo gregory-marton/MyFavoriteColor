@@ -547,15 +547,18 @@ def calibrate_states(target_num_states=None):
             # Update display immediately on entry, then less frequently to reduce flicker
             if update_counter == 1 or update_counter % 10 == 0:  # Update every 10 loops
                 r, g, b = sensor.rgb
+                print(f"RGB: {r},{g},{b}", 15, 55)
+                d = distance_fn((r, g, b), favorite_color)
+                current_reward = round(MAX_REWARD * (1 - d / max_d))
+                print(f"    --> {d=} {current_reward=}")
                 
                 # Update display with pot control
                 display.fill(0)
                 display.text(f"State {current_position}", 30, 5)
-                display.text("POT CONTROL", 25, 15)
                 display.text("SELECT=save", 20, 25)
-                display.text("DWN=exit POT", 20, 35)
                 display.text(f"Angle: {servo_angle}", 20, 45)
                 display.text(f"RGB: {r},{g},{b}", 15, 55)
+                display.text(f"  --> {current_reward}")
                 display.show()
         
         # Only process if no button is currently pressed (debouncing)
@@ -764,22 +767,6 @@ def main():
             
             # Capture favorite color
             favorite_color = capture_favorite_color()
-            
-            display.fill(0)
-            display.text("Instructions:", 10, 5)
-            display.text("SELECT=save color", 5, 20)
-            display.text("DOWN=move servo", 5, 30)  # Flipped
-            display.text("UP=start RL", 5, 40)      # Flipped
-            display.text("Press to begin", 10, 55)
-            display.show()
-            
-            # Wait for button release and press
-            while not switch_up.value() or not switch_down.value() or not switch_select.value():
-                time.sleep(0.05)
-            while switch_up.value() and switch_down.value() and switch_select.value():
-                time.sleep(0.05)
-            time.sleep(0.5)
-            
             points = calibrate_states(NUM_STATES)
             calibration_mode = False
         
