@@ -391,12 +391,23 @@ class QLearningAgent:
 
 # Environment Class
 class Environment:
-    def __init__(self, points, index): # Student TODO: Try changing/adding new rewards
+    def __init__(self, points, index, favorite_color=None, distance_metric="Perceptual"):
         self.states = dict(zip(index, points))
-        self.goal_state = [len(points) - 1]  # Last state is goal
+        self.favorite_color = favorite_color
+        self.distance_metric = distance_metric
+        
+        if favorite_color is not None:
+            distance_fn = DISTANCE_FUNCS[self.distance_metric]
+            self.state_rewards, self.state_distances = compute_state_rewards(points, favorite_color, distance_fn)
+            self.highest_reward_state = self.state_rewards.index(max(self.state_rewards))
+            self.goal_state = [self.highest_reward_state]
+            print(f"Highest reward state: State {self.highest_reward_state}")
+        else:
+            self.state_rewards = None
+            self.goal_state = [len(points) - 1]
+            self.highest_reward_state = len(points) - 1
+            
         self.end_state = [0, len(index)-1]
-        self.reward_default = -1
-        self.reward_goal = 10
         self.current_state = None
         self.action_space = ["LEFT", "RIGHT"]
         self.current_angle = 180  # Start at 180 degrees (reversed)
@@ -413,15 +424,15 @@ class Environment:
     def reset_cur_angle(self, reset_angle):
         self.current_angle = reset_angle
 
-    def euclidean_distance(self, color1, color2):
-        return math.sqrt(sum((c1 - c2) ** 2 for c1, c2 in zip(color1, color2)))
+    def distance(self, color1, color2):
+        return DISTANCE_FUNCS[self.distance_metric](color1, color2)
 
     def nearestNeighbor(self, current_rgb):
         closest_color = None
         min_distance = float('inf')
     
         for color_name, color_value in self.states.items():
-            distance = self.euclidean_distance(current_rgb, color_value)
+            distance = self.distance(current_rgb, color_value)
             if distance < min_distance:
                 min_distance = distance
                 closest_color = color_name
@@ -442,14 +453,19 @@ class Environment:
 
         self.current_state = self.nearestNeighbor(sensor.rgb)
 
-        if self.current_state in self.goal_state:
-            reward = self.reward_goal
-            done = True
+        if self.state_rewards is not None:
+            reward = self.state_rewards[self.current_state]
+            done = (self.current_state == self.highest_reward_state)
         else:
-            reward = self.reward_default
-            done = False
+            if self.current_state in self.goal_state:
+                reward = 10
+                done = True
+            else:
+                reward = -1
+                done = False
 
         return self.current_state, reward, done
+
 
 # State calibration function
 def calibrate_states():
