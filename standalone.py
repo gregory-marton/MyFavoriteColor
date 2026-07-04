@@ -41,6 +41,27 @@ EPISODES = 10
 TIMESTEPS = 15
 COLOR_INTEGRATION_TIME = IT_640MS
 WHITE_BALANCE_RGB = (1.0, 1.066, 1.948)
+DISTANCE_METRIC = "Perceptual"
+
+_PERCEPTUAL_WEIGHTS = (0.30, 0.59, 0.11)  # R, G, B
+
+def dist_euclidean(c1, c2):
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2)))
+
+def dist_perceptual(c1, c2):
+    return math.sqrt(sum(w * (a - b) ** 2 for w, a, b in zip(_PERCEPTUAL_WEIGHTS, c1, c2)))
+
+DISTANCE_FUNCS = {
+    "Perceptual": dist_perceptual,
+    "Euclidean": dist_euclidean,
+}
+
+def compute_state_rewards(state_colors, favorite_color, distance_fn, max_reward=200):
+    distances = [distance_fn(c, favorite_color) for c in state_colors]
+    max_d = max(distances) if max(distances) > 0 else 1
+    rewards = [round(max_reward * (1 - d / max_d)) for d in distances]
+    return rewards, distances
+
 
 class VEML6040:
     """VEML6040 RGBW Color Sensor Driver"""
