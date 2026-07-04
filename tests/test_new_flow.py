@@ -109,5 +109,10 @@ def test_new_standalone_flow():
         assert len(standalone.points) == 7
         assert standalone.calibration_mode is False
         assert sim.episode_counter == 10
+
+        # Assertions for new calibration and training display features
+        assert any("RGB: 100,160,255" in msg for msg in standalone.display.history)
+        assert any("Rew:" in msg for msg in standalone.display.history)
+        assert any("Act:" in msg for msg in standalone.display.history)
     finally:
         time.sleep = original_sleep

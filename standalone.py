@@ -602,10 +602,9 @@ def calibrate_states(target_num_states=None):
                 last_pot_angle = servo_angle
                 print(f"Pot value: {pot_value}, Angle: {servo_angle}")
             
-            # Update display less frequently to reduce flicker
-            if update_counter % 10 == 0:  # Update every 10 loops
-                # Calculate voltage for display
-                voltage = (pot_value / 4095.0) * 3.3
+            # Update display immediately on entry, then less frequently to reduce flicker
+            if update_counter == 1 or update_counter % 10 == 0:  # Update every 10 loops
+                r, g, b = sensor.rgb
                 
                 # Update display with pot control
                 display.fill(0)
@@ -614,7 +613,7 @@ def calibrate_states(target_num_states=None):
                 display.text("SELECT=save", 20, 25)
                 display.text("DWN=exit POT", 20, 35)
                 display.text(f"Angle: {servo_angle}", 20, 45)
-                display.text(f"V: {voltage:.2f}V", 20, 55)
+                display.text(f"RGB: {r},{g},{b}", 15, 55)
                 display.show()
         
         # Only process if no button is currently pressed (debouncing)
@@ -873,6 +872,15 @@ def main():
             new_state, reward, done = env.step(action)
             print(f"- New State: {env.states[new_state]}")
             print(f"- Reward: {reward}")
+            
+            # Update display with real-time training step details
+            display.fill(0)
+            display.text(f"Ep {i} Step {j}", 10, 5)
+            display.text(f"State: {state}", 10, 20)
+            display.text(f"Act: {action}", 10, 35)
+            display.text(f"Rew: {reward}", 10, 50)
+            display.show()
+            
             agent.learn(reward, new_state)
             rew += reward
             state = new_state

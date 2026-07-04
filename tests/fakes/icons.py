@@ -18,6 +18,7 @@ class SSD1306_SMART:
         self.switch_up = switch_up
         self.buffer = []       # stores (text, x, y, color)
         self.messages = []     # stores showmessage calls
+        self.history = []      # stores all drawn text
         self.battery_charge = None
         self.cleared = False
 
@@ -40,6 +41,7 @@ class SSD1306_SMART:
 
     def text(self, text, x, y, color=1):
         self.buffer.append((text, x, y, color))
+        self.history.append(text)
 
     def show(self):
         pass
