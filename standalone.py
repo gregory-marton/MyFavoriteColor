@@ -23,8 +23,8 @@ NUM_STATES = 7  # Number of distinct states.
 START_ANGLE = 180  # Starting motor position in degrees (state 0).
 STATE_ANGLE_STEP = 20  # Degrees angle between adjacent states.
 MOTOR_SETTLE_TIME = 2.0  # Seconds to wait for motor/sensor to stabilize
-EPISODES = 10   # Number of RL episodes to run.
-TIMESTEPS = 15  # Number of steps in each episode.
+EPISODES = 5   # Number of RL episodes to run.
+TIMESTEPS = 15  # Maximum steps in each episode.
 
 # Q-learning parameters:
 ALPHA = 0.1        # How much to trust new information.
