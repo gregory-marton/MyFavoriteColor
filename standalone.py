@@ -176,6 +176,7 @@ playFlag = False
 triggered = False
 LOGGING = True
 calibration_mode = True  # Start in calibration mode
+rewards_history = []     # Store rewards for each episode
 
 # Switch states and flags
 switch_state_up = False
@@ -727,7 +728,7 @@ def calibrate_states(target_num_states=None):
         time.sleep(0.05)  # Small delay to prevent excessive CPU usage
 
 def main():
-    global calibration_mode, state_colors, points, flags, tim, batt, favorite_color, LOGGING
+    global calibration_mode, state_colors, points, flags, tim, batt, favorite_color, LOGGING, rewards_history
     
     # Clear display and start fresh
     display.fill(0)
@@ -892,6 +893,10 @@ def main():
                 display.text("Goal reached!", 20, 30)
                 display.show()
                 time.sleep(2)
+                
+                # Assume ending early is the same as having received the goal reward for remaining steps
+                remaining_steps = TIMESTEPS - ti
+                rew += MAX_REWARD * remaining_steps
                 break
         
         # Reset to starting position
@@ -913,6 +918,14 @@ def main():
         time.sleep(3)
         
         resetflags()
+
+    # Display grand total reward at the end of training
+    display.fill(0)
+    display.text("Training Complete", 10, 10)
+    display.text("Total Reward:", 20, 25)
+    display.text(f"{sum(rewards_history)}", 20, 45)
+    display.show()
+    time.sleep(5)
 
 # Initialize timer objects globally (uninitialized)
 tim = Timer(0)
