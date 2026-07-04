@@ -525,7 +525,7 @@ def capture_favorite_color():
 
 
 # State calibration function
-def calibrate_states():
+def calibrate_states(target_num_states=None):
     """Allow user to set up states by pressing button at each position"""
     global state_colors, num_states_configured, flags
     
@@ -622,6 +622,15 @@ def calibrate_states():
                 time.sleep(1.5)
                 
                 current_position += 1
+                if target_num_states is not None and current_position >= target_num_states:
+                    print(f"Calibration complete. {len(state_colors)} states configured.")
+                    display.fill(0)
+                    display.text(f"{len(state_colors)} states set", 20, 20)
+                    display.text("Starting RL...", 15, 35)
+                    display.show()
+                    time.sleep(2)
+                    num_states_configured = len(state_colors)
+                    return state_colors
                 pot_mode = True  # Exit pot mode after saving
                 update_counter = 0  # Reset counter
                 
