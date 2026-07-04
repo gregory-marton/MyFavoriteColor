@@ -467,6 +467,63 @@ class Environment:
         return self.current_state, reward, done
 
 
+def capture_favorite_color():
+    """Point the sensor at any real-world object and press SELECT to lock in
+    its color as the 'favorite color' that all rewards will be measured
+    against. This is the very first step, before any state calibration.
+
+    The potentiometer drives the servo live here (same absolute
+    pot-to-angle mapping as pot mode in calibrate_states()), so the arm can
+    be aimed at a specific spot -- e.g. a mark on a sheet of paper the
+    device is mounted over -- before locking in the color underneath it.
+    """
+    display.fill(0)
+    display.text("Favorite Color", 10, 5)
+    display.text("POT=aim arm", 15, 20)
+    display.text("SELECT=lock in", 10, 50)
+    display.show()
+
+    while not switch_select.value() or not switch_up.value() or not switch_down.value():
+        time.sleep(0.05)
+
+    last_shown = None
+    last_pot_angle = -1
+    pot_threshold = 2  # degrees; matches calibrate_states()'s pot-mode throttle
+    servo_angle = 180
+
+    while True:
+        pot_value = sens.readpot()
+        new_angle = int((pot_value / 4095.0) * 180)
+        new_angle = max(0, min(180, new_angle))
+        if abs(new_angle - last_pot_angle) > pot_threshold:
+            servo_angle = new_angle
+            s.write_angle(servo_angle)
+            last_pot_angle = servo_angle
+
+        r, g, b = sensor.rgb
+        if (r, g, b) != last_shown:
+            display.fill(0)
+            display.text("Favorite Color", 10, 5)
+            display.text(f"RGB:{r},{g},{b}", 10, 20)
+            display.text(f"Angle: {servo_angle}", 10, 35)
+            display.text("SELECT=lock in", 10, 50)
+            display.show()
+            last_shown = (r, g, b)
+
+        if not switch_select.value():
+            r, g, b = sensor.rgb
+            display.fill(0)
+            display.text("Locked in!", 20, 15)
+            display.text(f"RGB:{r},{g},{b}", 10, 35)
+            display.show()
+            time.sleep(1.5)
+            while not switch_select.value():
+                time.sleep(0.05)
+            return (r, g, b)
+
+        time.sleep(0.05)
+
+
 # State calibration function
 def calibrate_states():
     """Allow user to set up states by pressing button at each position"""
