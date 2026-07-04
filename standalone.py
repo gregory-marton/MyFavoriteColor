@@ -3,6 +3,8 @@ File: standalone.py
 Authors: Chris Rogers, Milan Dahal, Tanushree Burman
 Modified By: Adin Lamport, Amanda-Lexine Sunga, Amanda Yan (Aug 2024)
              Ryan McLean, Milan Dahal (Jul 2025)
+             Gregory Marton and Pinjie Lyu (w/Claude+Gemini) (Jul 2026) 
+               to add "favorite color" calibration.
 Purpose: MicroPython program to run Reinforcement Learning activity onto Smart Motors using Grove I2C color sensor v3
 *** For Engineering with Artificial Intelligence Pre-College Program at Tufts University ***
 """
@@ -13,6 +15,21 @@ import time, ubinascii, urandom, math
 import servo, icons, sensors
 import machine, os, sys
 import struct
+
+# Students: play with these first!
+NUM_STATES = 7
+EPISODES = 10
+TIMESTEPS = 15
+COLOR_INTEGRATION_TIME = IT_640MS
+WHITE_BALANCE_RGB = (1.0, 1.066, 1.948)
+DISTANCE_METRIC = "Perceptual"  # Perceptual or Euclidean, see below.
+
+def dist_euclidean(c1, c2):
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2)))
+
+_PERCEPTUAL_WEIGHTS = (0.30, 0.59, 0.11)  # R, G, B
+def dist_perceptual(c1, c2):
+    return math.sqrt(sum(w * (a - b) ** 2 for w, a, b in zip(_PERCEPTUAL_WEIGHTS, c1, c2)))
 
 # VEML6040 I2C Peripheral Address and Registers
 VEML6040_I2C_ADDR = 0x10
@@ -34,22 +51,6 @@ IT_160MS  = (0b010 << 4)
 IT_320MS  = (0b011 << 4)
 IT_640MS  = (0b100 << 4)
 IT_1280MS = (0b101 << 4)
-
-# Student-editable settings
-NUM_STATES = 7
-EPISODES = 10
-TIMESTEPS = 15
-COLOR_INTEGRATION_TIME = IT_640MS
-WHITE_BALANCE_RGB = (1.0, 1.066, 1.948)
-DISTANCE_METRIC = "Perceptual"
-
-_PERCEPTUAL_WEIGHTS = (0.30, 0.59, 0.11)  # R, G, B
-
-def dist_euclidean(c1, c2):
-    return math.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2)))
-
-def dist_perceptual(c1, c2):
-    return math.sqrt(sum(w * (a - b) ** 2 for w, a, b in zip(_PERCEPTUAL_WEIGHTS, c1, c2)))
 
 DISTANCE_FUNCS = {
     "Perceptual": dist_perceptual,
