@@ -1,24 +1,9 @@
 # Running the tests
 
-**Two versions of the code live here:**
-- `standalone_full.py` — the documented source of truth, with comments
-  and docstrings. Edit this one.
-- `standalone.py` — auto-generated from `standalone_full.py` by
-  `strip_comments.py` (comments/docstrings/blank lines removed, and
-  4-space indents converted to tabs). This is what actually gets
-  uploaded to the device. Don't hand-edit it; regenerate it instead:
-  ```bash
-  python3 strip_comments.py
-  ```
-  This only removes comments and docstrings and re-indents with tabs —
-  no renaming, no constant folding, no joining lines. Verified via AST
-  comparison (stripped file's parse tree is identical to the original's,
-  minus docstrings) and the full test suite, so it's behaviorally
-  identical to `standalone_full.py`. All the design reasoning that lived
-  in the stripped comments is kept in the "Design rationale" section
-  below instead.
+**Development flow:**
+* `standalone.py` — the documented source of truth, with comments and docstrings. This is what actually gets uploaded directly to the device. We keep this code parsimonious to ensure it stays below the documented **36KB upload limit** of the CEEO RS232 web tool.
 
-These tests exercise `standalone.py`'s logic on a desktop — no ESP32 needed.
+These tests exercise `standalone.py`s logic on a desktop — no ESP32 needed.
 
 ## Setup (one time)
 
@@ -73,11 +58,7 @@ hardware alone.
 
 # Design rationale
 
-`standalone.py` on the device (and in this repo) is a **minified** build
-with comments and docstrings stripped (and tab indentation) to keep
-upload size down — see "Upload size limit" below. This section is the
-design reasoning that would otherwise live in those comments, so it
-isn't lost.
+`standalone.py` on the device (and in this repo) is our documented source of truth. Rather than playing minification/stripping shenanigans, we keep the codebase clean and parsimonious to ensure it stays well under the ~36KB upload limit (see "Upload size limit" below).
 
 ## Upload size limit (empirical)
 
@@ -214,13 +195,7 @@ removing it was the main lever for getting upload size down — and
 arguably it was also less transparent pedagogically than just seeing
 every knob at once as a documented constant at the top of the file.
 
-`NUM_STATES`, `EPISODE_LENGTH`, `DISTANCE_METRIC`, `SETTLE_TIME`, and
-`EPISODES` are now plain module-level constants with explanatory
-comments right above the definitions. To change any of them: edit
-`standalone_full.py`, run `strip_comments.py`, re-upload the generated
-`standalone.py`. There's no in-flow validation of these values beyond
-what Python itself enforces (e.g. `DISTANCE_METRIC` must be exactly
-`"Perceptual"` or `"Euclidean"`, matching a key in `DISTANCE_FUNCS`).
+`NUM_STATES`, `EPISODES`, `TIMESTEPS`, `COLOR_INTEGRATION_TIME`, and `WHITE_BALANCE_RGB` are now plain module-level constants with explanatory comments right above the definitions. To change any of them: edit them in `standalone.py` and upload. There's no in-flow validation of these values beyond what Python itself enforces.
 
 If a future need justifies bringing back some on-device adjustment (e.g.
 letting students A/B distance metrics without re-uploading), the git
