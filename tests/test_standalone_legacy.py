@@ -100,8 +100,9 @@ def test_legacy_standalone_flow():
     # Mock time.sleep to run instantly but drive our simulator
     time.sleep = sim.sleep_hook
 
-    # Import standalone, which will run the main loop to completion using our simulator
+    # Import standalone and explicitly call main() to run the loop
     import standalone
+    standalone.main()
     
     # Assertions to verify it completed training successfully
     assert len(standalone.points) == 2

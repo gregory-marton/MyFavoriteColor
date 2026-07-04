@@ -35,13 +35,22 @@ IT_320MS  = (0b011 << 4)
 IT_640MS  = (0b100 << 4)
 IT_1280MS = (0b101 << 4)
 
+# Student-editable settings
+NUM_STATES = 7
+EPISODES = 10
+TIMESTEPS = 15
+COLOR_INTEGRATION_TIME = IT_640MS
+WHITE_BALANCE_RGB = (1.0, 1.066, 1.948)
+
 class VEML6040:
     """VEML6040 RGBW Color Sensor Driver"""
     
-    def __init__(self, i2c, address=VEML6040_I2C_ADDR):
+    def __init__(self, i2c, address=VEML6040_I2C_ADDR, integration_time=IT_160MS,
+                 white_balance=(1.0, 1.0, 1.0)):
         self.i2c = i2c
         self.address = address
         self._current_conf = 0x0000
+        self.white_balance = white_balance
         
         # Check if device is present
         devices = self.i2c.scan()
@@ -50,7 +59,7 @@ class VEML6040:
 
         # Initialize sensor
         self.enable_sensor()
-        self.set_integration_time(IT_160MS)
+        self.set_integration_time(integration_time)
         self.set_auto_mode()
         time.sleep(0.2)
 
@@ -91,13 +100,15 @@ class VEML6040:
 
     @property
     def rgb(self):
-        """Read RGB values and normalize to 0-255 range"""
+        """Read RGB values, normalize to 0-255, and apply white balance"""
         r, g, b, w = self.read_rgbw()
-        # Normalize to 8-bit values (0-255)
-        # Adjust these scaling factors based on your sensor's typical output
-        r = min(255, r >> 6)  # Divide by 64
+        r = min(255, r >> 6)
         g = min(255, g >> 6)
         b = min(255, b >> 6)
+        wr, wg, wb = self.white_balance
+        r = min(255, round(r * wr))
+        g = min(255, round(g * wg))
+        b = min(255, round(b * wb))
         return r, g, b
 
 # Initialize sensor object
@@ -158,7 +169,8 @@ display = icons.SSD1306_SMART(128, 64, i2c, switch_up)
 
 # Initialize VEML6040 sensor
 try:
-    sensor = VEML6040(i2c)
+    sensor = VEML6040(i2c, integration_time=COLOR_INTEGRATION_TIME,
+                       white_balance=WHITE_BALANCE_RGB)
     print("VEML6040 sensor initialized successfully!")
 except Exception as e:
     print(f"Failed to initialize VEML6040: {e}")
@@ -746,8 +758,10 @@ tim.init(period=50, mode=Timer.PERIODIC, callback=check_switch)
 # Increase battery check interval to reduce sensor reads
 batt.init(period=10000, mode=Timer.PERIODIC, callback=displaybatt)  # Changed from 3000ms to 10000ms
 
-# Don't show homescreen selector - go straight to main
-# Clear display and go to calibration
-display.fill(0)
-display.show()
-main()
+if __name__ == "__main__":
+    # Don't show homescreen selector - go straight to main
+    # Clear display and go to calibration
+    display.fill(0)
+    display.show()
+    main()
+
