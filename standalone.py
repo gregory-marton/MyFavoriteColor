@@ -16,20 +16,6 @@ import servo, icons, sensors
 import machine, os, sys
 import struct
 
-# VEML6040 I2C Peripheral Address and Registers
-VEML6040_I2C_ADDR = 0x10
-_VEML6040_REG_CONF    = 0x00
-_VEML6040_REG_R_DATA  = 0x08
-_VEML6040_REG_G_DATA  = 0x09
-_VEML6040_REG_B_DATA  = 0x0A
-_VEML6040_REG_W_DATA  = 0x0B
-
-# Configuration settings
-_SD_MASK   = 0x01
-_AF_MASK   = 0x02
-_TRIG_MASK = 0x04
-_IT_MASK   = 0x70
-
 IT_40MS   = (0b000 << 4)
 IT_80MS   = (0b001 << 4)
 IT_160MS  = (0b010 << 4)
@@ -45,8 +31,6 @@ COLOR_INTEGRATION_TIME = IT_640MS
 WHITE_BALANCE_RGB = (1.0, 1.066, 1.948)
 DISTANCE_METRIC = "Perceptual"  # Perceptual or Euclidean, see below.
 MOTOR_SETTLE_TIME = 2.0         # Seconds to wait for motor/sensor to stabilize
-
-# RL Hyperparameters
 ALPHA = 0.1                     # Q-learning learning rate
 GAMMA = 0.9                     # Q-learning discount factor (future reward importance)
 EPSILON = 0.1                   # Q-learning exploration rate
@@ -70,10 +54,22 @@ def compute_state_rewards(state_colors, favorite_color, distance_fn, max_reward=
     rewards = [round(max_reward * (1 - d / max_d)) for d in distances]
     return rewards, distances
 
-
-class VEML6040:
+class VEML6040:    
     """VEML6040 RGBW Color Sensor Driver"""
-    
+    # VEML6040 I2C Peripheral Address and Registers
+    VEML6040_I2C_ADDR = 0x10
+    _VEML6040_REG_CONF    = 0x00
+    _VEML6040_REG_R_DATA  = 0x08
+    _VEML6040_REG_G_DATA  = 0x09
+    _VEML6040_REG_B_DATA  = 0x0A
+    _VEML6040_REG_W_DATA  = 0x0B
+
+    # Configuration settings
+    _SD_MASK   = 0x01
+    _AF_MASK   = 0x02
+    _TRIG_MASK = 0x04
+    _IT_MASK   = 0x70
+
     def __init__(self, i2c, address=VEML6040_I2C_ADDR, integration_time=IT_160MS,
                  white_balance=(1.0, 1.0, 1.0)):
         self.i2c = i2c
@@ -109,22 +105,22 @@ class VEML6040:
             raise
 
     def set_integration_time(self, it_value):
-        self._current_conf = (self._current_conf & ~_IT_MASK) | (it_value & _IT_MASK)
-        self._write_word(_VEML6040_REG_CONF, self._current_conf)
+        self._current_conf = (self._current_conf & ~self._IT_MASK) | (it_value & self._IT_MASK)
+        self._write_word(VEML6040._VEML6040_REG_CONF, self._current_conf)
 
     def enable_sensor(self):
-        self._current_conf &= (~_SD_MASK)
-        self._write_word(_VEML6040_REG_CONF, self._current_conf)
+        self._current_conf &= (~self._SD_MASK)
+        self._write_word(VEML6040._VEML6040_REG_CONF, self._current_conf)
 
     def set_auto_mode(self):
-        self._current_conf &= (~_AF_MASK)
-        self._write_word(_VEML6040_REG_CONF, self._current_conf)
+        self._current_conf &= (~self._AF_MASK)
+        self._write_word(VEML6040._VEML6040_REG_CONF, self._current_conf)
 
     def read_rgbw(self):
-        red = self._read_word(_VEML6040_REG_R_DATA)
-        green = self._read_word(_VEML6040_REG_G_DATA)
-        blue = self._read_word(_VEML6040_REG_B_DATA)
-        white = self._read_word(_VEML6040_REG_W_DATA)
+        red = self._read_word(VEML6040._VEML6040_REG_R_DATA)
+        green = self._read_word(VEML6040._VEML6040_REG_G_DATA)
+        blue = self._read_word(VEML6040._VEML6040_REG_B_DATA)
+        white = self._read_word(VEML6040._VEML6040_REG_W_DATA)
         return (red, green, blue, white)
 
     @property
