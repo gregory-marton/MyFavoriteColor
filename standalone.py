@@ -16,25 +16,34 @@ import servo, icons, sensors
 import machine, os, sys
 import struct
 
+########
+# Students: Play with these first!
+
+NUM_STATES = 7  # Number of distinct states.
+START_ANGLE = 180  # Starting motor position in degrees (state 0).
+STATE_ANGLE_STEP = 20  # Degrees angle between adjacent states.
+MOTOR_SETTLE_TIME = 2.0  # Seconds to wait for motor/sensor to stabilize
+EPISODES = 10   # Number of RL episodes to run.
+TIMESTEPS = 15  # Number of steps in each episode.
+
+# Q-learning parameters:
+ALPHA = 0.1        # How much to trust new information.
+GAMMA = 0.9        # Relative importance of the future vs. the present.
+EPSILON = 0.1      # How much to explore randomly vs. exploit what we know.
+MAX_REWARD = 100   # Maximum reward for exact color match
+
+# Sensor settings:
 IT_40MS   = (0b000 << 4)
 IT_80MS   = (0b001 << 4)
 IT_160MS  = (0b010 << 4)
 IT_320MS  = (0b011 << 4)
 IT_640MS  = (0b100 << 4)
 IT_1280MS = (0b101 << 4)
-
-# Students: play with these first!
-NUM_STATES = 7
-EPISODES = 10
-TIMESTEPS = 15
-COLOR_INTEGRATION_TIME = IT_640MS
-WHITE_BALANCE_RGB = (1.0, 1.066, 1.948)
+COLOR_INTEGRATION_TIME = IT_640MS  # Enough time for the sensor to gather light.
+# With 320 milliseconds or less, the R,G,B values tend to be much smaller than 
+# the saturation values of 255,255,255.
+WHITE_BALANCE_RGB = (1.0, 1.066, 1.948)  # Our sensor doesn't detect blue well.
 DISTANCE_METRIC = "Perceptual"  # Perceptual or Euclidean, see below.
-MOTOR_SETTLE_TIME = 2.0         # Seconds to wait for motor/sensor to stabilize
-ALPHA = 0.1                     # Q-learning learning rate
-GAMMA = 0.9                     # Q-learning discount factor (future reward importance)
-EPSILON = 0.1                   # Q-learning exploration rate
-MAX_REWARD = 200                # Maximum reward for exact color match
 
 def dist_euclidean(c1, c2):
     return math.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2)))
@@ -393,8 +402,6 @@ class QLearningAgent:
         self.qtable[self.last_state][self.last_action] += self.alpha * (target - predict)
         print(f'Reward: {reward}, Q-table: {self.qtable}')
 
-START_ANGLE = 180  # Default sweep starting position (in degrees)
-
 # Environment Class
 class Environment:
     def __init__(self, points, index, favorite_color=None, distance_metric="Perceptual"):
@@ -416,8 +423,8 @@ class Environment:
         self.end_state = [0, len(index)-1]
         self.current_state = None
         self.action_space = ["LEFT", "RIGHT"]
-        self.current_angle = START_ANGLE  # Start at starting angle
-        self.angle = 20  # Fixed 20 degrees between states
+        self.current_angle = START_ANGLE
+        self.angle = STATE_ANGLE_STEP
 
     def reset(self):
         # Reset to starting position

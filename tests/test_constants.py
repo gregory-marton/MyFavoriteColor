@@ -12,6 +12,6 @@ def test_constants_defined():
     assert standalone.ALPHA == 0.1
     assert standalone.GAMMA == 0.9
     assert standalone.EPSILON == 0.1
-    assert standalone.MAX_REWARD == 200
+    assert standalone.MAX_REWARD == 100
     assert standalone.START_ANGLE == 180
     assert standalone.POT_THRESHOLD == 2

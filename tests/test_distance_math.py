@@ -16,11 +16,11 @@ def test_distance_functions():
 def test_compute_state_rewards():
     favorite = (255, 0, 0)
     states = [
-        (255, 0, 0),   # exact match: dist = 0, reward = 200
+        (255, 0, 0),   # exact match: dist = 0, reward = 100
         (127, 0, 0),   # dist = 128
         (0, 0, 0)      # max dist = 255, reward = 0
     ]
     rewards, dists = standalone.compute_state_rewards(states, favorite, standalone.dist_euclidean)
-    assert rewards[0] == 200
+    assert rewards[0] == 100
     assert rewards[2] == 0
-    assert rewards[1] == 100 # approx half reward
+    assert rewards[1] == 50 # approx half reward

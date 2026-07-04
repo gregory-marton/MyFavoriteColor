@@ -6,8 +6,8 @@ def test_environment_dynamic_rewards():
     # Calibrated states colors
     points = [
         [0, 0, 0],       # furthest (distance ~ 255), reward = 0
-        [127, 0, 0],     # closer (distance ~ 128), reward = 100
-        [255, 0, 0]      # closest (distance = 0), reward = 200
+        [127, 0, 0],     # closer (distance ~ 128), reward = 50
+        [255, 0, 0]      # closest (distance = 0), reward = 100
     ]
     indices = [0, 1, 2]
     
@@ -16,7 +16,7 @@ def test_environment_dynamic_rewards():
     
     # Verify rewards calculation
     assert env.highest_reward_state == 2
-    assert env.state_rewards[2] == 200
+    assert env.state_rewards[2] == 100
     assert env.state_rewards[0] == 0
     assert env.goal_state == [2]
     
@@ -34,5 +34,5 @@ def test_environment_dynamic_rewards():
     next_state, reward, done = env.step("LEFT")
     # nearestNeighbor will return 2 because sensor is mocked to return (255,0,0)
     assert next_state == 2
-    assert reward == 200
+    assert reward == 100
     assert done is True
