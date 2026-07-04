@@ -713,7 +713,7 @@ def calibrate_states(target_num_states=None):
         time.sleep(0.05)  # Small delay to prevent excessive CPU usage
 
 def main():
-    global calibration_mode, state_colors, points, flags, tim, batt
+    global calibration_mode, state_colors, points, flags, tim, batt, favorite_color
     
     # Temporarily disable the timers during calibration
     tim.deinit()
@@ -738,6 +738,9 @@ def main():
             time.sleep(0.05)
         time.sleep(0.5)  # Debounce
         
+        # Capture favorite color
+        favorite_color = capture_favorite_color()
+        
         display.fill(0)
         display.text("Instructions:", 10, 5)
         display.text("SELECT=save color", 5, 20)
@@ -753,7 +756,7 @@ def main():
             time.sleep(0.05)
         time.sleep(0.5)
         
-        points = calibrate_states()
+        points = calibrate_states(NUM_STATES)
         calibration_mode = False
     
     # Re-enable the timers after calibration
@@ -763,13 +766,13 @@ def main():
     # Create environment with calibrated states
     numStates = len(points)
     indices = [i for i in range(0, numStates)]
-    env = Environment(points, indices)
+    env = Environment(points, indices, favorite_color, DISTANCE_METRIC)
     
     # Configure goal state
     display.fill(0)
     display.text("RL Training", 20, 10)
     display.text(f"States: {numStates}", 20, 25)
-    display.text(f"Goal: State {numStates-1}", 10, 40)
+    display.text(f"Goal: State {env.highest_reward_state}", 10, 40)
     display.text("Press to start", 10, 55)
     display.show()
     
@@ -785,9 +788,8 @@ def main():
     rewards_history = []
     timesteps = []
 
-    # Student TODO: Try changing these values
-    EPISODES = 10
-    TIMESTEPS = 15
+    # Student TODO: Try changing these values at the top of the file
+    # (EPISODES and TIMESTEPS are module-level constants)
     
     for i in range(EPISODES):
         display.fill(0)
