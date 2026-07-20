@@ -369,7 +369,7 @@ class Environment:
                         last_pot_value, servo_angle)
                     rgb = sensor.rgb
                     d, reward = self.reward(rgb)
-                    screen([f"State {state=} @{servo_angle}",
+                    screen([f"{state=} @{servo_angle}",
                             f"R{rgb[0]} G{rgb[1]}, B{rgb[2]}",
                             f"{reward=}"])
             else:
@@ -455,7 +455,7 @@ def main():
             if done:
                 update = "Goal!"
             screen([f"E={episode} T={e_t}",
-                    "S={env.state} R={env.rewards[env.state]}"] +
+                    f"S={env.state} R={env.rewards[env.state]}"] +
                     q_map + [f"Chosen: {action}", update])
             agent.learn(reward, new_state)
             if done:
