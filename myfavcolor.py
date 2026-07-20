@@ -218,6 +218,7 @@ def waitforbutton():
     return chosen
 
 def screen(text):
+    print("--\n"+"\n".join(text))
     display.fill(0)
     if len(text) > 5: # need to use the top line
         first = text.pop(0)
@@ -438,7 +439,9 @@ def main():
     agent = QLearningAgent(env)
     rewards_history = []
     timesteps = []
-    screen(["Press to start"," training."])
+    screen(["Rewards=",
+            ",".join(map(lambda r: str(round(r)),env.rewards)),
+            "Press to start"," training."])
     waitforbutton()
     for episode in range(EPISODES):
         env.reset()
