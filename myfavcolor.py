@@ -12,7 +12,7 @@ Purpose: MicroPython program to run Reinforcement Learning activity onto Smart M
 
 from machine import Pin, Timer, unique_id
 from files import *
-import time, ubinascii, urandom, math
+import time, ubinascii, random, urandom, math
 import servo, icons, sensors
 import machine, os, sys
 import struct
@@ -23,12 +23,13 @@ import struct
 NUM_STATES = 7  # Number of distinct states.
 EPISODES = 5   # Number of RL episodes to run.
 TIMESTEPS = 15  # Maximum steps in each episode.
+START_STATE = None # None for random choice or state number, e.g. 0.
 STATE_ANGLE_STEP = 0  # Degrees angle between adjacent states. Or 0 to use the pot.
 
 # Q-learning parameters:
 ALPHA = 0.1        # How much to trust new information.
-GAMMA = 0.9        # Relative importance of the future vs. the present.
-EPSILON = 0.1      # How much to explore randomly vs. exploit what we know.
+GAMMA = 0.95       # Relative importance of the future vs. the present.
+EPSILON = 0.9      # How much to explore randomly vs. exploit what we know (at first)
 MAX_REWARD = 100   # Maximum reward for exact color match
 
 # Sensor settings:
@@ -42,23 +43,50 @@ COLOR_INTEGRATION_TIME = IT_640MS  # Enough time for the sensor to gather light.
 # With 320 milliseconds or less, the R,G,B values tend to be much smaller than 
 # the saturation values of 255,255,255.
 WHITE_BALANCE_RGB = (1.0, 1.066, 1.948)  # Our sensor doesn't detect blue well.
-DISTANCE_METRIC = "Perceptual"  # Perceptual or Euclidean, see below.
+DISTANCE_METRIC = "Sine"  # Perceptual or Euclidean, see below.
 
 # Hardware adjustments:
 START_ANGLE = 180  # Starting motor position in degrees (state 0).
 POT_THRESHOLD = 50  # * 180 degrees / 4096 pot states, so 50 is a touch over 2 degrees.
-MOTOR_SETTLE_TIME = 2.0  # Seconds to wait for motor/sensor to stabilize
+MOTOR_SETTLE_TIME = 1.0  # Seconds to wait for motor/sensor to stabilize
 
 def dist_euclidean(c1, c2):
     return math.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2)))
 
 _PERCEPTUAL_WEIGHTS = (0.30, 0.59, 0.11)  # R, G, B
-def dist_perceptual(c1, c2):
+def dist_perceptual_euclidean(c1, c2):
     return math.sqrt(sum(w * (a - b) ** 2 for w, a, b in zip(_PERCEPTUAL_WEIGHTS, c1, c2)))
 
+# Cosine and Sine are magnitude-agnostic, so they only pay attention to hue,
+# not to brightness. 1-cosine is quadratically similar when hues are close.
+def dist_cosine(c1, c2):
+    dot = sum(a * b for a, b in zip(c1, c2))
+    mag1 = math.sqrt(sum(a ** 2 for a in c1))
+    mag2 = math.sqrt(sum(b ** 2 for b in c2))
+    if mag1 == 0 or mag2 == 0:
+        return 1.0
+    # Cosine similarity is 1.0 for perfect match. Return 1 - sim so 0 is a match
+    return 1.0 - (dot / (mag1 * mag2))
+
+# Cosine and Sine are magnitude-agnostic, so they only pay attention to hue,
+# not to brightness. Sine is linear where hues are close.
+def dist_sine(c1, c2):
+    dot = sum(a * b for a, b in zip(c1, c2))
+    mag1 = math.sqrt(sum(a ** 2 for a in c1))
+    mag2 = math.sqrt(sum(b ** 2 for b in c2))
+    if mag1 == 0 or mag2 == 0:
+        return 1.0
+    # Clamp to avoid floating point errors where sim > 1.0
+    sim = min(1.0, dot / (mag1 * mag2))
+    # Return the sine of the angle: sqrt(1 - cos^2)
+    return math.sqrt(1 - sim**2)
+
+
 DISTANCE_FUNCS = {
-    "Perceptual": dist_perceptual,
+    "Perceptual": dist_perceptual_euclidean,
     "Euclidean": dist_euclidean,
+    "Cosine": dist_cosine,
+    "Sine": dist_sine,
 }
 
 class VEML6040:    
@@ -157,6 +185,8 @@ s = servo.Servo(Pin(2))
 switch_down = Pin(8, Pin.IN)
 switch_select = Pin(9, Pin.IN)
 switch_up = Pin(10, Pin.IN)
+global last_servo_angle
+last_servo_angle = 0
 
 # I2C interface and display
 i2c = sensors.i2c
@@ -217,8 +247,13 @@ def waitforbutton():
             time.sleep(0.05)
     return chosen
 
+last_screen=[]
 def screen(text):
-    print("--\n"+"\n".join(text))
+    CHRW = 16
+    global last_screen
+    if text != last_screen:
+        print("--\n"+"\n".join(text))
+    last_screen = text[:]
     display.fill(0)
     if len(text) > 5: # need to use the top line
         first = text.pop(0)
@@ -226,9 +261,9 @@ def screen(text):
     x = 5
     y = 15
     for line in text:
-        if len(line) > 16:
-            display.text(line[:16], 0, y)
-            line = line[17:]
+        while len(line) > CHRW:
+            display.text(line[:CHRW], 0, y)
+            line = line[CHRW:]
             y += 10
         display.text(line, x, y)
         y += 10
@@ -241,21 +276,21 @@ class QLearningAgent:
         self.alpha = alpha
         self.gamma = gamma
         self.epsilon = epsilon
+        self.actions = ["LEFT", "STAY", "RIGHT"]
         self.qtable = self.initialize_qtable()
-        self.actions = ["LEFT", "RIGHT"]
     
     def initialize_qtable(self):
         table = {}
         for key, val in enumerate(self.env.states):
-            qvalue = [0] * 2
+            qvalue = [0] * len(self.actions)
             table[val] = qvalue 
         return table
 
     def choose_action(self, state):
         k = urandom.uniform(0, 1)
-        
+        was_random = False
         if self.epsilon > k:
-            print("Random action chosen")
+            was_random = True
             action = urandom.choice(self.actions)
         else:
             actions = self.qtable[state]
@@ -269,45 +304,48 @@ class QLearningAgent:
 
         self.last_state = state
         self.last_action = self.actions.index(action)
-        return action
+        return action, was_random
 
     def learn(self, reward, next_state):
         predict = self.qtable[self.last_state][self.last_action]
         target = reward + self.gamma * max(self.qtable[next_state])
         self.qtable[self.last_state][self.last_action] += self.alpha * (target - predict)
-        print(f'Reward: {reward}, Q-table: {self.qtable}')
+        #print(f'Reward: {reward}, Q-table: {self.qtable}')
 
 
 # Environment Class
 class Environment:
     def __init__(self, distance_metric="Perceptual"):
-        self.action_space = ["LEFT", "RIGHT"]
+        self.action_space = ["LEFT", "STAY", "RIGHT"]
         self.favorite_color = None
         self.distance_metric = distance_metric
         self.states = None
         self.colors = None
         self.distances = None
         self.rewards = None
-        self.reset()
         self.calibrate_white_balance()
         self.capture_favorite_color()
         self.calibrate_states()
+        self.reset()
 
     def reset(self):
-        self.state = 0
-        self.angle = move_servo(START_ANGLE)
+        self.state = random.choice(range(NUM_STATES)) if START_STATE is None else START_STATE
+        global last_servo_angle
+        last_servo_angle = move_servo(self.points[self.state])
         return self.state
 
     def calibrate_white_balance(self):
+        global last_servo_angle
         sensor.white_balance = (1.0, 1.0, 1.0)
         
         last_pot_value = sens.readpot()
-        servo_angle = START_ANGLE
         while not checkbuttons():
-            last_pot_value, servo_angle = update_motor_with_pot(
-                last_pot_value, servo_angle)
+            last_pot_value, last_servo_angle = update_motor_with_pot(
+                last_pot_value, last_servo_angle)
             r, g, b = sensor.rgb
-            screen(["Point at WHITE", "SELECT=ok"])
+            screen(["Point at WHITE",
+                    f"Angle: {last_servo_angle}",
+                    "SELECT=ok"])
             time.sleep(0.05)
             
         while checkbuttons():
@@ -334,15 +372,16 @@ class Environment:
         be aimed at a specific spot -- e.g. a mark on a sheet of paper the
         device is mounted over -- before locking in the color underneath it.
         """
+        global last_servo_angle
         self.favorite_color = (0, 0, 0)
         last_pot_value = sens.readpot()
-        servo_angle = START_ANGLE
         while not checkbuttons():
-            last_pot_value, servo_angle = update_motor_with_pot(
-                last_pot_value, servo_angle)
+            last_pot_value, last_servo_angle = update_motor_with_pot(
+                last_pot_value, last_servo_angle)
             r, g, b = sensor.rgb
             self.favorite_color = (r, g, b)
-            screen(["Set FAV color", f"R{r}, G{g}, B{b}", "", "SELECT=ok"])
+            screen(["Set FAV color", f"R{r}, G{g}, B{b}",
+                    f"Angle: {last_servo_angle}", "SELECT=ok"])
             time.sleep(0.05)
 
     def calibrate_states(self):
@@ -352,7 +391,8 @@ class Environment:
         self.rewards = []
         self.states = list(range(NUM_STATES))
         pot_mode = STATE_ANGLE_STEP == 0
-        servo_angle = move_servo(START_ANGLE)
+        global last_servo_angle
+        last_servo_angle = move_servo(START_ANGLE)
         screen(["Turn pot LEFT",
                 "(c'ter-clock'w)",
                 "Sensor on LEFT-",
@@ -366,23 +406,23 @@ class Environment:
                 update_counter = 0
                 last_pot_value = sens.readpot()
                 while not checkbuttons():
-                    last_pot_value, servo_angle = update_motor_with_pot(
-                        last_pot_value, servo_angle)
+                    last_pot_value, last_servo_angle = update_motor_with_pot(
+                        last_pot_value, last_servo_angle)
                     rgb = sensor.rgb
                     d, reward = self.reward(rgb)
-                    screen([f"{state=} @{servo_angle}",
+                    screen([f"{state=} @{last_servo_angle}",
                             f"R{rgb[0]} G{rgb[1]}, B{rgb[2]}",
                             f"{reward=}"])
             else:
-                servo_angle = move_servo(servo_angle - STATE_ANGLE_STEP)
+                last_servo_angle = move_servo(last_servo_angle - STATE_ANGLE_STEP)
                 time.sleep(MOTOR_SETTLE_TIME)
                 rgb = sensor.rgb
                 d, reward = self.reward(rgb)
                 
-            self.points.append(servo_angle)
+            self.points.append(last_servo_angle)
             self.colors.append(rgb)
             self.rewards.append(reward)
-            screen([f"Saved S{state} @{servo_angle}",
+            screen([f"Saved S{state} @{last_servo_angle}",
                     f"R{rgb[0]} G{rgb[1]}, B{rgb[2]}",
                     f"{reward=}"])
             time.sleep(0.5)
@@ -403,7 +443,9 @@ class Environment:
     def step(self, action):
         if action == self.action_space[0]:  # LEFT
             self.state = max(0, self.state - 1)
-        elif action == self.action_space[1]:  # RIGHT
+        elif action == self.action_space[1]: # STAY
+            pass # keep the current state.
+        elif action == self.action_space[2]:  # RIGHT
             self.state = min(len(self.points)-1, self.state + 1)
         new_angle = self.points[self.state]
         move_servo(new_angle)
@@ -426,10 +468,7 @@ def main():
     start_time = time.ticks_ms()
     while time.ticks_diff(time.ticks_ms(), start_time) < 2000:
         if not switch_up.value():
-            print("Auto-run aborted by user. Exiting to REPL.")
-            display.fill(0)
-            display.text("Aborted to REPL", 10, 25)
-            display.show()
+            screen(["Auto-run aborted by user. Exiting to REPL."])
             sys.exit()
         time.sleep(0.05)
         
@@ -439,27 +478,38 @@ def main():
     agent = QLearningAgent(env)
     rewards_history = []
     timesteps = []
-    screen(["Rewards=",
-            ",".join(map(lambda r: str(round(r)),env.rewards)),
+    rewards_string = ",".join(map(lambda r: str(round(r)),env.rewards))
+    screen(["Rewards=", rewards_string,
             "Press to start"," training."])
     waitforbutton()
+    policy = "" # keep the last-built policy string
     for episode in range(EPISODES):
         env.reset()
+        agent.epsilon = EPSILON * (1.0 - (episode / EPISODES))
         total_episode_reward = 0
         max_episode_time = 0
+        state_rewards = {s: [] for s in range(NUM_STATES)}
+        state_rewards[env.state].append(env.rewards[env.state])
         
         for e_t in range(TIMESTEPS):
             max_episode_time = e_t
-            q_map = [f"{a} Q={agent.qtable[env.state][i]}"
+            state = env.state
+            q_map = [f"{a[0]}{int(agent.qtable[state][i])}"
                          for i, a in enumerate(env.action_space)]
-            action = agent.choose_action(env.state)
+            action, was_random = agent.choose_action(state)
+            action_str = action
+            if was_random:
+                action_str += "*"
             new_state, reward, done = env.step(action)
-            update = f"Next state: {new_state} r={reward}"
+            state_rewards[new_state].append(reward)
+            update = f"Next:{new_state} r={reward}"
             if done:
                 update = "Goal!"
-            screen([f"E={episode} T={e_t}",
-                    f"S={env.state} R={env.rewards[env.state]}"] +
-                    q_map + [f"Chosen: {action}", update])
+            screen([f"E={episode} T={e_t} e={agent.epsilon:.2f}",
+                    f"S={state} R={env.rewards[state]}",
+                    " ".join(q_map),
+                    f"Chosen: {action_str}",
+                    update])
             agent.learn(reward, new_state)
             if done:
                 total_episode_reward += MAX_REWARD * (TIMESTEPS - e_t)
@@ -471,16 +521,48 @@ def main():
         rewards_history.append(total_episode_reward)
         timesteps.append(max_episode_time)
 
-        screen([f"Episode {episode} done",
-                f"Reward: {total_episode_reward}",
-                f"Steps: {max_episode_time}",
-                "Press to continue."])
+        # Build Q-table policy string
+        policy = ""
+        for s in range(NUM_STATES):
+            left_q = agent.qtable[s][0]
+            stay_q = agent.qtable[s][1]
+            right_q = agent.qtable[s][2]
+            if left_q > stay_q and left_q > right_q:
+                policy += "<"
+            elif stay_q > left_q and stay_q > right_q:
+                policy += "v"
+            elif right_q > left_q and right_q > stay_q:
+                policy += ">"
+            elif left_q == stay_q and stay_q == right_q:
+                policy += "o"
+            elif left_q == stay_q:
+                policy += "["
+            elif right_q == stay_q:
+                policy += "]"
+            elif left_q == right_q:
+                policy += "X"
+            else:
+                policy += "-"  # Equal (unexplored)
+
+        # Build average rewards string
+        rwds_per_state = []
+        for s in range(NUM_STATES):
+            if state_rewards[s]:
+                rwds_per_state.append(str(sum(state_rewards[s])))
+            else:
+                rwds_per_state.append("_")
+        rewards_map = "R=" + ",".join(rwds_per_state)
+
+        
+        screen([f"E{episode} St={max_episode_time} R={total_episode_reward}",
+                f"Rewards: {rewards_map}",
+                f"Policy: {policy}",
+                "SELECT=next"])
         waitforbutton()
 
     # Display grand total reward at the end of training
-    screen(["Training Complete",
-            f"Total={sum(rewards_history)}:",
-            f"{rewards_history}"])
+    screen([f"End! Score={sum(rewards_history)}",
+            f"{rewards_history}", rewards_string, policy])
 
 # Initialize timer objects globally (uninitialized)
 batt = Timer(1)
