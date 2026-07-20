@@ -10,7 +10,10 @@ i2c = SoftI2C(scl = Pin(7), sda = Pin(6))
 class SENSORS:
     def __init__(self,connection=i2c):
         self.i2c=connection
-        self.adx = adxl345.ADXL345(self.i2c)
+        try:
+            self.adx = adxl345.ADXL345(self.i2c)
+        except OSError:
+            self.adx = None
         
         self.initial = [0, 4095]
         self.final =  [0, 180]
@@ -39,7 +42,6 @@ class SENSORS:
     def selectsensor(self):
         p_digital = Pin(5, Pin.OUT) #set pin as digital
         p_digital.value(0) #set pin low
-        time.sleep_ms(10)        # ← added this
         p_analog = ADC(Pin(5)) # set pin 5 to analog
         p_analog.atten(ADC.ATTN_11DB) # the pin expects a voltage range up to 3.3V
         low = p_analog.read() # read value
@@ -47,7 +49,6 @@ class SENSORS:
 
         p_digital = Pin(5, Pin.OUT) #set pin as digital
         p_digital.value(1) #set pin high
-        time.sleep_ms(10)   # added this. 
         p_analog = ADC(Pin(5)) #set pin to analog
         p_analog.atten(ADC.ATTN_11DB) # the pin expects a voltage range up to 3.3V
         high = p_analog.read() #read value

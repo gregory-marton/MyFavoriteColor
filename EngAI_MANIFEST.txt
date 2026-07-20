@@ -1,0 +1,15 @@
+adxl345.py
+boot.py
+data.py
+files.py
+icons.py
+main.py
+myfavcolor.py
+prefs.py
+sensors.py
+servo.py
+ssd1306.py
+standalone.py
+swv.py
+webconnect.py
+trainData.txt
