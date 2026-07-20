@@ -40,7 +40,11 @@ mode = setmode()
 if mode == 0:
     import sensors
     s = sensors.SENSORS()
-    if not s.attached: # i2c mode
+    devices = s.i2c.scan()
+    if 0x10 in devices: # have color sensor?
+        import myfavcolor
+        myfavcolor.main()
+    elif not s.attached: # i2c mode
         import myfavcolor
         myfavcolor.main()
     else: # analog mode

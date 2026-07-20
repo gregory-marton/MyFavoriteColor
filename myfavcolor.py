@@ -23,7 +23,7 @@ import struct
 NUM_STATES = 7  # Number of distinct states.
 EPISODES = 5   # Number of RL episodes to run.
 TIMESTEPS = 15  # Maximum steps in each episode.
-STATE_ANGLE_STEP = 20  # Degrees angle between adjacent states. Or 0 to use the pot.
+STATE_ANGLE_STEP = 0  # Degrees angle between adjacent states. Or 0 to use the pot.
 
 # Q-learning parameters:
 ALPHA = 0.1        # How much to trust new information.
@@ -181,7 +181,6 @@ def displaybatt(p):
 
 def move_servo(angle):
     s.write_angle(angle)
-    time.sleep(MOTOR_SETTLE_TIME)
     return angle
 
 def update_motor_with_pot(last_pot_value, last_servo_angle):
@@ -191,7 +190,7 @@ def update_motor_with_pot(last_pot_value, last_servo_angle):
     if abs(pot_value - last_pot_value) > POT_THRESHOLD:
         # Map potentiometer value to 0-180 degrees
         # ADC is 12-bit: 0-4095 corresponds to 0-3.3V
-        new_angle = int((pot_value / 4095.0) * START_ANGLE)
+        new_angle = int((1 - (pot_value / 4095.0)) * START_ANGLE)
         new_angle = max(0, min(START_ANGLE, new_angle))  # Ensure within bounds
         new_angle = move_servo(new_angle)
     return pot_value, new_angle
@@ -216,9 +215,16 @@ def waitforbutton():
 
 def screen(text):
     display.fill(0)
+    if len(text) > 5: # need to use the top line
+        first = text.pop(0)
+        display.text(first, 20, 0)
     x = 5
-    y = 5
+    y = 15
     for line in text:
+        if len(line) > 16:
+            display.text(line[:16], 0, y)
+            line = line[17:]
+            y += 10
         display.text(line, x, y)
         y += 10
     display.show()
@@ -298,6 +304,7 @@ class Environment:
         """
         self.favorite_color = (0, 0, 0)
         last_pot_value = sens.readpot()
+        servo_angle = START_ANGLE
         while not checkbuttons():
             last_pot_value, servo_angle = update_motor_with_pot(
                 last_pot_value, servo_angle)
@@ -311,12 +318,14 @@ class Environment:
         self.points = []
         self.colors = []
         self.rewards = []
+        self.states = list(range(NUM_STATES))
         pot_mode = STATE_ANGLE_STEP == 0
         servo_angle = move_servo(START_ANGLE)
-        screen(["Calibration:",
-                "Turn POT fully LEFT.",
-                "Align to LEFTMOST color.",
-                "Then press a button."])
+        screen(["Turn pot LEFT",
+                "(c'ter-clock'w)",
+                "Sensor on LEFT-",
+                "-most color",
+                "Then press sthg"])
         waitforbutton()
 
         for state in range(NUM_STATES):
@@ -332,9 +341,9 @@ class Environment:
                     screen([f"State {state=} @{servo_angle}",
                             f"R{rgb[0]} G{rgb[1]}, B{rgb[2]}",
                             f"{reward=}"])
-                    time.sleep(0.1)
             else:
                 servo_angle = move_servo(servo_angle - STATE_ANGLE_STEP)
+                time.sleep(MOTOR_SETTLE_TIME)
                 rgb = sensor.rgb
                 d, reward = self.reward(rgb)
                 
@@ -396,7 +405,7 @@ def main():
     agent = QLearningAgent(env)
     rewards_history = []
     timesteps = []
-    screen(["Press to start training."])
+    screen(["Press to start"," training."])
     waitforbutton()
     for episode in range(EPISODES):
         env.reset()
@@ -412,8 +421,9 @@ def main():
             update = f"Next state: {new_state} r={reward}"
             if done:
                 update = "Goal!"
-            screen([f"E={episode} T={e_t} S={env.state} R={env.rewards[env.state]}"] +
-                   q_map + [f"Chosen: {action}", update])
+            screen([f"E={episode} T={e_t}",
+                    "S={env.state} R={env.rewards[env.state]}"] +
+                    q_map + [f"Chosen: {action}", update])
             agent.learn(reward, new_state)
             if done:
                 total_episode_reward += MAX_REWARD * (TIMESTEPS - e_t)
