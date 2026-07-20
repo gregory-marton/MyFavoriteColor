@@ -211,7 +211,11 @@ def waitforbutton():
         while not pressed:
             time.sleep(0.05)
             pressed = checkbuttons()
-        return chosen
+
+        chosen = pressed
+        while checkbuttons():
+            time.sleep(0.05)
+    return chosen
 
 def screen(text):
     display.fill(0)
