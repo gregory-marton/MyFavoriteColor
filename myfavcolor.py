@@ -288,6 +288,7 @@ class Environment:
         self.distances = None
         self.rewards = None
         self.reset()
+        self.calibrate_white_balance()
         self.capture_favorite_color()
         self.calibrate_states()
 
@@ -296,6 +297,32 @@ class Environment:
         self.angle = move_servo(START_ANGLE)
         return self.state
 
+    def calibrate_white_balance(self):
+        sensor.white_balance = (1.0, 1.0, 1.0)
+        
+        last_pot_value = sens.readpot()
+        servo_angle = START_ANGLE
+        while not checkbuttons():
+            last_pot_value, servo_angle = update_motor_with_pot(
+                last_pot_value, servo_angle)
+            r, g, b = sensor.rgb
+            screen(["Point at WHITE", "SELECT=ok"])
+            time.sleep(0.05)
+            
+        while checkbuttons():
+            time.sleep(0.05)
+            
+        r, g, b = sensor.rgb
+        wr = 255.0 / max(1, r)
+        wg = 255.0 / max(1, g)
+        wb = 255.0 / max(1, b)
+        
+        sensor.white_balance = (wr, wg, wb)
+        
+        screen(["White Balance", "Saved!", f"R x{wr:.1f}", f"G x{wg:.1f}", f"B x{wb:.1f}"])
+        time.sleep(1)
+
+    
     def capture_favorite_color(self):
         """Point the sensor at any real-world object and press SELECT to lock in
         its color as the 'favorite color' that all rewards will be measured
@@ -314,7 +341,7 @@ class Environment:
                 last_pot_value, servo_angle)
             r, g, b = sensor.rgb
             self.favorite_color = (r, g, b)
-            screen([f"R{r}, G{g}, B{b}", "", "SELECT=ok"])
+            screen(["Set FAV color", f"R{r}, G{g}, B{b}", "", "SELECT=ok"])
             time.sleep(0.05)
 
     def calibrate_states(self):
@@ -378,6 +405,8 @@ class Environment:
         elif action == self.action_space[1]:  # RIGHT
             self.state = min(len(self.points)-1, self.state + 1)
         new_angle = self.points[self.state]
+        move_servo(new_angle)
+        time.sleep(MOTOR_SETTLE_TIME)
         reward = self.rewards[self.state]
         done = reward == MAX_REWARD
         return self.state, reward, done
@@ -446,8 +475,8 @@ def main():
         waitforbutton()
 
     # Display grand total reward at the end of training
-    screen(["Training Complete!",
-            f"Rewards Σ={sum(rewards_history)}:",
+    screen(["Training Complete",
+            f"Total={sum(rewards_history)}:",
             f"{rewards_history}"])
 
 # Initialize timer objects globally (uninitialized)
