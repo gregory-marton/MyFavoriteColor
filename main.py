@@ -44,9 +44,6 @@ if mode == 0:
     if 0x10 in devices: # have color sensor?
         import myfavcolor
         myfavcolor.main()
-    elif not s.attached: # i2c mode
-        import myfavcolor
-        myfavcolor.main()
     else: # analog mode
         import standalone
         standalone.main()
