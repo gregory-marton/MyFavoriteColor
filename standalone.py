@@ -37,7 +37,7 @@ def oneNearestNeighbor(training_points, query_point):
         distance = abs(light_reading - query_light_reading)
         if closest_point is None or distance < min_distance_so_far:
             closest_point = training_point
-        min_distance_so_far = distance
+            min_distance_so_far = distance
     return closest_point
 
 def chooseMotorPosition(training_points, query_point):
