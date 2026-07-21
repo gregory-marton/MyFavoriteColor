@@ -1,4 +1,9 @@
 
+# standalone.py
+# This is the code that controls Smart Motor bevahior.
+# To change the functionality of the Smart Motor, you should only have to change this file.
+
+
 from machine import Pin, SoftI2C, PWM, ADC
 from files import *
 import time
@@ -13,6 +18,35 @@ import machine
 
 import sensors
 sens=sensors.SENSORS()
+
+def oneNearestNeighbor(training_points, query_point):
+    """Each point in training and the query point are a tuple of 
+       (light_sensor_reading, motor_position).
+       For the query point, the motor position is where the motor is now, 
+       and we need to return the nearest training point, so that
+       chooseMotorPosition can return its motor position as the desired 
+       place to go.
+       """
+    query_light_reading = query_point[0]
+    if not training_points:
+        return None
+    min_distance_so_far = float('inf')
+    closest_point = None
+    for training_point in training_points:
+        light_reading = training_point[0]
+        distance = abs(light_reading - query_light_reading)
+        if closest_point is None or distance < min_distance_so_far:
+            closest_point = training_point
+        min_distance_so_far = distance
+    return closest_point
+
+def chooseMotorPosition(training_points, query_point):
+    oneNeighbor = oneNearestNeighbor(training_points, query_point)
+    if oneNeighbor is None:
+        motor_position = query_point[1]
+    else:    
+        motor_position = oneNeighbor[1]
+    return motor_position
 
 #unique name
 
@@ -99,7 +133,6 @@ def downpressed(count=-1):
     
     triggered=True #log file
 
-
 def uppressed(count=1):
     global playFlag
     global triggered
@@ -129,10 +162,7 @@ def selectpressed():
     time.sleep(0.05)
     flags[highlightedIcon[screenID][0]]=True    
     triggered=True #log file
-    
-
-    
-        
+       
 def resettohome():
     global screenID
     global highlightedIcon
@@ -196,23 +226,6 @@ def displaybatt(p):
     display.showbattery(batterycharge)
  
     return batterycharge
-
-
-
-def nearestNeighbor(data, point):
-    try:
-        point = point[0]
-    except TypeError:
-        pass
-    if len(data) == 0:
-        return 0
-    diff = 10000
-    test = None
-    for i in data:
-        if abs(i[0] - point) <= diff:
-            diff = abs(i[0] - point)
-            test = i
-    return (point, test[1])
 
 def resetflags():
     global flags
@@ -315,24 +328,20 @@ while True:
             display.graph(oldpoint, point, points,0)
             resetflags()    
 
-        
-
         if(playFlag): #only when point is different now
             if(not point==oldpoint): #only when point is different now
-                point = nearestNeighbor(points,point)
-                s.write_angle(point[1])
-                display.graph(oldpoint, point, points,1) #inverted color
- 
-
+                x_point = point[0]
+                y_point = chooseMotorPosition(points, point)
+                s.write_angle(y_point)
+                display.graph(oldpoint, (x_point, y_point), points,1) #inverted color
+                oldpoint=(x_point, y_point)
             
         else:
             if(not point==oldpoint): #only when point is different now
                 s.write_angle(point[1])
                 display.graph(oldpoint, point, points,0) #normal color
-                
-               
+            oldpoint=point
                     
-    oldpoint=point
     if clearscreen:
         display.fill(0)
         display.selector(screenID,highlightedIcon[screenID][0],-1)
