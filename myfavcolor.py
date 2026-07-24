@@ -22,7 +22,7 @@ import struct
 
 NUM_STATES = 7  # Number of distinct states.
 EPISODES = 5   # Number of RL episodes to run.
-TIMESTEPS = 15  # Maximum steps in each episode.
+TIMESTEPS = 20  # Maximum steps in each episode.
 START_STATE = None # None for random choice or state number, e.g. 0.
 STATE_ANGLE_STEP = 0  # Degrees angle between adjacent states. Or 0 to use the pot.
 
@@ -48,7 +48,7 @@ DISTANCE_METRIC = "Sine"  # Perceptual or Euclidean, see below.
 # Hardware adjustments:
 START_ANGLE = 180  # Starting motor position in degrees (state 0).
 POT_THRESHOLD = 50  # * 180 degrees / 4096 pot states, so 50 is a touch over 2 degrees.
-MOTOR_SETTLE_TIME = 1.0  # Seconds to wait for motor/sensor to stabilize
+MOTOR_SETTLE_TIME = 1  # Seconds to wait for motor/sensor to stabilize
 
 def dist_euclidean(c1, c2):
     return math.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2)))
@@ -89,6 +89,13 @@ DISTANCE_FUNCS = {
     "Sine": dist_sine,
 }
 
+THEORETICAL_MAX_DIST = {
+    "Euclidean": 255 * math.sqrt(3),
+    "Perceptual": 255.0,   # since weights sum to 1
+    "Sine": 1.0,
+    "Cosine": 1.0,
+}
+    
 class VEML6040:    
     """VEML6040 RGBW Color Sensor Driver"""
     # VEML6040 I2C Peripheral Address and Registers
@@ -247,6 +254,22 @@ def waitforbutton():
             time.sleep(0.05)
     return chosen
 
+def compact_num(n):
+    """1-2 digit numbers as-is; 3+ digit numbers to ~1 sig fig with a suffix.
+    100s -> 'h' (300 -> '3h'), 1000s -> 'k' (4000 -> '4k'),
+    10000s -> 'k' with 2 digits (20327 -> '20k')."""
+    sign = "-" if n < 0 else ""
+    n = abs(n)
+
+    if n < 100:
+        return f"{sign}{n}"
+    elif n < 950:
+        return f"{sign}{round(n / 100)}h"
+    elif n < 950000:
+        return f"{sign}{round(n / 1000)}k"
+    else:
+        return f"{sign}{round(n / 1000000)}m"
+
 last_screen=[]
 def screen(text):
     CHRW = 16
@@ -282,7 +305,13 @@ class QLearningAgent:
     def initialize_qtable(self):
         table = {}
         for key, val in enumerate(self.env.states):
+            # Optimistic initialization encourages exploration by starting
+            # Q values at their maximum possible until we learn different.
+            # qvalue = [MAX_REWARD/(1 - GAMMA)] * len(self.actions)
+
+            # Pessimistic initialization encourages early stability:
             qvalue = [0] * len(self.actions)
+            
             table[val] = qvalue 
         return table
 
@@ -323,9 +352,11 @@ class Environment:
         self.colors = None
         self.distances = None
         self.rewards = None
+        self.settle_time = MOTOR_SETTLE_TIME
         self.calibrate_white_balance()
         self.capture_favorite_color()
         self.calibrate_states()
+        self.compute_rewards()
         self.reset()
 
     def reset(self):
@@ -334,6 +365,13 @@ class Environment:
         last_servo_angle = move_servo(self.points[self.state])
         return self.state
 
+    def recalibrate_favorite_color(self):
+        """Re-run favorite-color capture only. Keeps white balance and
+        state calibration (self.points/self.colors) untouched."""
+        self.capture_favorite_color()
+        self.compute_rewards()
+        self.reset()
+    
     def calibrate_white_balance(self):
         global last_servo_angle
         sensor.white_balance = (1.0, 1.0, 1.0)
@@ -383,7 +421,9 @@ class Environment:
             screen(["Set FAV color", f"R{r}, G{g}, B{b}",
                     f"Angle: {last_servo_angle}", "SELECT=ok"])
             time.sleep(0.05)
-
+        while checkbuttons(): # debounce: wait for release
+            time.sleep(0.05)
+    
     def calibrate_states(self):
         """Calibrate each state and its color. Manually if STATE_ANGLE_STEP is zero."""
         self.points = []
@@ -393,31 +433,25 @@ class Environment:
         pot_mode = STATE_ANGLE_STEP == 0
         global last_servo_angle
         last_servo_angle = move_servo(START_ANGLE)
-        screen(["Turn pot LEFT",
-                "(c'ter-clock'w)",
-                "Sensor on LEFT-",
-                "-most color",
-                "Then press sthg"])
-        waitforbutton()
-
         for state in range(NUM_STATES):
             rgb = None
+            reward = None
             if pot_mode:
-                update_counter = 0
                 last_pot_value = sens.readpot()
                 while not checkbuttons():
                     last_pot_value, last_servo_angle = update_motor_with_pot(
                         last_pot_value, last_servo_angle)
                     rgb = sensor.rgb
-                    d, reward = self.reward(rgb)
+                    reward = round(MAX_REWARD * (1 - self.distance(rgb)))
                     screen([f"{state=} @{last_servo_angle}",
                             f"R{rgb[0]} G{rgb[1]}, B{rgb[2]}",
                             f"{reward=}"])
             else:
-                last_servo_angle = move_servo(last_servo_angle - STATE_ANGLE_STEP)
-                time.sleep(MOTOR_SETTLE_TIME)
+                if self.settle_time > 0:
+                    last_servo_angle = move_servo(last_servo_angle - STATE_ANGLE_STEP)
+                    time.sleep(self.settle_time)
                 rgb = sensor.rgb
-                d, reward = self.reward(rgb)
+                reward = round(MAX_REWARD * (1 - self.distance(rgb)))
                 
             self.points.append(last_servo_angle)
             self.colors.append(rgb)
@@ -426,19 +460,30 @@ class Environment:
                     f"R{rgb[0]} G{rgb[1]}, B{rgb[2]}",
                     f"{reward=}"])
             time.sleep(0.5)
-        # After all distances are known, recompute rewards to renorm by max_d:
-        self.rewards = [self.reward(c)[1] for c in self.colors]
-
-    def distance(self, color):
-        return DISTANCE_FUNCS[self.distance_metric](self.favorite_color, color)
-    
-    def reward(self, color):
-        """The current best guess at rewards. Stable after full calibration."""
+        if 0.1 > (max(self.points) - min(self.points)):
+            # For playing with large values of EPISODES and TIMESTEPS
+            # without waiting for the servo or causing it significant wear:
+            # Take the arm off the SmartMotor, point it by hand during
+            # calibration, at no time touch the pot. We're saving the
+            # color values during calibration and reusing them, so no need
+            # for actual arm movement during training.
+            self.settle_time = 0
+        if EPISODES * TIMESTEPS > 180: # Would take >3m.
+            self.settle_time = 0
+            
+    def compute_rewards(self):
+        """Recompute self.rewards from already-calibrated self.colors,
+        against the current self.favorite_color."""
         distances = [self.distance(c) for c in self.colors]
         max_d = max(distances) if distances and max(distances) > 0 else 1
-        d = self.distance(color)
-        r = round(MAX_REWARD * (1 - d / max_d))
-        return d, r
+        self.rewards = [round(MAX_REWARD * (1 - self.distance(c) / max_d))
+                            for c in self.colors]
+        
+    def distance(self, color):
+        PEAKINESS = 1  # <1 is peaky so fav color is sharper, >1 flattens
+        d = (DISTANCE_FUNCS[self.distance_metric](self.favorite_color, color)
+             / THEORETICAL_MAX_DIST[self.distance_metric])
+        return d ** PEAKINESS
 
     def step(self, action):
         if action == self.action_space[0]:  # LEFT
@@ -448,33 +493,13 @@ class Environment:
         elif action == self.action_space[2]:  # RIGHT
             self.state = min(len(self.points)-1, self.state + 1)
         new_angle = self.points[self.state]
-        move_servo(new_angle)
-        time.sleep(MOTOR_SETTLE_TIME)
+        if self.settle_time > 0:
+            move_servo(new_angle)
+            time.sleep(self.settle_time)
         reward = self.rewards[self.state]
-        done = reward == MAX_REWARD
-        return self.state, reward, done
-        
-def main():
-    global batt
-    batt.deinit()
-    batt.init(period=10000, mode=Timer.PERIODIC, callback=displaybatt)
-    
-    # 2-second startup delay escape hatch
-    display.fill(0)
-    display.text("Starting in 2s...", 10, 20)
-    display.text("Press UP to REPL", 10, 40)
-    display.show()
-    
-    start_time = time.ticks_ms()
-    while time.ticks_diff(time.ticks_ms(), start_time) < 2000:
-        if not switch_up.value():
-            screen(["Auto-run aborted by user. Exiting to REPL."])
-            sys.exit()
-        time.sleep(0.05)
-        
-    display.welcomemessage()
-    
-    env = Environment(DISTANCE_METRIC)
+        return self.state, reward
+
+def learn(env):
     agent = QLearningAgent(env)
     rewards_history = []
     timesteps = []
@@ -483,9 +508,11 @@ def main():
             "Press to start"," training."])
     waitforbutton()
     policy = "" # keep the last-built policy string
+    total_reward_by_state = [0] * NUM_STATES
     for episode in range(EPISODES):
         env.reset()
-        agent.epsilon = EPSILON * (1.0 - (episode / EPISODES))
+        EPSILON_FLOOR = 0.1
+        agent.epsilon = max(EPSILON_FLOOR, EPSILON * (1 - 1.*episode/EPISODES))
         total_episode_reward = 0
         max_episode_time = 0
         state_rewards = {s: [] for s in range(NUM_STATES)}
@@ -494,29 +521,23 @@ def main():
         for e_t in range(TIMESTEPS):
             max_episode_time = e_t
             state = env.state
-            q_map = [f"{a[0]}{int(agent.qtable[state][i])}"
+            q_map = [f"{a[0]}{compact_num(int(agent.qtable[state][i]))}"
                          for i, a in enumerate(env.action_space)]
             action, was_random = agent.choose_action(state)
             action_str = action
             if was_random:
                 action_str += "*"
-            new_state, reward, done = env.step(action)
+            new_state, reward = env.step(action)
             state_rewards[new_state].append(reward)
+            total_reward_by_state[new_state] += reward
             update = f"Next:{new_state} r={reward}"
-            if done:
-                update = "Goal!"
             screen([f"E={episode} T={e_t} e={agent.epsilon:.2f}",
                     f"S={state} R={env.rewards[state]}",
                     " ".join(q_map),
                     f"Chosen: {action_str}",
                     update])
             agent.learn(reward, new_state)
-            if done:
-                total_episode_reward += MAX_REWARD * (TIMESTEPS - e_t)
-                time.sleep(1)
-                break
-            else:
-                total_episode_reward += reward
+            total_episode_reward += reward
 
         rewards_history.append(total_episode_reward)
         timesteps.append(max_episode_time)
@@ -548,22 +569,49 @@ def main():
         rwds_per_state = []
         for s in range(NUM_STATES):
             if state_rewards[s]:
-                rwds_per_state.append(str(sum(state_rewards[s])))
+                rwds_per_state.append(compact_num(sum(state_rewards[s])))
             else:
                 rwds_per_state.append("_")
         rewards_map = "R=" + ",".join(rwds_per_state)
-
-        
-        screen([f"E{episode} St={max_episode_time} R={total_episode_reward}",
+        screen([f"E{episode} St={max_episode_time} R={compact_num(total_episode_reward)}",
                 f"Rewards: {rewards_map}",
                 f"Policy: {policy}",
                 "SELECT=next"])
         waitforbutton()
 
     # Display grand total reward at the end of training
-    screen([f"End! Score={sum(rewards_history)}",
-            f"{rewards_history}", rewards_string, policy])
+    screen([f"End! Score={compact_num(sum(rewards_history))}",
+            f"{list(map(compact_num, rewards_history))}".replace(" ", ""),
+                policy, rewards_string])
+    tastiest = max(enumerate(total_reward_by_state), key=lambda x: x[1])[0]
+    move_servo(env.points[tastiest])
+    time.sleep(5)
+    env.recalibrate_favorite_color()
+    learn(env)
 
+def main():
+    global batt
+    batt.deinit()
+    batt.init(period=10000, mode=Timer.PERIODIC, callback=displaybatt)
+    
+    # 2-second startup delay escape hatch
+    display.fill(0)
+    display.text("Starting in 2s...", 10, 20)
+    display.text("Press UP to REPL", 10, 40)
+    display.show()
+    
+    start_time = time.ticks_ms()
+    while time.ticks_diff(time.ticks_ms(), start_time) < 2000:
+        if not switch_up.value():
+            screen(["Auto-run aborted by user. Exiting to REPL."])
+            sys.exit()
+        time.sleep(0.05)
+        
+    display.welcomemessage()
+    
+    env = Environment(DISTANCE_METRIC)
+    learn(env)
+    
 # Initialize timer objects globally (uninitialized)
 batt = Timer(1)
 
