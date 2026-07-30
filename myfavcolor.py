@@ -57,6 +57,8 @@ _PERCEPTUAL_WEIGHTS = (0.30, 0.59, 0.11)  # R, G, B
 def dist_perceptual_euclidean(c1, c2):
     return math.sqrt(sum(w * (a - b) ** 2 for w, a, b in zip(_PERCEPTUAL_WEIGHTS, c1, c2)))
 
+dist_perceptual = dist_perceptual_euclidean
+
 # Cosine and Sine are magnitude-agnostic, so they only pay attention to hue,
 # not to brightness. 1-cosine is quadratically similar when hues are close.
 def dist_cosine(c1, c2):
@@ -178,38 +180,58 @@ class VEML6040:
         b = min(255, round(b * wb))
         return r, g, b
 
-# Initialize sensor object
-sens = sensors.SENSORS()
-
-# Generate a unique ID for the device
-ID = ubinascii.hexlify(machine.unique_id()).decode()
-
-# Main loop flags
+sens = None
+ID = None
 clearscreen = False
-
-# Define servo, switches, and display
-s = servo.Servo(Pin(2))
-switch_down = Pin(8, Pin.IN)
-switch_select = Pin(9, Pin.IN)
-switch_up = Pin(10, Pin.IN)
-global last_servo_angle
+s = None
+switch_down = None
+switch_select = None
+switch_up = None
 last_servo_angle = 0
+i2c = None
+display = None
+sensor = None
+batt = None
 
-# I2C interface and display
-i2c = sensors.i2c
-display = icons.SSD1306_SMART(128, 64, i2c, switch_up)
-    
 
-# Initialize VEML6040 sensor
-try:
-    sensor = VEML6040(i2c, integration_time=COLOR_INTEGRATION_TIME,
-                       white_balance=WHITE_BALANCE_RGB)
-    print("VEML6040 sensor initialized successfully!")
-except Exception as e:
-    print(f"Failed to initialize VEML6040: {e}")
-    display.showmessage(f"Sensor Error! \n{e}")
-    time.sleep(5) # Let the user actually see the error.
-    raise
+def init_hardware():
+    global sens, ID, s, switch_down, switch_select, switch_up
+    global last_servo_angle, i2c, display, sensor, batt
+
+    if sens is not None and sensor is not None and display is not None and batt is not None:
+        return
+
+    if sens is None:
+        sens = sensors.SENSORS()
+    if ID is None:
+        ID = ubinascii.hexlify(machine.unique_id()).decode()
+    if s is None:
+        s = servo.Servo(Pin(2))
+    if switch_down is None:
+        switch_down = Pin(8, Pin.IN)
+    if switch_select is None:
+        switch_select = Pin(9, Pin.IN)
+    if switch_up is None:
+        switch_up = Pin(10, Pin.IN)
+    last_servo_angle = 0
+    if i2c is None:
+        i2c = sensors.i2c
+    if display is None:
+        display = icons.SSD1306_SMART(128, 64, i2c, switch_up)
+
+    if sensor is None:
+        try:
+            sensor = VEML6040(i2c, integration_time=COLOR_INTEGRATION_TIME,
+                              white_balance=WHITE_BALANCE_RGB)
+            print("VEML6040 sensor initialized successfully!")
+        except Exception as e:
+            print(f"Failed to initialize VEML6040: {e}")
+            display.showmessage(f"Sensor Error! \n{e}")
+            time.sleep(5) # Let the user actually see the error.
+            raise
+
+    if batt is None:
+        batt = Timer(1)
 
 def displaybatt(p):
     batterycharge = sens.readbattery()
@@ -344,7 +366,7 @@ class QLearningAgent:
 
 # Environment Class
 class Environment:
-    def __init__(self, distance_metric="Perceptual"):
+    def __init__(self, distance_metric="Perceptual", auto_calibrate=True):
         self.action_space = ["LEFT", "STAY", "RIGHT"]
         self.favorite_color = None
         self.distance_metric = distance_metric
@@ -353,11 +375,12 @@ class Environment:
         self.distances = None
         self.rewards = None
         self.settle_time = MOTOR_SETTLE_TIME
-        self.calibrate_white_balance()
-        self.capture_favorite_color()
-        self.calibrate_states()
-        self.compute_rewards()
-        self.reset()
+        if auto_calibrate:
+            self.calibrate_white_balance()
+            self.capture_favorite_color()
+            self.calibrate_states()
+            self.compute_rewards()
+            self.reset()
 
     def reset(self):
         self.state = random.choice(range(NUM_STATES)) if START_STATE is None else START_STATE
@@ -591,6 +614,7 @@ def learn(env):
 
 def main():
     global batt
+    init_hardware()
     batt.deinit()
     batt.init(period=10000, mode=Timer.PERIODIC, callback=displaybatt)
     
@@ -612,9 +636,5 @@ def main():
     env = Environment(DISTANCE_METRIC)
     learn(env)
     
-# Initialize timer objects globally (uninitialized)
-batt = Timer(1)
-
 if __name__ == "__main__":
     main()
-

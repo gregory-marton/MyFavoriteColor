@@ -17,7 +17,7 @@ import machine
 
 
 import sensors
-sens=sensors.SENSORS()
+sens = None
 
 def oneNearestNeighbor(training_points, query_point):
     """Each point in training and the query point are a tuple of 
@@ -95,16 +95,25 @@ clearscreen=False
 
 
 #define buttons , sensors and motors
-#servo
-s = servo.Servo(Pin(2))
+s = None
+switch_down = None
+switch_select = None
+switch_up = None
+i2c = None
+display = None
 
-#nav switches
-switch_down = Pin(8, Pin.IN)
-switch_select = Pin(9, Pin.IN)
-switch_up= Pin(10, Pin.IN)
 
-i2c = SoftI2C(scl = Pin(7), sda = Pin(6))
-display = icons.SSD1306_SMART(128, 64, i2c,switch_up)
+def init_hardware():
+    global sens, s, switch_down, switch_select, switch_up, i2c, display
+    if sens is not None:
+        return
+    sens = sensors.SENSORS()
+    s = servo.Servo(Pin(2))
+    switch_down = Pin(8, Pin.IN)
+    switch_select = Pin(9, Pin.IN)
+    switch_up = Pin(10, Pin.IN)
+    i2c = SoftI2C(scl=Pin(7), sda=Pin(6))
+    display = icons.SSD1306_SMART(128, 64, i2c, switch_up)
 
 
 #highlightedIcon=[(ICON,TotalIcons),...]
@@ -255,95 +264,93 @@ def readdatapoints():
 
 
 
-points=readdatapoints()
-if points==[]:
-    highlightedIcon[1][0]=1  #go to add if there are no data saved
+def main(max_iterations=None):
+    global points, screenID, clearscreen, playFlag
+    init_hardware()
 
-#setting up Timers
-tim = Timer(0)
-tim.init(period=50, mode=Timer.PERIODIC, callback=check_switch)
-batt = Timer(1)
-batt.init(period=3000, mode=Timer.PERIODIC, callback=displaybatt)
+    points = readdatapoints()
+    if points == []:
+        highlightedIcon[1][0] = 1  # go to add if there are no data saved
 
-       
-#setup with homescreen  #starts with screenID=0
-display.welcomemessage()
-display.selector(screenID,highlightedIcon[screenID][0],-1)
-oldpoint=[-1,-1]
+    tim = Timer(0)
+    tim.init(period=50, mode=Timer.PERIODIC, callback=check_switch)
+    batt = Timer(1)
+    batt.init(period=3000, mode=Timer.PERIODIC, callback=displaybatt)
 
-    
-while True:
-     
-    point = sens.readpoint()
-    #broadcast(point, screenID, highlightedIcon[screenID][0],ID)
-    
-    #Homepage
-    #[fb_Train,fb_Play]
-    
-    if(screenID==0):
-        if(flags[0]):
-            points=[] #empty the points arrray
-            screenID=1
-            clearscreen=True
-            display.graph(oldpoint, point, points,0) #normal color
-            resetflags()
-            
-        elif(flags[1]):
-            screenID=2
-            clearscreen=True
-            datapoints=readfile()
-            if (datapoints==[]):
-                display.showmessage("No data saved")
-                resettohome()
-            else:
-                display.graph(oldpoint, point, points,0) #normal color
-            resetflags()
-            
-    # Training Screen
-    # [fb_add,fb_delete,fb_smallplay,fb_home]
-    elif(screenID==1):        
-        if(flags[0]): # Play button is pressed
-            if (points):
-                playFlag=True
-                savetofile(points)
+    display.welcomemessage()
+    display.selector(screenID, highlightedIcon[screenID][0], -1)
+    oldpoint = [-1, -1]
+    iterations = 0
+
+    while True:
+        if max_iterations is not None and iterations >= max_iterations:
+            break
+        iterations += 1
+
+        point = sens.readpoint()
+
+        if screenID == 0:
+            if flags[0]:
+                points = []
+                screenID = 1
+                clearscreen = True
+                display.graph(oldpoint, point, points, 0)
+                resetflags()
+
+            elif flags[1]:
+                screenID = 2
+                clearscreen = True
+                datapoints = readfile()
+                if datapoints == []:
+                    display.showmessage("No data saved")
+                    resettohome()
+                else:
+                    display.graph(oldpoint, point, points, 0)
+                resetflags()
+
+        elif screenID == 1:
+            if flags[0]:
+                if points:
+                    playFlag = True
+                    savetofile(points)
+                    shakemotor(point)
+                else:
+                    cleardatafile()
+                    display.showmessage("NO DATA")
+                resetflags()
+
+            elif flags[1]:
+                points.append(list(point))
+                display.graph(oldpoint, point, points, 0)
                 shakemotor(point)
-                #screenID=2 # trigger play screen
-                #uppressed(count=4)
+                resetflags()
+
+            elif flags[2]:
+                if points:
+                    points.pop()
+                display.cleargraph()
+                display.graph(oldpoint, point, points, 0)
+                resetflags()
+
+            if playFlag:
+                if not point == oldpoint:
+                    x_point = point[0]
+                    y_point = chooseMotorPosition(points, point)
+                    s.write_angle(y_point)
+                    display.graph(oldpoint, (x_point, y_point), points, 1)
+                    oldpoint = (x_point, y_point)
+
             else:
-                cleardatafile()
-                display.showmessage("NO DATA")
-            resetflags()
-            
-            
-        elif(flags[1]): # add button is pressed
-            points.append(list(point))
-            display.graph(oldpoint, point, points,0)
-            shakemotor(point)
-            resetflags()
-            
-        elif(flags[2]): #delete button is pressed
-            if(points): #delete only when there is something
-                points.pop()
-            display.cleargraph()
-            display.graph(oldpoint, point, points,0)
-            resetflags()    
+                if not point == oldpoint:
+                    s.write_angle(point[1])
+                    display.graph(oldpoint, point, points, 0)
+                oldpoint = point
 
-        if(playFlag): #only when point is different now
-            if(not point==oldpoint): #only when point is different now
-                x_point = point[0]
-                y_point = chooseMotorPosition(points, point)
-                s.write_angle(y_point)
-                display.graph(oldpoint, (x_point, y_point), points,1) #inverted color
-                oldpoint=(x_point, y_point)
-            
-        else:
-            if(not point==oldpoint): #only when point is different now
-                s.write_angle(point[1])
-                display.graph(oldpoint, point, points,0) #normal color
-            oldpoint=point
-                    
-    if clearscreen:
-        display.fill(0)
-        display.selector(screenID,highlightedIcon[screenID][0],-1)
-        clearscreen=False
+        if clearscreen:
+            display.fill(0)
+            display.selector(screenID, highlightedIcon[screenID][0], -1)
+            clearscreen = False
 
+
+if __name__ == "__main__":
+    main()

@@ -6,22 +6,11 @@ import json
 import ssd1306
 from machine import Pin, SoftI2C, PWM, ADC, Timer
 
-serialPoll = uselect.poll()
-serialPoll.register(sys.stdin, uselect.POLLIN)
-
-i2c = SoftI2C(scl = Pin(7), sda = Pin(6))
-display = ssd1306.SSD1306_I2C(128, 64, i2c)
-
-display.text("HELLO!", 40,35,1)
-display.show()
-
-# connect light 
-light = ADC(Pin(5))
-light.atten(ADC.ATTN_11DB)
-
-# connect servo
-motor = servo.Servo(Pin(2))
-motor.write_angle(90)
+serialPoll = None
+i2c = None
+display = None
+light = None
+motor = None
 
 # this is the dynamic training data 
 training_data = []
@@ -40,7 +29,29 @@ switch_select = Pin(9, Pin.IN)
 
 run_manual = False 
 
+
+def init_hardware():
+    global serialPoll, i2c, display, light, motor
+    if serialPoll is not None:
+        return
+
+    serialPoll = uselect.poll()
+    serialPoll.register(sys.stdin, uselect.POLLIN)
+
+    i2c = SoftI2C(scl=Pin(7), sda=Pin(6))
+    display = ssd1306.SSD1306_I2C(128, 64, i2c)
+
+    display.text("HELLO!", 40, 35, 1)
+    display.show()
+
+    light = ADC(Pin(5))
+    light.atten(ADC.ATTN_11DB)
+
+    motor = servo.Servo(Pin(2))
+    motor.write_angle(90)
+
 def readSensor():
+    init_hardware()
     l=[]
     for i in range(1000):
         l.append(light.read())
@@ -82,6 +93,7 @@ def readSerial():
 
     :return: returns the character which was read, otherwise returns None
     """
+    init_hardware()
     return(sys.stdin.read(1) if serialPoll.poll(0) else None)
 
 # Handles explore mode of json dict 
@@ -255,49 +267,57 @@ def check_switch(p):
         
     last_switch_state_select = switch_state_select
 
-#setting up Timers
-tim = Timer(0)
-tim.init(period=50, mode=Timer.PERIODIC, callback=check_switch)
+def main(max_iterations=None):
+    global final_string, append, starttime, timer_begin
+    init_hardware()
+    tim = Timer(0)
+    tim.init(period=50, mode=Timer.PERIODIC, callback=check_switch)
+    iterations = 0
 
-while True:
-    if(run_manual == False):
-        # continuously read commands over serial and handles them
-        message = readSerial()
-        # start of json dict
-        if(message == '{'):
-            append = True 
+    while True:
+        if max_iterations is not None and iterations >= max_iterations:
+            break
+        iterations += 1
 
-        # end of json dict
-        elif(message == '}'):
-            append = False
-            final_string += message
-            handleJson(final_string)
-            final_string = ""
-            
-        if(append):
-            if(type(message) is str):
+        if run_manual == False:
+            message = readSerial()
+            if message == '{':
+                append = True
+
+            elif message == '}':
+                append = False
                 final_string += message
-                
-        if(message == None and timer_begin == False):
-            starttime = time.time()
-            timer_begin = True
-        elif(not message is None):
-            if(timer_begin):
+                handleJson(final_string)
+                final_string = ""
+
+            if append:
+                if type(message) is str:
+                    final_string += message
+
+            if message == None and timer_begin == False:
+                starttime = time.time()
+                timer_begin = True
+            elif not message is None:
+                if timer_begin:
+                    display.fill(0)
+                    display.text("Connected!", 25, 35, 1)
+                    display.show()
+                    timer_begin = False
+
+            if timer_begin == True and time.time() - starttime > 1:
                 display.fill(0)
-                display.text("Connected!", 25,35,1)
+                display.text("Device", 30, 15, 1)
+                display.text("Not", 30, 35, 1)
+                display.text("Connected", 30, 55, 1)
                 display.show()
-                timer_begin = False
-        
-        if(timer_begin == True and time.time()-starttime > 1):
+        else:
             display.fill(0)
-            display.text("Device", 30,15,1)
-            display.text("Not", 30,35,1)
-            display.text("Connected", 30,55,1)
+            display.text("PLAY MODE", 30, 35, 1)
             display.show()
-    else:
-        display.fill(0)
-        display.text("PLAY MODE",30,35,1)
-        display.show()
-        if(len(training_data) == 0):
-            onload()
-        runData()
+            if len(training_data) == 0:
+                onload()
+            runData()
+
+
+if __name__ == "__main__":
+    main()

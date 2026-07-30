@@ -48,3 +48,12 @@ class SSD1306_SMART:
 
     def showbattery(self, charge):
         self.battery_charge = charge
+
+    def selector(self, screen_id, highlighted_icon, previous_icon):
+        self.history.append(("selector", screen_id, highlighted_icon, previous_icon))
+
+    def graph(self, oldpoint, point, points, color):
+        self.history.append(("graph", oldpoint, point, points, color))
+
+    def cleargraph(self):
+        self.history.append("cleargraph")

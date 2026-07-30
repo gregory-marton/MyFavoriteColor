@@ -2,11 +2,14 @@ import pytest
 import myfavcolor
 
 def test_environment_dynamic_rewards(monkeypatch):
-    # Mock hardware init to prevent endless loops in testing
+    # Mock hardware calibration to prevent interactive loops in testing.
+    monkeypatch.setattr(myfavcolor.Environment, "calibrate_white_balance", lambda self: None)
     monkeypatch.setattr(myfavcolor.Environment, "capture_favorite_color", lambda self: None)
     monkeypatch.setattr(myfavcolor.Environment, "calibrate_states", lambda self: None)
+    monkeypatch.setattr(myfavcolor, "START_STATE", 0)
+    monkeypatch.setattr(myfavcolor, "move_servo", lambda angle: angle)
     
-    env = myfavcolor.Environment(distance_metric="Euclidean")
+    env = myfavcolor.Environment(distance_metric="Euclidean", auto_calibrate=False)
     env.favorite_color = (255, 0, 0)
     env.colors = [
         (0, 0, 0),       # furthest
@@ -14,10 +17,8 @@ def test_environment_dynamic_rewards(monkeypatch):
         (255, 0, 0)      # closest
     ]
     env.points = [140, 160, 180]
-    env.action_space = ["LEFT", "RIGHT"]
     env.states = [0, 1, 2]
-    # mock rewards exactly how calibrate_states does it:
-    env.rewards = [env.reward(c)[1] for c in env.colors]
+    env.compute_rewards()
     
     assert env.rewards[2] == 100
     assert env.rewards[0] == 0
@@ -27,7 +28,6 @@ def test_environment_dynamic_rewards(monkeypatch):
     assert state == 0
     
     # Step RIGHT from state 0 -> state 1
-    next_state, reward, done = env.step("RIGHT")
+    next_state, reward = env.step("RIGHT")
     assert next_state == 1
     assert reward == env.rewards[1]
-    assert done is False

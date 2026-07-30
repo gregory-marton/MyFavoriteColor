@@ -32,21 +32,34 @@ def setmode():
     return mode
     
 
-#detect mode on start up
+def choose_activity(mode, i2c_devices):
+    if mode == 1:
+        return "webconnect"
+    if 0x10 in i2c_devices:
+        return "myfavcolor"
+    return "standalone"
 
-mode = setmode()
-       
 
-if mode == 0:
-    import sensors
-    s = sensors.SENSORS()
-    devices = s.i2c.scan()
-    if 0x10 in devices: # have color sensor?
+def main():
+    mode = setmode()
+    if mode == 0:
+        import sensors
+        s = sensors.SENSORS()
+        devices = s.i2c.scan()
+        activity = choose_activity(mode, devices)
+    else:
+        activity = choose_activity(mode, [])
+
+    if activity == "myfavcolor":
         import myfavcolor
         myfavcolor.main()
-    else: # analog mode
+    elif activity == "standalone":
         import standalone
         standalone.main()
-else:
-    import webconnect
+    else:
+        import webconnect
+        webconnect.main()
 
+
+if __name__ == "__main__":
+    main()

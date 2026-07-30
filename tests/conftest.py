@@ -2,6 +2,7 @@ import sys
 import os
 import builtins
 import time
+import pytest
 
 # Add tests/fakes to the front of sys.path so mock hardware modules are imported instead of failing
 fakes_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "fakes"))
@@ -23,3 +24,13 @@ time.sleep_ms = lambda ms: fake_sleep(ms / 1000.0)
 time.sleep_us = lambda us: fake_sleep(us / 1000000.0)
 time.ticks_ms = lambda: _mock_time_ms
 time.ticks_diff = lambda t1, t2: t1 - t2
+
+
+@pytest.fixture(autouse=True)
+def reset_fake_machine():
+    try:
+        import machine
+        machine.reset_mock_state()
+    except Exception:
+        pass
+    yield
