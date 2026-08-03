@@ -336,6 +336,42 @@ fix, not after.
 
 ---
 
+## 6.5 Field notes — real units probed 2026-08-03
+
+Raw log in `spikes/S5_battery/fleet.csv`. Two cases worth recording because they
+show two *different* failure signatures, not one generic "bad battery":
+
+**bad-unit-1** (`uid 1cdbd4eba680`) — clean, single-mechanism story. Plugged in
+showing raw 2558 (~3.70 V, device said `'half'`); after 10 minutes on USB charge,
+raw 2878 (~4.16 V, device said `'charging'`) — a ~0.46 V climb in 10 minutes,
+converging on almost exactly the golden unit's fully-charged voltage. That's
+fast: a healthy cell with real capacity takes much longer to climb through that
+range. This is the §3.3 signature — reaching near-termination voltage quickly
+from a depleted start is evidence of *low remaining capacity*, not health. Good
+candidate for the archived known-bad-battery reference unit (§7 ask 3).
+
+**unit-3** (`uid ac276e7c1860`) — a different, likely non-battery-primary story.
+Visual: the top ~20 lines of the OLED alternate showing/not showing — a display
+fault (ribbon/solder), independent of the battery. Electrical: on USB, `'full'`
+(raw 2798, ~4.17 V) one moment; unplugging showed the on-screen level jump
+*instantly* to one bar; replugging and re-probing minutes later gave raw 2427
+(~3.63 V, `'low'`) — a 0.54 V swing on USB power with no deliberate load applied.
+That swing is too large and too fast for a normal charge curve or simple cell
+wear. Leading theory: the same physical fault causing the display damage (a
+short, a pinched wire, a cracked joint) is pulling erratic current, and the
+battery alone can't sustain it — which would explain both the instant
+full-to-one-bar drop on unplug (the load-step test, accidentally performed by
+an unknown fault instead of the servo) and the reading instability while on USB.
+**Treat this as a suspected hardware fault first, not a battery-replacement
+candidate** — worth a visual inspection of the display ribbon and nearby solder
+joints before assuming the cell is at fault.
+
+The practical lesson for `smcheck`: **run D-OLED and D-BAT together and look for
+this exact correlation** (visual display fault + anomalously large/fast battery
+voltage swings) rather than triaging battery complaints in isolation.
+
+---
+
 ## 7. What I need from you at the bench
 
 Roughly in priority order. Nothing here needs more than a multimeter.
