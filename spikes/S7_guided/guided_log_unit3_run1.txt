@@ -1,0 +1,19 @@
+BOOT boot_num=1 reset_cause=2(HARD_RESET) resume_stage=0
+REP stage=POT rep=1
+REP stage=POT rep=2
+REP stage=POT rep=3
+STAGE_DONE stage=POT
+REP stage=SELECT rep=1
+REP stage=SELECT rep=2
+REP stage=SELECT rep=3
+STAGE_DONE stage=SELECT
+REP stage=UP rep=1
+REP stage=UP rep=2
+TIMEOUT stage=UP reps=2
+TIMEOUT stage=FLIP reps=0
+WAITING_FOR_REBOOT stage=OFFON
+BOOT boot_num=2 reset_cause=1(PWRON_RESET) resume_stage=5
+REP stage=OFFON rep=1 (confirmed by this reboot)
+STAGE_DONE stage=OFFON
+TIMEOUT stage=SENSOR
+SEQUENCE_COMPLETE
