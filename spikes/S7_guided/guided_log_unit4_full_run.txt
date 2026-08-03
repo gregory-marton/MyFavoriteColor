@@ -1,0 +1,458 @@
+BOOT boot_num=1 reset_cause=2(HARD_RESET) resume_stage=0
+SERVO t=707 angle=0
+SCREEN t=802 lines=POT x3  v=2248|sweep fully|lo:False hi:False
+SERVO t=1725 angle=180
+SERVO t=2735 angle=0
+SERVO t=3745 angle=180
+SERVO t=4755 angle=0
+SCREEN t=4970 lines=POT x3  v=2270|sweep fully|lo:False hi:False
+SCREEN t=5045 lines=POT x3  v=2638|sweep fully|lo:False hi:False
+SCREEN t=5108 lines=POT x3  v=3066|sweep fully|lo:False hi:False
+SCREEN t=5171 lines=POT x3  v=3803|sweep fully|lo:False hi:True
+SCREEN t=5234 lines=POT x3  v=4095|sweep fully|lo:False hi:True
+SERVO t=5763 angle=180
+SCREEN t=6008 lines=POT x3  v=3998|sweep fully|lo:False hi:True
+SCREEN t=6072 lines=POT x3  v=3165|sweep fully|lo:False hi:True
+SCREEN t=6136 lines=POT x3  v=2425|sweep fully|lo:False hi:True
+SCREEN t=6200 lines=POT x3  v=1661|sweep fully|lo:False hi:True
+SCREEN t=6265 lines=POT x3  v=614|sweep fully|lo:False hi:True
+REP stage=POT rep=1
+SCREEN t=6336 lines=POT x2  v=1|sweep fully|lo:False hi:False
+SERVO t=6779 angle=0
+SCREEN t=7239 lines=POT x2  v=25|sweep fully|lo:True hi:False
+SCREEN t=7316 lines=POT x2  v=589|sweep fully|lo:True hi:False
+SCREEN t=7382 lines=POT x2  v=1165|sweep fully|lo:True hi:False
+SCREEN t=7460 lines=POT x2  v=1769|sweep fully|lo:True hi:False
+SCREEN t=7537 lines=POT x2  v=2409|sweep fully|lo:True hi:False
+SCREEN t=7625 lines=POT x2  v=3450|sweep fully|lo:True hi:False
+REP stage=POT rep=2
+SCREEN t=7711 lines=POT x1  v=4095|sweep fully|lo:False hi:False
+SERVO t=7781 angle=180
+SCREEN t=8411 lines=POT x1  v=3992|sweep fully|lo:False hi:True
+SCREEN t=8478 lines=POT x1  v=2958|sweep fully|lo:False hi:True
+SCREEN t=8545 lines=POT x1  v=2028|sweep fully|lo:False hi:True
+SCREEN t=8612 lines=POT x1  v=1147|sweep fully|lo:False hi:True
+REP stage=POT rep=3
+SCREEN t=8690 lines=POT x0  v=221|sweep fully|lo:False hi:False
+STAGE_DONE stage=POT
+SCREEN t=8771 lines=SELECT x3|press SELECT
+SERVO t=8802 angle=0
+SERVO t=9814 angle=180
+REP stage=SELECT rep=1
+SCREEN t=10348 lines=SELECT x2|press SELECT
+SERVO t=10820 angle=0
+REP stage=SELECT rep=2
+SCREEN t=11640 lines=SELECT x1|press SELECT
+SERVO t=11832 angle=180
+REP stage=SELECT rep=3
+SCREEN t=12245 lines=SELECT x0|press SELECT
+STAGE_DONE stage=SELECT
+SCREEN t=12359 lines=UP x3|press UP
+SERVO t=12850 angle=0
+SERVO t=13862 angle=180
+SERVO t=14876 angle=0
+SERVO t=15890 angle=180
+SERVO t=16904 angle=0
+REP stage=UP rep=1
+SCREEN t=17386 lines=UP x2|press UP
+SERVO t=17919 angle=180
+REP stage=UP rep=2
+SCREEN t=18161 lines=UP x1|press UP
+REP stage=UP rep=3
+SCREEN t=18957 lines=UP x0|press UP
+STAGE_DONE stage=UP
+SCREEN t=19080 lines=FLIP x3|toggle the|analog/i2c switch
+SERVO t=19111 angle=0
+SERVO t=20178 angle=180
+SERVO t=21245 angle=0
+SERVO t=22313 angle=180
+SERVO t=23380 angle=0
+SERVO t=24448 angle=180
+SERVO t=25515 angle=0
+SERVO t=26583 angle=180
+SERVO t=27651 angle=0
+SERVO t=28735 angle=180
+SERVO t=29803 angle=0
+SERVO t=30871 angle=180
+SERVO t=31939 angle=0
+SERVO t=33007 angle=180
+SERVO t=34075 angle=0
+SERVO t=35145 angle=180
+SERVO t=36213 angle=0
+SERVO t=37281 angle=180
+SERVO t=38350 angle=0
+SERVO t=39418 angle=180
+SERVO t=40487 angle=0
+SERVO t=41556 angle=180
+SERVO t=42625 angle=0
+SERVO t=43695 angle=180
+SERVO t=44764 angle=0
+SERVO t=45833 angle=180
+SERVO t=46903 angle=0
+SERVO t=48031 angle=180
+SERVO t=49100 angle=0
+TIMEOUT stage=FLIP reps=0
+SCREEN t=49175 lines=thanks! continuing|in a moment...
+STAGE_DONE stage=DISCONNECT_PROMPT
+SERVO t=50709 angle=180
+SCREEN t=50766 lines=POT_B x3  v=1|sweep fully|lo:True hi:False
+SERVO t=51727 angle=0
+SERVO t=52728 angle=180
+SERVO t=53748 angle=0
+SCREEN t=54567 lines=POT_B x3  v=40|sweep fully|lo:True hi:False
+SCREEN t=54642 lines=POT_B x3  v=1503|sweep fully|lo:True hi:False
+REP stage=POT_B rep=1
+SCREEN t=54732 lines=POT_B x2  v=4043|sweep fully|lo:False hi:False
+SERVO t=54769 angle=180
+SCREEN t=54823 lines=POT_B x2  v=4095|sweep fully|lo:False hi:True
+SCREEN t=55501 lines=POT_B x2  v=3950|sweep fully|lo:False hi:True
+SCREEN t=55577 lines=POT_B x2  v=2905|sweep fully|lo:False hi:True
+SCREEN t=55653 lines=POT_B x2  v=2072|sweep fully|lo:False hi:True
+SCREEN t=55730 lines=POT_B x2  v=654|sweep fully|lo:False hi:True
+SERVO t=55787 angle=0
+REP stage=POT_B rep=2
+SCREEN t=55833 lines=POT_B x1  v=7|sweep fully|lo:False hi:False
+SCREEN t=56499 lines=POT_B x1  v=73|sweep fully|lo:True hi:False
+SCREEN t=56562 lines=POT_B x1  v=637|sweep fully|lo:True hi:False
+SCREEN t=56627 lines=POT_B x1  v=1536|sweep fully|lo:True hi:False
+SCREEN t=56690 lines=POT_B x1  v=2666|sweep fully|lo:True hi:False
+REP stage=POT_B rep=3
+SCREEN t=56758 lines=POT_B x0  v=4095|sweep fully|lo:False hi:False
+STAGE_DONE stage=POT_B
+SCREEN t=56845 lines=SELECT_B x3|press SELECT_B
+SERVO t=56864 angle=180
+SERVO t=57871 angle=0
+REP stage=SELECT_B rep=1
+SCREEN t=58843 lines=SELECT_B x2|press SELECT_B
+SERVO t=58889 angle=180
+SERVO t=59898 angle=0
+REP stage=SELECT_B rep=2
+SCREEN t=60031 lines=SELECT_B x1|press SELECT_B
+REP stage=SELECT_B rep=3
+SCREEN t=60374 lines=SELECT_B x0|press SELECT_B
+STAGE_DONE stage=SELECT_B
+SCREEN t=60450 lines=UP_B x3|press UP_B
+SERVO t=60911 angle=180
+REP stage=UP_B rep=1
+SCREEN t=61907 lines=UP_B x2|press UP_B
+SERVO t=61935 angle=0
+SERVO t=62937 angle=180
+REP stage=UP_B rep=2
+SCREEN t=63445 lines=UP_B x1|press UP_B
+SERVO t=63946 angle=0
+REP stage=UP_B rep=3
+SCREEN t=64052 lines=UP_B x0|press UP_B
+STAGE_DONE stage=UP_B
+SCREEN t=64155 lines=FLIP_B x3|toggle the|analog/i2c switch
+SERVO t=65081 angle=180
+SERVO t=66155 angle=0
+SERVO t=67230 angle=180
+SERVO t=68305 angle=0
+SERVO t=69392 angle=180
+SERVO t=70466 angle=0
+SERVO t=71529 angle=180
+SERVO t=72593 angle=0
+SERVO t=73658 angle=180
+SERVO t=74721 angle=0
+SERVO t=75784 angle=180
+SERVO t=76848 angle=0
+SERVO t=77911 angle=180
+SERVO t=78975 angle=0
+SERVO t=80038 angle=180
+SERVO t=81103 angle=0
+SERVO t=82168 angle=180
+SERVO t=83232 angle=0
+SERVO t=84296 angle=180
+SERVO t=85383 angle=0
+SERVO t=86462 angle=180
+SERVO t=87544 angle=0
+SERVO t=88620 angle=180
+SERVO t=89702 angle=0
+SERVO t=90781 angle=180
+SERVO t=91863 angle=0
+SERVO t=92942 angle=180
+SERVO t=94023 angle=0
+TIMEOUT stage=FLIP_B reps=0
+SCREEN t=94271 lines=sustained check|battery-only,|just wait...
+SUSTAIN_SAMPLE t=94298 pot=1 batt_raw=2718 batt_uv=1976000 accel=35,236,-126
+SUSTAIN_SAMPLE t=94813 pot=2 batt_raw=2791 batt_uv=2027000 accel=43,237,-117
+SERVO t=95038 angle=180
+SUSTAIN_SAMPLE t=95330 pot=5 batt_raw=2715 batt_uv=1973000 accel=45,235,-119
+SUSTAIN_SAMPLE t=95839 pot=0 batt_raw=2792 batt_uv=2029000 accel=26,232,-133
+SERVO t=96051 angle=0
+SUSTAIN_SAMPLE t=96339 pot=4 batt_raw=2718 batt_uv=1975000 accel=43,235,-135
+SUSTAIN_SAMPLE t=96852 pot=0 batt_raw=2792 batt_uv=2030000 accel=33,233,-130
+SERVO t=97062 angle=180
+SUSTAIN_SAMPLE t=97352 pot=2 batt_raw=2718 batt_uv=1978000 accel=49,233,-125
+SUSTAIN_SAMPLE t=97860 pot=2 batt_raw=2792 batt_uv=2029000 accel=84,214,-158
+SERVO t=98076 angle=0
+SUSTAIN_SAMPLE t=98370 pot=4 batt_raw=2717 batt_uv=1974000 accel=83,201,-155
+SUSTAIN_SAMPLE t=98886 pot=0 batt_raw=2784 batt_uv=2027000 accel=26,206,-153
+SERVO t=99081 angle=180
+SUSTAIN_SAMPLE t=99447 pot=2 batt_raw=2719 batt_uv=1975000 accel=17,220,-161
+SUSTAIN_SAMPLE t=99964 pot=1 batt_raw=2792 batt_uv=2027000 accel=20,224,-146
+SERVO t=100101 angle=0
+SUSTAIN_SAMPLE t=100477 pot=5 batt_raw=2719 batt_uv=1973000 accel=26,229,-137
+SUSTAIN_SAMPLE t=100994 pot=1 batt_raw=2647 batt_uv=1920000 accel=6,220,-155
+SERVO t=101110 angle=180
+SUSTAIN_SAMPLE t=101507 pot=2 batt_raw=2571 batt_uv=1864000 accel=37,218,-157
+SUSTAIN_SAMPLE t=102024 pot=1 batt_raw=2635 batt_uv=1919000 accel=8,213,-164
+SERVO t=102121 angle=0
+SUSTAIN_SAMPLE t=102537 pot=4 batt_raw=2570 batt_uv=1871000 accel=30,186,-130
+SUSTAIN_SAMPLE t=103056 pot=0 batt_raw=2636 batt_uv=1918000 accel=36,209,-133
+SERVO t=103134 angle=180
+SUSTAIN_SAMPLE t=103571 pot=2 batt_raw=2570 batt_uv=1871000 accel=112,115,-140
+SUSTAIN_SAMPLE t=104090 pot=0 batt_raw=2637 batt_uv=1919000 accel=3,136,-183
+SERVO t=104148 angle=0
+SUSTAIN_SAMPLE t=104605 pot=3 batt_raw=2574 batt_uv=1873000 accel=116,68,-237
+SUSTAIN_SAMPLE t=105105 pot=0 batt_raw=2635 batt_uv=1916000 accel=174,86,-191
+SERVO t=105164 angle=180
+SUSTAIN_SAMPLE t=105624 pot=1 batt_raw=2585 batt_uv=1881000 accel=169,137,-132
+SUSTAIN_SAMPLE t=106125 pot=0 batt_raw=2634 batt_uv=1916000 accel=113,173,-177
+SERVO t=106166 angle=0
+SUSTAIN_SAMPLE t=106632 pot=1 batt_raw=2603 batt_uv=1895000 accel=2,189,-119
+SUSTAIN_SAMPLE t=107138 pot=1 batt_raw=2633 batt_uv=1916000 accel=0,270,-10
+SERVO t=107185 angle=180
+SUSTAIN_SAMPLE t=107652 pot=1 batt_raw=2591 batt_uv=1893000 accel=0,270,-10
+SUSTAIN_SAMPLE t=108160 pot=2 batt_raw=2633 batt_uv=1915000 accel=0,271,-9
+SERVO t=108188 angle=0
+SUSTAIN_SAMPLE t=108675 pot=0 batt_raw=2603 batt_uv=1894000 accel=-7,274,-15
+SUSTAIN_SAMPLE t=109183 pot=0 batt_raw=2631 batt_uv=1915000 accel=1,270,-11
+SERVO t=109211 angle=180
+SUSTAIN_SAMPLE t=109697 pot=0 batt_raw=2600 batt_uv=1893000 accel=-11,269,-17
+SUSTAIN_SAMPLE t=110206 pot=1 batt_raw=2632 batt_uv=1915000 accel=-1,267,-13
+SERVO t=110235 angle=0
+SUSTAIN_SAMPLE t=110724 pot=0 batt_raw=2615 batt_uv=1902000 accel=1,271,-11
+SUSTAIN_SAMPLE t=111235 pot=0 batt_raw=2623 batt_uv=1915000 accel=-1,269,-9
+SERVO t=111263 angle=180
+SUSTAIN_SAMPLE t=111752 pot=0 batt_raw=2614 batt_uv=1896000 accel=4,270,-12
+SUSTAIN_SAMPLE t=112262 pot=0 batt_raw=2631 batt_uv=1915000 accel=-1,264,-11
+SERVO t=112291 angle=0
+SUSTAIN_SAMPLE t=112780 pot=1 batt_raw=2606 batt_uv=1896000 accel=6,269,-15
+SUSTAIN_SAMPLE t=113291 pot=1 batt_raw=2622 batt_uv=1915000 accel=-1,269,-9
+SERVO t=113322 angle=180
+SUSTAIN_SAMPLE t=113793 pot=0 batt_raw=2590 batt_uv=1885000 accel=-13,269,-7
+SUSTAIN_SAMPLE t=114304 pot=2 batt_raw=2623 batt_uv=1908000 accel=-1,270,-11
+SERVO t=114335 angle=0
+SUSTAIN_SAMPLE t=114805 pot=0 batt_raw=2589 batt_uv=1885000 accel=-3,269,-13
+SUSTAIN_SAMPLE t=115316 pot=0 batt_raw=2623 batt_uv=1908000 accel=0,266,-11
+SERVO t=115418 angle=180
+SUSTAIN_SAMPLE t=115829 pot=4 batt_raw=2554 batt_uv=1859000 accel=-11,286,3
+SUSTAIN_SAMPLE t=116343 pot=0 batt_raw=2622 batt_uv=1908000 accel=0,267,-10
+SERVO t=116435 angle=0
+SUSTAIN_SAMPLE t=116846 pot=1 batt_raw=2557 batt_uv=1860000 accel=3,257,-8
+SUSTAIN_SAMPLE t=117359 pot=0 batt_raw=2622 batt_uv=1908000 accel=-2,267,-12
+SERVO t=117757 angle=180
+SUSTAIN_SAMPLE t=117870 pot=0 batt_raw=2554 batt_uv=1860000 accel=-41,287,0
+SUSTAIN_SAMPLE t=118384 pot=1 batt_raw=2621 batt_uv=1908000 accel=0,267,-9
+SERVO t=118758 angle=0
+SUSTAIN_SAMPLE t=118890 pot=6 batt_raw=2554 batt_uv=1859000 accel=2,273,-1
+SUSTAIN_SAMPLE t=119404 pot=0 batt_raw=2620 batt_uv=1908000 accel=-2,267,-9
+SERVO t=119778 angle=180
+SUSTAIN_SAMPLE t=119910 pot=4 batt_raw=2555 batt_uv=1858000 accel=-17,274,-7
+SUSTAIN_SAMPLE t=120426 pot=1 batt_raw=2619 batt_uv=1906000 accel=0,268,-13
+SERVO t=120782 angle=0
+SUSTAIN_SAMPLE t=120936 pot=2 batt_raw=2552 batt_uv=1859000 accel=5,271,-6
+SUSTAIN_SAMPLE t=121451 pot=1 batt_raw=2619 batt_uv=1908000 accel=-2,267,-9
+SERVO t=121787 angle=180
+SUSTAIN_SAMPLE t=121960 pot=2 batt_raw=2554 batt_uv=1859000 accel=-8,280,-17
+SUSTAIN_SAMPLE t=122476 pot=0 batt_raw=2619 batt_uv=1906000 accel=-2,267,-11
+SERVO t=122792 angle=0
+SUSTAIN_SAMPLE t=122984 pot=2 batt_raw=2554 batt_uv=1860000 accel=-15,280,-5
+SUSTAIN_SAMPLE t=123501 pot=0 batt_raw=2619 batt_uv=1906000 accel=-1,269,-10
+SERVO t=123798 angle=180
+SUSTAIN_SAMPLE t=124014 pot=1 batt_raw=2554 batt_uv=1859000 accel=8,264,-9
+SUSTAIN_SAMPLE t=124531 pot=0 batt_raw=2620 batt_uv=1905000 accel=1,269,-11
+SERVO t=124807 angle=0
+SUSTAIN_SAMPLE t=125043 pot=5 batt_raw=2555 batt_uv=1859000 accel=3,263,-12
+SUSTAIN_SAMPLE t=125561 pot=0 batt_raw=2621 batt_uv=1905000 accel=1,268,-12
+SERVO t=125820 angle=180
+SUSTAIN_SAMPLE t=126077 pot=4 batt_raw=2544 batt_uv=1859000 accel=3,261,-20
+SUSTAIN_SAMPLE t=126596 pot=1 batt_raw=2618 batt_uv=1905000 accel=0,268,-11
+SERVO t=126835 angle=0
+SUSTAIN_SAMPLE t=127112 pot=3 batt_raw=2552 batt_uv=1860000 accel=-18,266,-15
+SUSTAIN_SAMPLE t=127630 pot=1 batt_raw=2620 batt_uv=1905000 accel=-2,269,-12
+SERVO t=127849 angle=180
+SUSTAIN_SAMPLE t=128147 pot=4 batt_raw=2551 batt_uv=1860000 accel=34,259,-13
+SUSTAIN_SAMPLE t=128648 pot=0 batt_raw=2619 batt_uv=1906000 accel=-1,269,-9
+SERVO t=128868 angle=0
+SUSTAIN_SAMPLE t=129166 pot=5 batt_raw=2552 batt_uv=1858000 accel=-22,267,-10
+SUSTAIN_SAMPLE t=129668 pot=0 batt_raw=2618 batt_uv=1904000 accel=-2,271,-9
+SERVO t=129870 angle=180
+SUSTAIN_SAMPLE t=130174 pot=5 batt_raw=2552 batt_uv=1858000 accel=-24,282,-7
+SUSTAIN_SAMPLE t=130682 pot=1 batt_raw=2616 batt_uv=1905000 accel=0,267,-10
+SERVO t=130890 angle=0
+SUSTAIN_SAMPLE t=131197 pot=3 batt_raw=2553 batt_uv=1860000 accel=7,265,-10
+SUSTAIN_SAMPLE t=131705 pot=0 batt_raw=2618 batt_uv=1905000 accel=0,267,-10
+SERVO t=131894 angle=180
+SUSTAIN_SAMPLE t=132220 pot=1 batt_raw=2553 batt_uv=1860000 accel=-10,272,-12
+SUSTAIN_SAMPLE t=132739 pot=1 batt_raw=2618 batt_uv=1903000 accel=-1,266,-9
+SERVO t=132908 angle=0
+SUSTAIN_SAMPLE t=133256 pot=3 batt_raw=2550 batt_uv=1859000 accel=-19,279,3
+SUSTAIN_SAMPLE t=133766 pot=1 batt_raw=2616 batt_uv=1904000 accel=0,268,-10
+SERVO t=133915 angle=180
+SUSTAIN_SAMPLE t=134284 pot=2 batt_raw=2552 batt_uv=1858000 accel=-42,283,-8
+SUSTAIN_SAMPLE t=134793 pot=0 batt_raw=2616 batt_uv=1904000 accel=0,269,-10
+SERVO t=134922 angle=0
+SUSTAIN_SAMPLE t=135310 pot=2 batt_raw=2554 batt_uv=1858000 accel=-12,279,-1
+SUSTAIN_SAMPLE t=135828 pot=1 batt_raw=2617 batt_uv=1904000 accel=-1,270,-11
+SERVO t=135938 angle=180
+SUSTAIN_SAMPLE t=136328 pot=2 batt_raw=2553 batt_uv=1859000 accel=-2,283,-3
+SUSTAIN_SAMPLE t=136839 pot=2 batt_raw=2617 batt_uv=1904000 accel=0,270,-12
+SERVO t=136948 angle=0
+SUSTAIN_SAMPLE t=137358 pot=2 batt_raw=2552 batt_uv=1858000 accel=8,274,-13
+SUSTAIN_SAMPLE t=137870 pot=2 batt_raw=2617 batt_uv=1904000 accel=-1,267,-9
+SERVO t=137961 angle=180
+SUSTAIN_SAMPLE t=138372 pot=4 batt_raw=2543 batt_uv=1858000 accel=-1,273,-4
+SUSTAIN_SAMPLE t=138884 pot=0 batt_raw=2616 batt_uv=1903000 accel=0,270,-9
+SERVO t=138977 angle=0
+SUSTAIN_SAMPLE t=139388 pot=3 batt_raw=2552 batt_uv=1860000 accel=-9,269,-16
+SUSTAIN_SAMPLE t=139900 pot=0 batt_raw=2617 batt_uv=1903000 accel=2,269,-12
+SERVO t=139992 angle=180
+SUSTAIN_SAMPLE t=140404 pot=3 batt_raw=2542 batt_uv=1859000 accel=-4,274,-17
+SUSTAIN_SAMPLE t=140918 pot=0 batt_raw=2616 batt_uv=1904000 accel=-1,269,-8
+SERVO t=141011 angle=0
+SUSTAIN_SAMPLE t=141423 pot=4 batt_raw=2553 batt_uv=1852000 accel=16,279,-8
+SUSTAIN_SAMPLE t=141939 pot=0 batt_raw=2617 batt_uv=1903000 accel=0,270,-8
+SERVO t=142029 angle=180
+SUSTAIN_SAMPLE t=142441 pot=4 batt_raw=2551 batt_uv=1852000 accel=13,264,-8
+SUSTAIN_SAMPLE t=142956 pot=0 batt_raw=2606 batt_uv=1902000 accel=0,269,-11
+SERVO t=143031 angle=0
+SUSTAIN_SAMPLE t=143465 pot=3 batt_raw=2552 batt_uv=1858000 accel=12,272,-18
+SUSTAIN_SAMPLE t=143981 pot=0 batt_raw=2616 batt_uv=1902000 accel=-1,268,-11
+SERVO t=144035 angle=180
+SUSTAIN_SAMPLE t=144489 pot=2 batt_raw=2570 batt_uv=1870000 accel=-23,277,-8
+SUSTAIN_SAMPLE t=145004 pot=1 batt_raw=2607 batt_uv=1896000 accel=-2,271,-10
+SERVO t=145041 angle=0
+SUSTAIN_SAMPLE t=145514 pot=0 batt_raw=2600 batt_uv=1886000 accel=4,266,-9
+SUSTAIN_SAMPLE t=146030 pot=0 batt_raw=2608 batt_uv=1902000 accel=0,269,-11
+SERVO t=146067 angle=180
+SUSTAIN_SAMPLE t=146542 pot=1 batt_raw=2583 batt_uv=1875000 accel=-2,267,-8
+SUSTAIN_SAMPLE t=147059 pot=0 batt_raw=2614 batt_uv=1902000 accel=0,269,-10
+SERVO t=147095 angle=0
+SUSTAIN_SAMPLE t=147571 pot=0 batt_raw=2598 batt_uv=1893000 accel=5,267,-10
+SUSTAIN_SAMPLE t=148089 pot=0 batt_raw=2615 batt_uv=1903000 accel=0,268,-11
+SERVO t=148126 angle=180
+SUSTAIN_SAMPLE t=148603 pot=1 batt_raw=2599 batt_uv=1893000 accel=-4,269,-10
+SUSTAIN_SAMPLE t=149122 pot=0 batt_raw=2615 batt_uv=1896000 accel=0,269,-12
+SERVO t=149159 angle=0
+SUSTAIN_SAMPLE t=149637 pot=1 batt_raw=2599 batt_uv=1893000 accel=1,271,-11
+SUSTAIN_SAMPLE t=150155 pot=2 batt_raw=2606 batt_uv=1896000 accel=-2,269,-9
+SERVO t=150194 angle=180
+SUSTAIN_SAMPLE t=150672 pot=2 batt_raw=2586 batt_uv=1885000 accel=4,266,-16
+SUSTAIN_SAMPLE t=151172 pot=1 batt_raw=2607 batt_uv=1896000 accel=-1,268,-10
+SERVO t=151210 angle=0
+SUSTAIN_SAMPLE t=151690 pot=1 batt_raw=2590 batt_uv=1886000 accel=-1,265,-12
+SUSTAIN_SAMPLE t=152209 pot=0 batt_raw=2607 batt_uv=1898000 accel=0,269,-12
+SERVO t=152249 angle=180
+SUSTAIN_SAMPLE t=152728 pot=2 batt_raw=2588 batt_uv=1883000 accel=-3,272,-8
+SUSTAIN_SAMPLE t=153229 pot=0 batt_raw=2615 batt_uv=1902000 accel=-1,270,-11
+SERVO t=153277 angle=0
+SUSTAIN_SAMPLE t=153748 pot=0 batt_raw=2591 batt_uv=1886000 accel=-11,271,-9
+SUSTAIN_SAMPLE t=154256 pot=1 batt_raw=2606 batt_uv=1902000 accel=-2,271,-10
+SERVO t=154283 angle=180
+SUSTAIN_SAMPLE t=154769 pot=0 batt_raw=2600 batt_uv=1893000 accel=-2,272,-9
+SUSTAIN_SAMPLE t=155278 pot=2 batt_raw=2607 batt_uv=1896000 accel=0,269,-11
+SERVO t=155306 angle=0
+SUSTAIN_SAMPLE t=155793 pot=2 batt_raw=2602 batt_uv=1894000 accel=-2,268,-8
+SUSTAIN_SAMPLE t=156303 pot=0 batt_raw=2606 batt_uv=1896000 accel=-1,267,-13
+SERVO t=156330 angle=180
+SUSTAIN_SAMPLE t=156819 pot=0 batt_raw=2590 batt_uv=1885000 accel=-5,268,-11
+SUSTAIN_SAMPLE t=157320 pot=0 batt_raw=2606 batt_uv=1896000 accel=-1,270,-12
+SERVO t=157362 angle=0
+SUSTAIN_SAMPLE t=157830 pot=0 batt_raw=2591 batt_uv=1886000 accel=-4,276,-7
+SUSTAIN_SAMPLE t=158341 pot=1 batt_raw=2607 batt_uv=1896000 accel=-2,272,-9
+SERVO t=158383 angle=180
+SUSTAIN_SAMPLE t=158844 pot=0 batt_raw=2576 batt_uv=1880000 accel=3,271,-16
+SUSTAIN_SAMPLE t=159348 pot=1 batt_raw=2606 batt_uv=1896000 accel=-1,272,-11
+SERVO t=159398 angle=0
+SUSTAIN_SAMPLE t=159848 pot=0 batt_raw=2572 batt_uv=1873000 accel=-15,272,-12
+SUSTAIN_SAMPLE t=160359 pot=0 batt_raw=2606 batt_uv=1895000 accel=1,270,-9
+SERVO t=160410 angle=180
+SUSTAIN_SAMPLE t=160861 pot=0 batt_raw=2554 batt_uv=1860000 accel=-28,274,-8
+SUSTAIN_SAMPLE t=161372 pot=0 batt_raw=2606 batt_uv=1894000 accel=-1,271,-9
+SERVO t=161414 angle=0
+SUSTAIN_SAMPLE t=161876 pot=0 batt_raw=2583 batt_uv=1881000 accel=-12,274,-3
+SUSTAIN_SAMPLE t=162388 pot=0 batt_raw=2605 batt_uv=1896000 accel=-2,267,-11
+SERVO t=162420 angle=180
+SUSTAIN_SAMPLE t=162892 pot=1 batt_raw=2587 batt_uv=1885000 accel=2,276,-3
+SUSTAIN_SAMPLE t=163404 pot=2 batt_raw=2604 batt_uv=1896000 accel=0,265,-11
+SERVO t=163436 angle=0
+SUSTAIN_SAMPLE t=163907 pot=1 batt_raw=2590 batt_uv=1886000 accel=-4,273,-9
+SUSTAIN_SAMPLE t=164420 pot=0 batt_raw=2607 batt_uv=1895000 accel=0,269,-11
+SERVO t=164468 angle=180
+SUSTAIN_SAMPLE t=164923 pot=0 batt_raw=2555 batt_uv=1860000 accel=-22,281,-14
+SUSTAIN_SAMPLE t=165430 pot=0 batt_raw=2606 batt_uv=1896000 accel=-1,272,-8
+SERVO t=165478 angle=0
+SUSTAIN_SAMPLE t=165930 pot=0 batt_raw=2572 batt_uv=1874000 accel=11,264,-13
+SUSTAIN_SAMPLE t=166443 pot=0 batt_raw=2605 batt_uv=1895000 accel=0,267,-11
+SERVO t=166496 angle=180
+SUSTAIN_SAMPLE t=166950 pot=0 batt_raw=2560 batt_uv=1863000 accel=-20,274,-13
+SUSTAIN_SAMPLE t=167464 pot=0 batt_raw=2604 batt_uv=1895000 accel=0,270,-10
+SERVO t=167498 angle=0
+SUSTAIN_SAMPLE t=167972 pot=1 batt_raw=2590 batt_uv=1886000 accel=-10,273,-13
+SUSTAIN_SAMPLE t=168487 pot=0 batt_raw=2605 batt_uv=1896000 accel=-1,269,-10
+SERVO t=168523 angle=180
+SUSTAIN_SAMPLE t=168999 pot=0 batt_raw=2590 batt_uv=1885000 accel=-9,270,-14
+SUSTAIN_SAMPLE t=169515 pot=0 batt_raw=2604 batt_uv=1895000 accel=-2,270,-9
+SERVO t=169550 angle=0
+SUSTAIN_SAMPLE t=170025 pot=3 batt_raw=2588 batt_uv=1885000 accel=-2,274,-11
+SUSTAIN_SAMPLE t=170541 pot=0 batt_raw=2604 batt_uv=1895000 accel=0,266,-9
+SERVO t=170577 angle=180
+SUSTAIN_SAMPLE t=171053 pot=0 batt_raw=2587 batt_uv=1881000 accel=1,265,-10
+SUSTAIN_SAMPLE t=171571 pot=0 batt_raw=2604 batt_uv=1894000 accel=-1,269,-9
+SERVO t=171967 angle=0
+SUSTAIN_SAMPLE t=172083 pot=0 batt_raw=2538 batt_uv=1849000 accel=20,265,-9
+SUSTAIN_SAMPLE t=172601 pot=0 batt_raw=2603 batt_uv=1894000 accel=0,269,-11
+SERVO t=172979 angle=180
+SUSTAIN_SAMPLE t=173115 pot=3 batt_raw=2537 batt_uv=1850000 accel=-49,286,-3
+SUSTAIN_SAMPLE t=173633 pot=1 batt_raw=2604 batt_uv=1895000 accel=0,267,-11
+SERVO t=173987 angle=0
+SUSTAIN_SAMPLE t=174145 pot=3 batt_raw=2537 batt_uv=1850000 accel=6,271,-6
+SUSTAIN_SAMPLE t=174664 pot=2 batt_raw=2603 batt_uv=1894000 accel=-2,265,-12
+SERVO t=174995 angle=180
+SUSTAIN_SAMPLE t=175173 pot=1 batt_raw=2541 batt_uv=1851000 accel=7,269,-7
+SUSTAIN_SAMPLE t=175692 pot=1 batt_raw=2604 batt_uv=1894000 accel=0,267,-7
+SERVO t=176012 angle=0
+SUSTAIN_SAMPLE t=176210 pot=4 batt_raw=2538 batt_uv=1851000 accel=14,267,-12
+SUSTAIN_SAMPLE t=176712 pot=1 batt_raw=2603 batt_uv=1894000 accel=-1,269,-11
+SERVO t=177015 angle=180
+SUSTAIN_SAMPLE t=177220 pot=1 batt_raw=2542 batt_uv=1851000 accel=-13,264,-10
+SUSTAIN_SAMPLE t=177727 pot=2 batt_raw=2604 batt_uv=1895000 accel=-1,270,-10
+SERVO t=178034 angle=0
+SUSTAIN_SAMPLE t=178240 pot=3 batt_raw=2540 batt_uv=1851000 accel=24,270,-17
+SUSTAIN_SAMPLE t=178748 pot=0 batt_raw=2603 batt_uv=1895000 accel=0,268,-11
+SERVO t=179037 angle=180
+SUSTAIN_SAMPLE t=179263 pot=4 batt_raw=2542 batt_uv=1850000 accel=4,267,-8
+SUSTAIN_SAMPLE t=179764 pot=1 batt_raw=2603 batt_uv=1894000 accel=0,271,-13
+SERVO t=180052 angle=0
+SUSTAIN_SAMPLE t=180279 pot=2 batt_raw=2539 batt_uv=1851000 accel=-9,263,-16
+SUSTAIN_SAMPLE t=180788 pot=0 batt_raw=2605 batt_uv=1894000 accel=-1,268,-11
+SERVO t=181057 angle=180
+SUSTAIN_SAMPLE t=181306 pot=1 batt_raw=2540 batt_uv=1850000 accel=13,269,-22
+SUSTAIN_SAMPLE t=181815 pot=1 batt_raw=2604 batt_uv=1894000 accel=0,268,-13
+SERVO t=182065 angle=0
+SUSTAIN_SAMPLE t=182334 pot=2 batt_raw=2539 batt_uv=1851000 accel=-20,272,0
+SUSTAIN_SAMPLE t=182844 pot=0 batt_raw=2603 batt_uv=1894000 accel=-3,267,-9
+SERVO t=183073 angle=180
+SUSTAIN_SAMPLE t=183362 pot=4 batt_raw=2539 batt_uv=1850000 accel=35,259,-14
+SUSTAIN_SAMPLE t=183874 pot=2 batt_raw=2604 batt_uv=1894000 accel=0,269,-8
+SERVO t=184077 angle=0
+STAGE_DONE stage=SUSTAIN
+SCREEN t=184378 lines=power cycle|the board now|(OFF then ON)
+WAITING_FOR_REBOOT stage=OFFON
+BOOT boot_num=2 reset_cause=1(PWRON_RESET) resume_stage=11
+REP stage=OFFON rep=1 (confirmed by this reboot)
+STAGE_DONE stage=OFFON
+SERVO t=911 angle=0
+SCREEN t=1039 lines=plug in a|sensor now
+SERVO t=1982 angle=180
+SERVO t=3227 angle=0
+SERVO t=4477 angle=180
+SERVO t=5726 angle=0
+SERVO t=6978 angle=180
+REP stage=SENSOR addr=0x10
+STAGE_DONE stage=SENSOR
+SCREEN t=8075 lines=sensor found:|0x10
+SCREEN t=8145 lines=ALL DONE|reconnect USB|to read results
+SEQUENCE_COMPLETE

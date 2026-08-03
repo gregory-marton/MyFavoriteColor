@@ -11,6 +11,7 @@ let events = [];
 let idx = 0;
 let playing = false;
 let lastFrameWallTime = null;
+let virtualT = 0; // accumulates across frames -- must not be re-derived from events[idx].t
 
 // Sticky state carried forward between events of different types, so e.g.
 // the battery readout still shows the last known value while a SCREEN event
@@ -48,8 +49,16 @@ function updatePanel() {
   document.getElementById("usb-badge").className = state.usb ? "usb-on" : "usb-off";
   document.getElementById("batt-v").textContent = state.batteryV === null ? "--" : state.batteryV.toFixed(3);
   document.getElementById("pot-v").textContent = state.pot === null ? "--" : state.pot;
+  document.getElementById("pot-bar-fill").style.width = state.pot === null ? "0%" : `${(state.pot / 4095) * 100}%`;
   document.getElementById("accel-v").textContent = state.accel === null ? "--" : state.accel.join(",");
   document.getElementById("arm-needle").style.transform = `translate(-50%, 0) rotate(${state.angle - 90}deg)`;
+}
+
+function flashButton(elId) {
+  const el = document.getElementById(elId);
+  el.classList.add("pressed");
+  clearTimeout(el._flashTimer);
+  el._flashTimer = setTimeout(() => el.classList.remove("pressed"), 400);
 }
 
 function logLine(text, highlight) {
@@ -66,6 +75,12 @@ function applyEvent(e) {
   if (e.type === "SCREEN") {
     drawScreen(decodeScreenBuffer(e.screen_buffer_b64));
     logLine(`[${e.t}] SCREEN: ${e.lines.join(" / ")}`);
+    // the pot stages' own display text embeds the live raw reading
+    // ("POT x3  v=1234") -- reuse it rather than needing new device logging.
+    for (const line of e.lines) {
+      const m = line.match(/v=(\d+)/);
+      if (m) state.pot = parseInt(m[1], 10);
+    }
   } else if (e.type === "SERVO") {
     state.angle = e.angle;
   } else if (e.type === "SUSTAIN_SAMPLE") {
@@ -77,6 +92,8 @@ function applyEvent(e) {
     logLine(`[${e.t}] BOOT #${e.boot_num} (${e.reset_cause_name})`, true);
   } else if (e.type === "REP") {
     logLine(`[${e.t}] REP ${e.stage}`);
+    if (e.stage.startsWith("UP")) flashButton("btn-up");
+    if (e.stage.startsWith("SELECT")) flashButton("btn-select");
   } else if (e.type === "STAGE_DONE") {
     logLine(`[${e.t}] STAGE_DONE ${e.stage}`, true);
   } else if (e.type === "TIMEOUT") {
@@ -92,6 +109,7 @@ function seekTo(targetIdx) {
   document.getElementById("log").innerHTML = "";
   for (let i = 0; i <= targetIdx && i < events.length; i++) applyEvent(events[i]);
   idx = targetIdx;
+  virtualT = events[idx] ? events[idx].t : 0;
   document.getElementById("scrub").value = idx;
 }
 
@@ -99,11 +117,10 @@ function tick(nowMs) {
   if (!playing) return;
   if (lastFrameWallTime === null) lastFrameWallTime = nowMs;
   const speed = parseFloat(document.getElementById("speed").value);
-  const elapsedVirtual = (nowMs - lastFrameWallTime) * speed;
+  virtualT += (nowMs - lastFrameWallTime) * speed;
   lastFrameWallTime = nowMs;
 
-  const targetT = (events[idx] ? events[idx].t : 0) + elapsedVirtual;
-  while (idx < events.length - 1 && events[idx + 1].t <= targetT) {
+  while (idx < events.length - 1 && events[idx + 1].t <= virtualT) {
     idx++;
     applyEvent(events[idx]);
   }

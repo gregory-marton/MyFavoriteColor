@@ -30,6 +30,7 @@ def fixture_trace_written():
          "accel": (-9, 1, -253), "on_usb": True},
         {"type": "SUSTAIN_SAMPLE", "t": 400, "pot": 1500, "batt_raw": 1900, "batt_uv": 1400000,
          "accel": (-9, 1, -253), "on_usb": False},
+        {"type": "REP", "t": 450, "stage": "UP"},
         {"type": "STAGE_DONE", "t": 500, "stage": "POT"},
     ]
     events = render_screens(events)
@@ -127,3 +128,41 @@ def test_play_button_advances_the_scrub_position(browser_page):
     page.click("#play")
     page.wait_for_function("parseInt(document.getElementById('scrub').value) > 0", timeout=5000)
     page.click("#pause")
+
+
+def test_play_keeps_advancing_past_the_first_frame(browser_page):
+    # regression test: an earlier bug re-derived the target time from
+    # events[idx].t each frame instead of accumulating a running virtual
+    # clock, so idx got stuck at 0 forever once the per-frame delta wasn't
+    # enough to cross the very first event gap.
+    page = browser_page
+    page.fill("#scrub", "0")
+    page.dispatch_event("#scrub", "input")
+    page.select_option("#speed", "5")
+    page.click("#play")
+    page.wait_for_timeout(1500)
+    idx_at_1500ms = page.evaluate("idx")
+    page.click("#pause")
+    # the bug got idx permanently stuck at 0; this fixture trace is short
+    # enough that a fixed version reaches the very last event well within
+    # 1.5s at 5x speed.
+    assert idx_at_1500ms > 0
+    assert idx_at_1500ms == page.evaluate("events.length - 1")
+
+
+def test_pot_value_extracted_from_screen_text_drives_the_bar(browser_page):
+    page = browser_page
+    page.fill("#scrub", "1")  # the SCREEN event with lines=["POT x3", "sweep fully"]
+    page.dispatch_event("#scrub", "input")
+    # this fixture's SCREEN text has no "v=NNNN" pattern, so pot stays
+    # unset; confirm the bar renders 0% rather than throwing on null.
+    fill_width = page.evaluate("document.getElementById('pot-bar-fill').style.width")
+    assert fill_width in ("0%", "")
+
+
+def test_button_rep_event_flashes_the_pressed_class(browser_page):
+    page = browser_page
+    page.fill("#scrub", "5")  # the REP stage=UP fixture event
+    page.dispatch_event("#scrub", "input")
+    page.wait_for_timeout(50)
+    assert "pressed" in page.get_attribute("#btn-up", "class")
