@@ -361,6 +361,23 @@ range. This is the §3.3 signature — reaching near-termination voltage quickly
 from a depleted start is evidence of *low remaining capacity*, not health. Good
 candidate for the archived known-bad-battery reference unit (§7 ask 3).
 
+**Update, same session, building the S7 guided-test sequence:** while running
+the pot-sweep stage on USB power, the first physical sweep was detected
+correctly (`REP stage=POT rep=1`), then the board **hard-reset** moments
+after being touched — confirmed genuine, not a script crash or an artifact of
+an mpremote interrupt, because it registered as a brand-new boot with its own
+`reset_cause=HARD_RESET` in a log that survives resets (see D-RST, S7). Not
+reproducible cleanly afterward (a follow-up attempt was confounded by an
+accidental mpremote interrupt), and shortly after, **the unit stopped
+powering on entirely, with its charging LED lit** — consistent with a
+battery that finally failed outright, possibly hastened by the repeated
+load-step/reset cycles this session put it through. This is now the
+strongest single candidate for the archived known-bad-battery reference unit
+in §7 ask 3: it went from "measurably low capacity" to "won't power on" over
+the course of one session of exactly the tests this document proposes.
+Worth an autopsy once bench time allows — does it recover after a rest, or is
+the cell truly dead?
+
 **unit-3** (`uid ac276e7c1860`) — two separate findings, now that D-OLED (§8,
 D006) exists and was run against it directly with real test patterns, photo
 evidence attached in this session.
