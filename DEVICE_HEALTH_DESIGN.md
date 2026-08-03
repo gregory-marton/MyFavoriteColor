@@ -350,25 +350,39 @@ range. This is the §3.3 signature — reaching near-termination voltage quickly
 from a depleted start is evidence of *low remaining capacity*, not health. Good
 candidate for the archived known-bad-battery reference unit (§7 ask 3).
 
-**unit-3** (`uid ac276e7c1860`) — a different, likely non-battery-primary story.
-Visual: the top ~20 lines of the OLED alternate showing/not showing — a display
-fault (ribbon/solder), independent of the battery. Electrical: on USB, `'full'`
-(raw 2798, ~4.17 V) one moment; unplugging showed the on-screen level jump
-*instantly* to one bar; replugging and re-probing minutes later gave raw 2427
-(~3.63 V, `'low'`) — a 0.54 V swing on USB power with no deliberate load applied.
-That swing is too large and too fast for a normal charge curve or simple cell
-wear. Leading theory: the same physical fault causing the display damage (a
-short, a pinched wire, a cracked joint) is pulling erratic current, and the
-battery alone can't sustain it — which would explain both the instant
-full-to-one-bar drop on unplug (the load-step test, accidentally performed by
-an unknown fault instead of the servo) and the reading instability while on USB.
-**Treat this as a suspected hardware fault first, not a battery-replacement
-candidate** — worth a visual inspection of the display ribbon and nearby solder
-joints before assuming the cell is at fault.
+**unit-3** (`uid ac276e7c1860`) — two separate findings, now that D-OLED (§8,
+D006) exists and was run against it directly with real test patterns, photo
+evidence attached in this session.
 
-The practical lesson for `smcheck`: **run D-OLED and D-BAT together and look for
-this exact correlation** (visual display fault + anomalously large/fast battery
-voltage swings) rather than triaging battery complaints in isolation.
+*Display:* **not flicker.** Against a border/crosshair pattern, the top border
+edge is missing entirely, the two top corner squares render as thin horizontal
+stripes instead of solid 10×10 blocks, and the top half of the vertical
+midline is dotted rather than solid — while everything below the horizontal
+midline (bottom border, bottom corners, centered text, lower half of the
+vertical line) is pixel-perfect. A full-white fill confirmed the same
+signature: a clean, static horizontal band of thin stripes confined to
+roughly the top quarter of the screen, solid white everywhere below it. That's
+a **static defect confined to a specific vertical band, not a time-varying
+one**, and the sharp boundary at the midline points at a fault isolated to the
+first page or two of the SSD1306's GDDRAM (the controller addresses its 64
+rows as 8 pages of 8 rows each) — a controller/RAM or connector-address-line
+fault, not obviously a power-supply symptom.
+
+*Battery:* on USB, `'full'` (raw 2798, ~4.17 V) one moment; unplugging showed
+the on-screen level jump *instantly* to one bar; replugging and re-probing
+minutes later gave raw 2427 (~3.63 V, `'low'`) — a 0.54 V swing on USB power
+with no deliberate load applied. Still real and still unexplained, but **the
+earlier theory tying this directly to the display fault is now weaker**: a
+static GDDRAM/page-addressing defect isn't an obvious source of the kind of
+erratic current draw that would explain a battery voltage swing. Treat these
+as two independent faults on the same unit unless further evidence links them
+directly, and don't assume fixing one explains the other.
+
+The practical lesson for `smcheck`: **D-OLED with more than one pattern earns
+its keep.** A border-only pattern would have left most of the screen untested
+and produced a vaguer verdict; running a full-white fill alongside it is what
+pinned the defect to a specific vertical band instead of a generic "top of
+screen looks wrong."
 
 ---
 
