@@ -1,0 +1,105 @@
+BOOT boot_num=1 reset_cause=2(HARD_RESET) uid=1cdbd4eba680
+NOTE accelerometer unavailable: [Errno 116] ETIMEDOUT
+S n=0 t=712 pot=4095 batt_raw=2890 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=1 t=991 pot=4095 batt_raw=2889 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=2 t=1245 pot=4095 batt_raw=2891 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=3 t=1500 pot=4095 batt_raw=2891 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=4 t=1756 pot=4095 batt_raw=2890 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=5 t=2012 pot=4095 batt_raw=2890 batt_uv=2089000 btn=1,1,1 accel=None,None,None
+S n=6 t=2268 pot=4095 batt_raw=2890 batt_uv=2089000 btn=1,1,1 accel=None,None,None
+S n=7 t=2524 pot=4095 batt_raw=2891 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=8 t=2780 pot=4095 batt_raw=2889 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=9 t=3037 pot=4095 batt_raw=2890 batt_uv=2089000 btn=1,1,1 accel=None,None,None
+S n=10 t=3294 pot=4095 batt_raw=2890 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=11 t=3552 pot=4095 batt_raw=2891 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=12 t=3809 pot=4095 batt_raw=2890 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=13 t=4067 pot=4095 batt_raw=2890 batt_uv=2087000 btn=1,1,1 accel=None,None,None
+S n=14 t=4325 pot=4095 batt_raw=2891 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=15 t=4584 pot=4095 batt_raw=2890 batt_uv=2087000 btn=1,1,1 accel=None,None,None
+S n=16 t=4843 pot=4095 batt_raw=2890 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=17 t=5102 pot=4095 batt_raw=2890 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=18 t=5619 pot=4095 batt_raw=2890 batt_uv=2089000 btn=1,1,1 accel=None,None,None
+S n=19 t=5879 pot=4095 batt_raw=2890 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=20 t=6139 pot=4095 batt_raw=2890 batt_uv=2089000 btn=1,1,1 accel=None,None,None
+S n=21 t=6399 pot=4095 batt_raw=2889 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=22 t=6659 pot=4095 batt_raw=2890 batt_uv=2087000 btn=1,1,1 accel=None,None,None
+S n=23 t=6920 pot=4095 batt_raw=2889 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=24 t=7181 pot=4095 batt_raw=2891 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=25 t=7442 pot=4095 batt_raw=2891 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=26 t=7704 pot=4095 batt_raw=2891 batt_uv=2087000 btn=1,1,1 accel=None,None,None
+S n=27 t=7966 pot=4095 batt_raw=2890 batt_uv=2087000 btn=1,1,1 accel=None,None,None
+S n=28 t=8228 pot=4095 batt_raw=2890 batt_uv=2087000 btn=1,1,1 accel=None,None,None
+S n=29 t=8490 pot=4095 batt_raw=2890 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=30 t=8753 pot=4095 batt_raw=2891 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=31 t=9017 pot=4095 batt_raw=2890 batt_uv=2089000 btn=1,1,1 accel=None,None,None
+S n=32 t=9280 pot=4095 batt_raw=2891 batt_uv=2087000 btn=1,1,1 accel=None,None,None
+S n=33 t=9543 pot=4095 batt_raw=2891 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=34 t=9807 pot=4095 batt_raw=2891 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=35 t=10071 pot=4095 batt_raw=2890 batt_uv=2089000 btn=1,1,1 accel=None,None,None
+S n=36 t=10336 pot=4095 batt_raw=2891 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=37 t=10600 pot=4095 batt_raw=2891 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=38 t=10866 pot=4095 batt_raw=2891 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+S n=39 t=11131 pot=4095 batt_raw=2889 batt_uv=2088000 btn=1,1,1 accel=None,None,None
+SWEEP_START rest_batt_raw=2891 rest_batt_uv=2088000
+SWEEP_POINT angle=0 batt_raw=2864 batt_uv=2078000
+SWEEP_POINT angle=45 batt_raw=2876 batt_uv=2075000
+SWEEP_POINT angle=90 batt_raw=2874 batt_uv=2075000
+SWEEP_POINT angle=135 batt_raw=2874 batt_uv=2075000
+SWEEP_POINT angle=180 batt_raw=2889 batt_uv=2087000
+SWEEP_POINT angle=90 batt_raw=2874 batt_uv=2075000
+SWEEP_POINT angle=0 batt_raw=2875 batt_uv=2075000
+SWEEP_END rest_batt_raw=2875 rest_batt_uv=2075000
+S n=40 t=12950 pot=4095 batt_raw=2874 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=41 t=13226 pot=4095 batt_raw=2875 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=42 t=13494 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=43 t=13764 pot=4095 batt_raw=2874 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=44 t=14019 pot=4095 batt_raw=2874 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=45 t=14275 pot=4095 batt_raw=2874 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=46 t=14530 pot=4095 batt_raw=2874 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=47 t=14786 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=48 t=15041 pot=4095 batt_raw=2874 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=49 t=15297 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=50 t=15554 pot=4095 batt_raw=2874 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=51 t=15810 pot=4095 batt_raw=2874 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=52 t=16067 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=53 t=16326 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=54 t=16583 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=55 t=16841 pot=4095 batt_raw=2874 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=56 t=17099 pot=4095 batt_raw=2875 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=57 t=17357 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=58 t=17616 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=59 t=17874 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=60 t=18134 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=61 t=18394 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=62 t=19018 pot=4095 batt_raw=2872 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=63 t=19278 pot=4095 batt_raw=2874 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=64 t=19538 pot=4095 batt_raw=2874 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=65 t=19798 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=66 t=20082 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=67 t=20343 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=68 t=20606 pot=4095 batt_raw=2872 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=69 t=20868 pot=4095 batt_raw=2872 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=70 t=21130 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=71 t=21392 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=72 t=21655 pot=4095 batt_raw=2863 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=73 t=21918 pot=4095 batt_raw=2872 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=74 t=22181 pot=4095 batt_raw=2874 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=75 t=22444 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=76 t=22708 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=77 t=22972 pot=4095 batt_raw=2872 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=78 t=23236 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=79 t=23500 pot=4095 batt_raw=2872 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=80 t=23765 pot=4095 batt_raw=2874 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=81 t=24030 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=82 t=24295 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=83 t=24561 pot=4095 batt_raw=2872 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=84 t=24827 pot=4095 batt_raw=2872 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=85 t=25093 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=86 t=25359 pot=4095 batt_raw=2872 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=87 t=25627 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=88 t=25893 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=89 t=26161 pot=4095 batt_raw=2872 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=90 t=26428 pot=4095 batt_raw=2872 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=91 t=26698 pot=4095 batt_raw=2871 batt_uv=2073000 btn=1,1,1 accel=None,None,None
+S n=92 t=26953 pot=4095 batt_raw=2873 batt_uv=2075000 btn=1,1,1 accel=None,None,None
+S n=93 t=27207 pot=4095 batt_raw=2872 batt_uv=2075000 btn=1,1,1 accel=None,None,None
