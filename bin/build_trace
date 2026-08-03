@@ -1,0 +1,32 @@
+#!/Users/gregorymarton/Documents/GitHub/MyFavoriteColor/.venv/bin/python3
+"""Build a replay trace JSON from a captured guided_log.txt.
+
+    ./bin/build_trace spikes/S7_guided/guided_log_unit3_run2.txt web/trace.json
+"""
+
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+
+from smotoremu.trace import parse_guided_log, render_screens
+
+
+def main():
+    if len(sys.argv) != 3:
+        sys.exit("usage: build_trace <guided_log.txt> <output.json>")
+    log_path, out_path = sys.argv[1], sys.argv[2]
+
+    with open(log_path) as f:
+        events = parse_guided_log(f.read())
+    events = render_screens(events)
+    events.sort(key=lambda e: e["t"])
+
+    with open(out_path, "w") as f:
+        json.dump({"source": log_path, "events": events}, f)
+    print(f"wrote {len(events)} events to {out_path}")
+
+
+if __name__ == "__main__":
+    main()

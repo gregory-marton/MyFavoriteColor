@@ -108,14 +108,19 @@ def _write_stage(i):
 
 
 class Display:
-    def __init__(self, i2c):
+    def __init__(self, i2c, log=None):
         self.d = ssd1306.SSD1306_I2C(128, 64, i2c)
+        self.log = log
 
     def show(self, *lines):
         self.d.fill(0)
         for row, text in enumerate(lines):
             self.d.text(text, 4, 8 + row * 12, 1)
         self.d.show()
+        if self.log is not None:
+            # "|"-joined rather than JSON -- no json/ujson dependency needed
+            # on-device, and none of our own literal strings contain "|".
+            _log(self.log, "SCREEN t=%d lines=%s" % (time.ticks_ms(), "|".join(lines)))
 
 
 class ServoSweeper:
@@ -123,12 +128,15 @@ class ServoSweeper:
     "device is alive and ready" signal, and sustained battery-under-load data
     for the whole run rather than just a momentary check."""
 
-    def __init__(self, s, period_ms=1000):
+    def __init__(self, s, log=None, period_ms=1000):
         self.s = s
+        self.log = log
         self.period_ms = period_ms
         self.angle = 0
         self.t0 = time.ticks_ms()
         self.s.write_angle(self.angle)
+        if log is not None:
+            _log(log, "SERVO t=%d angle=%d" % (self.t0, self.angle))
 
     def step(self):
         now = time.ticks_ms()
@@ -136,6 +144,8 @@ class ServoSweeper:
             self.angle = 180 if self.angle == 0 else 0
             self.s.write_angle(self.angle)
             self.t0 = now
+            if self.log is not None:
+                _log(self.log, "SERVO t=%d angle=%d" % (now, self.angle))
 
 
 def run_pot_stage(display, pot, log, sweeper, label="POT"):
@@ -336,14 +346,14 @@ def main():
             _log(log, "STAGE_DONE stage=OFFON")
 
         i2c = SoftI2C(scl=Pin(7), sda=Pin(6))
-        display = Display(i2c)
+        display = Display(i2c, log=log)
         pot = ADC(Pin(3))
         pot.atten(ADC.ATTN_11DB)
         battery = ADC(Pin(4))
         battery.atten(ADC.ATTN_11DB)
         up = Pin(10, Pin.IN)
         select = Pin(9, Pin.IN)
-        sweeper = ServoSweeper(servo.Servo(Pin(2)))
+        sweeper = ServoSweeper(servo.Servo(Pin(2)), log=log)
 
         accel = None
         try:

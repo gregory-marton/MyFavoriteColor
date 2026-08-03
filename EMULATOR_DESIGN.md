@@ -600,6 +600,16 @@ are fake.
   repo.** Should this document supersede that reference, or is that a separate
   doc that went missing?
 
+**Future work, noted 2026-08-03 while building the S7 guided-test replay
+viewer (a trace player, not this):** a **mirror mode** where the web UI
+shows a currently-connected real device live (not a captured-log replay),
+with a device picker so a user can choose among multiple simultaneously
+connected boards and watch two of them side by side in separate browser
+windows/tabs. This is a natural extension of the replay work — the same
+OLED/servo/battery/USB rendering pipeline, fed from a live host-link stream
+(see `HOSTLINK_DESIGN.md`) instead of a parsed log file — but it's new
+scope, not part of the replay viewer just built.
+
 **Known limitations to state loudly, in the UI and the README:**
 
 - No CPU timing → compute-bound code appears instantaneous (§4).

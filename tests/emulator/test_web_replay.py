@@ -1,0 +1,129 @@
+"""Playwright test for the web replay UI (web/index.html + app.js).
+
+Desktop only, per the explicit scope for this pass. Serves web/ with a
+plain http.server on a background thread (no new server framework needed),
+builds a small fixture trace with a real rendered SCREEN buffer, a SERVO
+angle, and a SUSTAIN_SAMPLE with on_usb, and drives the actual page with a
+real Chromium browser.
+"""
+
+import http.server
+import json
+import os
+import threading
+
+import pytest
+from playwright.sync_api import sync_playwright
+
+from smotoremu.trace import render_screens
+
+WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "web")
+
+
+@pytest.fixture(scope="module")
+def fixture_trace_written():
+    events = [
+        {"type": "BOOT", "t": 0, "boot_num": 1, "reset_cause": 1, "reset_cause_name": "PWRON_RESET", "resume_stage": 0},
+        {"type": "SCREEN", "t": 100, "lines": ["POT x3", "sweep fully"]},
+        {"type": "SERVO", "t": 150, "angle": 90},
+        {"type": "SUSTAIN_SAMPLE", "t": 200, "pot": 1500, "batt_raw": 2900, "batt_uv": 2100000,
+         "accel": (-9, 1, -253), "on_usb": True},
+        {"type": "SUSTAIN_SAMPLE", "t": 400, "pot": 1500, "batt_raw": 1900, "batt_uv": 1400000,
+         "accel": (-9, 1, -253), "on_usb": False},
+        {"type": "STAGE_DONE", "t": 500, "stage": "POT"},
+    ]
+    events = render_screens(events)
+    path = os.path.join(WEB_DIR, "trace.json")
+    original = None
+    if os.path.exists(path):
+        with open(path) as f:
+            original = f.read()
+    with open(path, "w") as f:
+        json.dump({"source": "fixture", "events": events}, f)
+    yield path
+    if original is not None:
+        with open(path, "w") as f:
+            f.write(original)
+
+
+@pytest.fixture(scope="module")
+def server_url(fixture_trace_written):
+    handler = lambda *args, **kwargs: http.server.SimpleHTTPRequestHandler(*args, directory=WEB_DIR, **kwargs)
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    port = httpd.server_address[1]
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    yield f"http://127.0.0.1:{port}/"
+    httpd.shutdown()
+
+
+@pytest.fixture(scope="module")
+def browser_page(server_url):
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.goto(server_url)
+        yield page
+        browser.close()
+
+
+def test_page_loads_and_shows_first_event_state(browser_page):
+    page = browser_page
+    page.wait_for_function("document.getElementById('t-v').textContent !== '0' || true")
+    # after seekTo(0), the first event (BOOT) is applied -- t should be 0
+    assert page.text_content("#t-v") == "0"
+
+
+def test_scrubbing_to_the_screen_event_renders_and_logs_it(browser_page):
+    page = browser_page
+    page.fill("#scrub", "1")
+    page.dispatch_event("#scrub", "input")
+    page.wait_for_function("document.getElementById('t-v').textContent === '100'")
+    log_text = page.text_content("#log")
+    assert "POT x3" in log_text
+    assert "sweep fully" in log_text
+
+
+def test_scrubbing_to_usb_connected_sample_shows_connected_badge(browser_page):
+    page = browser_page
+    page.fill("#scrub", "3")  # the on_usb=True SUSTAIN_SAMPLE
+    page.dispatch_event("#scrub", "input")
+    page.wait_for_function("document.getElementById('usb-badge').textContent === 'connected'")
+    assert page.text_content("#usb-badge") == "connected"
+    assert "usb-on" in page.get_attribute("#usb-badge", "class")
+
+
+def test_scrubbing_to_usb_disconnected_sample_shows_disconnected_badge(browser_page):
+    page = browser_page
+    page.fill("#scrub", "4")  # the on_usb=False SUSTAIN_SAMPLE
+    page.dispatch_event("#scrub", "input")
+    page.wait_for_function("document.getElementById('usb-badge').textContent === 'disconnected'")
+    assert page.text_content("#usb-badge") == "disconnected"
+    assert "usb-off" in page.get_attribute("#usb-badge", "class")
+
+
+def test_oled_canvas_has_nonblank_pixels_after_screen_event(browser_page):
+    page = browser_page
+    page.fill("#scrub", "1")
+    page.dispatch_event("#scrub", "input")
+    page.wait_for_timeout(100)
+    has_pixels = page.evaluate(
+        """() => {
+            const c = document.getElementById('oled');
+            const ctx = c.getContext('2d');
+            const data = ctx.getImageData(0, 0, c.width, c.height).data;
+            for (let i = 0; i < data.length; i += 4) if (data[i] > 0) return true;
+            return false;
+        }"""
+    )
+    assert has_pixels
+
+
+def test_play_button_advances_the_scrub_position(browser_page):
+    page = browser_page
+    page.fill("#scrub", "0")
+    page.dispatch_event("#scrub", "input")
+    page.select_option("#speed", "50")
+    page.click("#play")
+    page.wait_for_function("parseInt(document.getElementById('scrub').value) > 0", timeout=5000)
+    page.click("#pause")
