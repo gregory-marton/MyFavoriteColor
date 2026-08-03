@@ -6,10 +6,11 @@ the only thing a new D0## task needs to do to show up in `smcheck --quick` /
 """
 
 from smcheck.checks.filesystem import check_d_fs
+from smcheck.checks.i2c import check_d_i2c
 from smcheck.checks.identity import check_d_fw, check_d_id
 from smcheck.checks.reset import check_d_rst
 
-QUICK_CHECKS = [check_d_id, check_d_fw, check_d_fs, check_d_rst]  # D002-D004. D005-D007, D009 still to come.
+QUICK_CHECKS = [check_d_id, check_d_fw, check_d_fs, check_d_rst, check_d_i2c]  # D002-D005. D006-D007, D009 to come.
 FULL_ONLY_CHECKS = []  # populated by D006, D008 (need a human)
 
 
