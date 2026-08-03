@@ -10,12 +10,13 @@ from smcheck.checks.filesystem import check_d_fs
 from smcheck.checks.i2c import check_d_i2c
 from smcheck.checks.identity import check_d_fw, check_d_id
 from smcheck.checks.oled import check_d_oled
+from smcheck.checks.port import check_d_port
 from smcheck.checks.pot_btn import check_d_btn, check_d_pot
 from smcheck.checks.reset import check_d_rst
 from smcheck.report import CheckResult
 
 QUICK_CHECKS = [check_d_id, check_d_fw, check_d_fs, check_d_rst, check_d_i2c, check_d_acc]  # D002-D005, D007. D009 to come.
-FULL_ONLY_CHECKS = [check_d_oled, check_d_pot, check_d_btn]  # D006, D008.
+FULL_ONLY_CHECKS = [check_d_oled, check_d_pot, check_d_btn, check_d_port]  # D006, D008, D010.
 
 
 def run_checks(checks, port, identity):

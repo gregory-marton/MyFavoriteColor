@@ -87,6 +87,17 @@ precisely matters because several are candidate explanations for your symptom.
 | 5 | **Thresholds are in raw counts, which are chip-specific.** ESP32-C3 ADCs have meaningful per-chip gain/offset variation, corrected by eFuse data that `read()` ignores and `read_uv()` applies. | **The same cell voltage reads different counts on different boards.** A board whose ADC reads a few percent low will sit under 2700 at a genuinely full 4.1 V and report `'half'` forever. This is my leading hypothesis for "charges overnight and still won't show full." It is cheap to test — see B002. |
 | 6 | **`icons.MAX_BATTERY=2900` / `MIN_BATTERY=2600` are dead constants** inconsistent with the thresholds in `sensors.py`. | Nothing reads them. They will mislead the next person. |
 
+**A seventh, in `selectsensor()` rather than `readbattery()`, found building D010:**
+its `low < 200 and high > 4000` formula for detecting an unattached analog
+port is similarly tight. A live capture on bad-unit-1 while flipping the
+analog/I2C toggle showed the floating-pin state's `high` reading topping out
+around 3700-3998 — never crossing 4000 — so this exact formula would report
+"attached" for an entire run despite a clear, real regime change (spread
+~3670-3970 in one state, within ±660 of zero in the other). Same shape of bug
+as defect 5: a threshold tuned tighter than real ADC behavior supports.
+`smcheck`'s D010 works around it by classifying on spread instead; `sensors.py`
+itself is untouched, per R1.
+
 ### A note on fixing these
 
 `EMULATOR_TASKS.md` ground rule **R1** says never change device code to make the
