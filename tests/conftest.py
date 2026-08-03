@@ -4,8 +4,13 @@ import builtins
 import time
 import pytest
 
-# Add tests/fakes to the front of sys.path so mock hardware modules are imported instead of failing
-fakes_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "fakes"))
+# Add the repo root and tests/fakes to sys.path so tests work from any cwd.
+tests_dir = os.path.dirname(__file__)
+repo_root = os.path.abspath(os.path.join(tests_dir, os.pardir))
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
+
+fakes_path = os.path.abspath(os.path.join(tests_dir, "fakes"))
 if fakes_path not in sys.path:
     sys.path.insert(0, fakes_path)
 
