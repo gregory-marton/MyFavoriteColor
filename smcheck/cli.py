@@ -1,10 +1,7 @@
-"""D001: smcheck CLI skeleton.
+"""smcheck CLI.
 
-Runs the registered checks against one board, prints a report card, and
-appends it to the fleet store keyed by unique_id. No checks are registered
-yet (see smcheck/registry.py) -- D002 onward add them. Running this today
-against a real board proves the identity/report/fleet plumbing works, and
-produces a `skip`-status report.
+Runs the registered checks (smcheck/registry.py) against one board, prints a
+report card, and appends it to the fleet store keyed by unique_id.
 """
 
 import argparse
