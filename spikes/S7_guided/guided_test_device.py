@@ -9,12 +9,16 @@ the earlier problem where a blind "press buttons now" gave no indication
 whether anything was actually detected.
 
 Sequence: sweep the pot fully back and forth 3 times, press SELECT 3 times,
-press UP 3 times, flip the analog/I2C toggle 3 times -- then a prompt to
-disconnect USB and repeat all four (this is what actually exercises
-battery-only power; touching a button while on USB proves little about the
-battery, since USB power dominates), then a 90s sustained passive-logging
-period on battery alone to give a slow sag or intermittent fault time to
-show up, then a power-cycle (OFF then ON), then plug in an I2C sensor.
+press UP 3 times, flip the analog/I2C toggle 3 times -- then a disconnect
+step that refuses to proceed (shaking the servo head side to side, "no")
+while the battery ADC still reads in the charging range -- no dedicated
+VBUS-sense pin exists on this board, so that reading is a proxy for "still
+on USB," not a direct measurement, but it's a reliable one right after a
+USB-connected phase -- then repeats all four (touching a button while on USB
+proves little about the battery, since USB power dominates), then a 90s
+sustained passive-logging period on battery alone to give a slow sag or
+intermittent fault time to show up, then a power-cycle (OFF then ON), then
+plug in an I2C sensor.
 
 The OFF/ON stage is inherently different: a power cycle stops this script
 entirely, so there is nothing to detect in the moment. Progress is persisted
@@ -222,18 +226,39 @@ def run_flip_stage(display, log, sweeper, label="FLIP"):
     return True
 
 
-def run_disconnect_prompt(display, select, log, sweeper):
-    display.show("unplug USB now,", "then press SELECT", "to continue")
-    prev = select.value()
+def is_probably_on_usb(battery):
+    # No dedicated VBUS-sense pin on this board, so this is a proxy, not a
+    # direct measurement: the battery ADC reads distinctly higher whenever
+    # USB is actively delivering charge current (see sensors.readbattery()'s
+    # 'charging' bucket, and DEVICE_HEALTH_DESIGN.md section 1). Good enough
+    # to gate "have you actually unplugged yet?" right after a USB-connected
+    # test phase, where the reading is still fresh from active charging.
+    return battery.read() > 2850
+
+
+def shake_head(s):
+    """A distinct 'no' gesture -- quick side-to-side -- so 'still on USB'
+    reads as a physical refusal to proceed, not just on-screen text."""
+    s.write_angle(70)
+    time.sleep_ms(150)
+    s.write_angle(110)
+    time.sleep_ms(150)
+
+
+def run_disconnect_prompt(display, battery, log, sweeper):
     t0 = time.ticks_ms()
     while time.ticks_diff(time.ticks_ms(), t0) < STAGE_TIMEOUT_MS["DISCONNECT_PROMPT"]:
-        sweeper.step()
-        v = select.value()
-        if prev == 1 and v == 0:
-            _log(log, "STAGE_DONE stage=DISCONNECT_PROMPT")
-            return True
-        prev = v
-        time.sleep_ms(20)
+        if is_probably_on_usb(battery):
+            display.show("still on USB --", "unplug it now")
+            shake_head(sweeper.s)
+        else:
+            display.show("thanks! continuing", "in a moment...")
+            time.sleep_ms(1500)
+            # confirm it's not just a momentary dip -- require it to still
+            # read as off-USB after the pause before actually proceeding
+            if not is_probably_on_usb(battery):
+                _log(log, "STAGE_DONE stage=DISCONNECT_PROMPT")
+                return True
     _log(log, "TIMEOUT stage=DISCONNECT_PROMPT")
     return False
 
@@ -338,7 +363,7 @@ def main():
             elif stage in ("FLIP", "FLIP_B"):
                 run_flip_stage(display, log, sweeper, label=stage)
             elif stage == "DISCONNECT_PROMPT":
-                run_disconnect_prompt(display, select, log, sweeper)
+                run_disconnect_prompt(display, battery, log, sweeper)
             elif stage == "SUSTAIN":
                 run_sustain_stage(display, pot, battery, accel, log, sweeper)
             elif stage == "OFFON":

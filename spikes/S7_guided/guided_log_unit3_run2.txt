@@ -1,0 +1,207 @@
+BOOT boot_num=3 reset_cause=2(HARD_RESET) resume_stage=0
+TIMEOUT stage=POT reps=0
+TIMEOUT stage=SELECT reps=0
+REP stage=UP rep=1
+REP stage=UP rep=2
+REP stage=UP rep=3
+STAGE_DONE stage=UP
+TIMEOUT stage=FLIP reps=0
+STAGE_DONE stage=DISCONNECT_PROMPT
+REP stage=POT_B rep=1
+REP stage=POT_B rep=2
+REP stage=POT_B rep=3
+STAGE_DONE stage=POT_B
+REP stage=SELECT_B rep=1
+REP stage=SELECT_B rep=2
+REP stage=SELECT_B rep=3
+STAGE_DONE stage=SELECT_B
+REP stage=UP_B rep=1
+REP stage=UP_B rep=2
+REP stage=UP_B rep=3
+STAGE_DONE stage=UP_B
+TIMEOUT stage=FLIP_B reps=0
+SUSTAIN_SAMPLE t=184994 pot=4095 batt_raw=2623 batt_uv=1960000 accel=-3,213,-151
+SUSTAIN_SAMPLE t=185504 pot=4095 batt_raw=2589 batt_uv=1936000 accel=-7,232,-152
+SUSTAIN_SAMPLE t=186014 pot=4095 batt_raw=2623 batt_uv=1960000 accel=-2,215,-154
+SUSTAIN_SAMPLE t=186523 pot=4095 batt_raw=2587 batt_uv=1933000 accel=-1,221,-146
+SUSTAIN_SAMPLE t=187033 pot=4095 batt_raw=2631 batt_uv=1960000 accel=-3,213,-152
+SUSTAIN_SAMPLE t=187543 pot=4095 batt_raw=2587 batt_uv=1936000 accel=-9,219,-157
+SUSTAIN_SAMPLE t=188052 pot=4095 batt_raw=2622 batt_uv=1960000 accel=-5,216,-150
+SUSTAIN_SAMPLE t=188563 pot=4095 batt_raw=2587 batt_uv=1934000 accel=0,207,-157
+SUSTAIN_SAMPLE t=189074 pot=4095 batt_raw=2621 batt_uv=1960000 accel=-6,211,-153
+SUSTAIN_SAMPLE t=189585 pot=4095 batt_raw=2590 batt_uv=1936000 accel=-1,223,-148
+SUSTAIN_SAMPLE t=190098 pot=4095 batt_raw=2623 batt_uv=1960000 accel=-11,229,-134
+SUSTAIN_SAMPLE t=190609 pot=4095 batt_raw=2588 batt_uv=1936000 accel=18,238,-28
+SUSTAIN_SAMPLE t=191121 pot=4095 batt_raw=2621 batt_uv=1960000 accel=22,159,-203
+SUSTAIN_SAMPLE t=191633 pot=4095 batt_raw=2589 batt_uv=1934000 accel=62,77,-140
+SUSTAIN_SAMPLE t=192146 pot=4095 batt_raw=2622 batt_uv=1959000 accel=-1,0,-255
+SUSTAIN_SAMPLE t=192659 pot=4095 batt_raw=2587 batt_uv=1934000 accel=-34,87,-246
+SUSTAIN_SAMPLE t=193173 pot=4095 batt_raw=2623 batt_uv=1959000 accel=-8,151,-207
+SUSTAIN_SAMPLE t=193686 pot=4095 batt_raw=2587 batt_uv=1933000 accel=-4,152,-208
+SUSTAIN_SAMPLE t=194200 pot=4095 batt_raw=2622 batt_uv=1959000 accel=-6,157,-204
+SUSTAIN_SAMPLE t=194713 pot=4095 batt_raw=2588 batt_uv=1934000 accel=-4,143,-202
+SUSTAIN_SAMPLE t=195227 pot=4095 batt_raw=2621 batt_uv=1959000 accel=-5,158,-205
+SUSTAIN_SAMPLE t=195742 pot=4095 batt_raw=2589 batt_uv=1934000 accel=-2,172,-211
+SUSTAIN_SAMPLE t=196256 pot=4095 batt_raw=2620 batt_uv=1959000 accel=-3,156,-205
+SUSTAIN_SAMPLE t=196772 pot=4095 batt_raw=2587 batt_uv=1933000 accel=0,156,-200
+SUSTAIN_SAMPLE t=197288 pot=4095 batt_raw=2622 batt_uv=1957000 accel=-3,157,-204
+SUSTAIN_SAMPLE t=197803 pot=4095 batt_raw=2589 batt_uv=1934000 accel=1,146,-201
+SUSTAIN_SAMPLE t=198311 pot=4095 batt_raw=2620 batt_uv=1957000 accel=-3,157,-206
+SUSTAIN_SAMPLE t=198822 pot=4095 batt_raw=2586 batt_uv=1933000 accel=-13,167,-206
+SUSTAIN_SAMPLE t=199333 pot=4095 batt_raw=2619 batt_uv=1957000 accel=-5,157,-206
+SUSTAIN_SAMPLE t=199843 pot=4095 batt_raw=2587 batt_uv=1934000 accel=0,147,-208
+SUSTAIN_SAMPLE t=200352 pot=4095 batt_raw=2620 batt_uv=1957000 accel=-6,159,-208
+SUSTAIN_SAMPLE t=200863 pot=4095 batt_raw=2587 batt_uv=1933000 accel=-6,164,-205
+SUSTAIN_SAMPLE t=201374 pot=4095 batt_raw=2619 batt_uv=1957000 accel=-4,157,-204
+SUSTAIN_SAMPLE t=201884 pot=4095 batt_raw=2585 batt_uv=1933000 accel=-15,184,-214
+SUSTAIN_SAMPLE t=202394 pot=4095 batt_raw=2617 batt_uv=1957000 accel=-4,156,-206
+SUSTAIN_SAMPLE t=202905 pot=4095 batt_raw=2601 batt_uv=1943000 accel=6,123,-196
+SUSTAIN_SAMPLE t=203405 pot=4095 batt_raw=2619 batt_uv=1957000 accel=-4,157,-204
+SUSTAIN_SAMPLE t=203905 pot=4095 batt_raw=2587 batt_uv=1933000 accel=-5,167,-214
+SUSTAIN_SAMPLE t=204406 pot=4095 batt_raw=2619 batt_uv=1957000 accel=-5,158,-206
+SUSTAIN_SAMPLE t=204925 pot=4095 batt_raw=2586 batt_uv=1933000 accel=-7,165,-204
+SUSTAIN_SAMPLE t=205428 pot=4095 batt_raw=2620 batt_uv=1957000 accel=-5,157,-206
+SUSTAIN_SAMPLE t=205947 pot=4095 batt_raw=2589 batt_uv=1936000 accel=-11,155,-204
+SUSTAIN_SAMPLE t=206466 pot=4095 batt_raw=2618 batt_uv=1957000 accel=-4,158,-205
+SUSTAIN_SAMPLE t=206985 pot=4095 batt_raw=2616 batt_uv=1955000 accel=-9,168,-213
+SUSTAIN_SAMPLE t=207489 pot=4095 batt_raw=2618 batt_uv=1957000 accel=-6,156,-207
+SUSTAIN_SAMPLE t=207997 pot=4095 batt_raw=2616 batt_uv=1949000 accel=-2,146,-202
+SUSTAIN_SAMPLE t=208504 pot=4095 batt_raw=2618 batt_uv=1957000 accel=-1,158,-204
+SUSTAIN_SAMPLE t=209012 pot=4095 batt_raw=2604 batt_uv=1945000 accel=-6,155,-204
+SUSTAIN_SAMPLE t=209520 pot=4095 batt_raw=2620 batt_uv=1957000 accel=-7,158,-203
+SUSTAIN_SAMPLE t=210039 pot=4095 batt_raw=2607 batt_uv=1956000 accel=-3,157,-205
+SUSTAIN_SAMPLE t=210542 pot=4095 batt_raw=2619 batt_uv=1957000 accel=-3,157,-206
+SUSTAIN_SAMPLE t=211042 pot=4095 batt_raw=2616 batt_uv=1955000 accel=-5,152,-202
+SUSTAIN_SAMPLE t=211543 pot=4095 batt_raw=2616 batt_uv=1956000 accel=-4,157,-208
+SUSTAIN_SAMPLE t=212043 pot=4095 batt_raw=2616 batt_uv=1955000 accel=-4,158,-206
+SUSTAIN_SAMPLE t=212544 pot=4095 batt_raw=2618 batt_uv=1957000 accel=-4,156,-204
+SUSTAIN_SAMPLE t=213044 pot=4095 batt_raw=2616 batt_uv=1956000 accel=-2,156,-206
+SUSTAIN_SAMPLE t=213545 pot=4095 batt_raw=2617 batt_uv=1957000 accel=-4,158,-207
+SUSTAIN_SAMPLE t=214047 pot=4095 batt_raw=2616 batt_uv=1948000 accel=-11,158,-208
+SUSTAIN_SAMPLE t=214550 pot=4095 batt_raw=2619 batt_uv=1957000 accel=-4,157,-204
+SUSTAIN_SAMPLE t=215052 pot=4095 batt_raw=2608 batt_uv=1949000 accel=-12,155,-206
+SUSTAIN_SAMPLE t=215553 pot=4095 batt_raw=2618 batt_uv=1957000 accel=-6,157,-206
+SUSTAIN_SAMPLE t=216056 pot=4095 batt_raw=2615 batt_uv=1955000 accel=4,93,-238
+SUSTAIN_SAMPLE t=216568 pot=4095 batt_raw=2618 batt_uv=1957000 accel=-9,95,-240
+SUSTAIN_SAMPLE t=217071 pot=4095 batt_raw=2606 batt_uv=1947000 accel=-5,3,-260
+SUSTAIN_SAMPLE t=217574 pot=4095 batt_raw=2616 batt_uv=1956000 accel=-5,0,-254
+SUSTAIN_SAMPLE t=218078 pot=4095 batt_raw=2616 batt_uv=1956000 accel=-6,-2,-257
+SUSTAIN_SAMPLE t=218589 pot=4095 batt_raw=2617 batt_uv=1957000 accel=-5,0,-254
+SUSTAIN_SAMPLE t=219108 pot=4095 batt_raw=2574 batt_uv=1924000 accel=-10,-3,-257
+SUSTAIN_SAMPLE t=219618 pot=4095 batt_raw=2618 batt_uv=1957000 accel=-4,-1,-253
+SUSTAIN_SAMPLE t=220130 pot=4095 batt_raw=2575 batt_uv=1927000 accel=0,-11,-241
+SUSTAIN_SAMPLE t=220639 pot=4095 batt_raw=2619 batt_uv=1957000 accel=-7,0,-255
+SUSTAIN_SAMPLE t=221149 pot=4095 batt_raw=2584 batt_uv=1924000 accel=-10,9,-248
+SUSTAIN_SAMPLE t=221659 pot=4095 batt_raw=2617 batt_uv=1956000 accel=-5,1,-255
+SUSTAIN_SAMPLE t=222170 pot=4095 batt_raw=2576 batt_uv=1931000 accel=1,7,-260
+SUSTAIN_SAMPLE t=222681 pot=4095 batt_raw=2618 batt_uv=1957000 accel=-6,0,-256
+SUSTAIN_SAMPLE t=223192 pot=4095 batt_raw=2583 batt_uv=1925000 accel=-2,10,-254
+SUSTAIN_SAMPLE t=223700 pot=4095 batt_raw=2617 batt_uv=1957000 accel=-5,0,-255
+SUSTAIN_SAMPLE t=224211 pot=4095 batt_raw=2576 batt_uv=1931000 accel=3,-1,-266
+SUSTAIN_SAMPLE t=224721 pot=4095 batt_raw=2616 batt_uv=1957000 accel=-6,1,-252
+SUSTAIN_SAMPLE t=225234 pot=4095 batt_raw=2583 batt_uv=1932000 accel=-13,-6,-255
+SUSTAIN_SAMPLE t=225741 pot=4095 batt_raw=2617 batt_uv=1957000 accel=-4,2,-258
+SUSTAIN_SAMPLE t=226258 pot=4095 batt_raw=2584 batt_uv=1932000 accel=-11,-21,-253
+SUSTAIN_SAMPLE t=226776 pot=4095 batt_raw=2616 batt_uv=1956000 accel=-7,1,-257
+SUSTAIN_SAMPLE t=227293 pot=4095 batt_raw=2574 batt_uv=1925000 accel=-19,-8,-251
+SUSTAIN_SAMPLE t=227811 pot=4095 batt_raw=2617 batt_uv=1957000 accel=-2,3,-256
+SUSTAIN_SAMPLE t=228329 pot=4095 batt_raw=2585 batt_uv=1932000 accel=-11,7,-253
+SUSTAIN_SAMPLE t=228846 pot=4095 batt_raw=2616 batt_uv=1956000 accel=-7,0,-255
+SUSTAIN_SAMPLE t=229346 pot=4095 batt_raw=2573 batt_uv=1931000 accel=-9,6,-253
+SUSTAIN_SAMPLE t=229863 pot=4095 batt_raw=2616 batt_uv=1956000 accel=-4,0,-254
+SUSTAIN_SAMPLE t=230375 pot=4095 batt_raw=2574 batt_uv=1923000 accel=-20,-1,-256
+SUSTAIN_SAMPLE t=230894 pot=4095 batt_raw=2615 batt_uv=1955000 accel=-5,2,-254
+SUSTAIN_SAMPLE t=231409 pot=4095 batt_raw=2574 batt_uv=1924000 accel=-4,-2,-256
+SUSTAIN_SAMPLE t=231927 pot=4095 batt_raw=2616 batt_uv=1956000 accel=-6,2,-255
+SUSTAIN_SAMPLE t=232445 pot=4095 batt_raw=2584 batt_uv=1929000 accel=-7,9,-256
+SUSTAIN_SAMPLE t=232964 pot=4095 batt_raw=2616 batt_uv=1956000 accel=-6,1,-256
+SUSTAIN_SAMPLE t=233479 pot=4095 batt_raw=2576 batt_uv=1931000 accel=-11,4,-259
+SUSTAIN_SAMPLE t=233986 pot=4095 batt_raw=2607 batt_uv=1955000 accel=-7,0,-262
+SUSTAIN_SAMPLE t=234494 pot=4095 batt_raw=2584 batt_uv=1931000 accel=-6,-4,-257
+SUSTAIN_SAMPLE t=235002 pot=4095 batt_raw=2615 batt_uv=1955000 accel=-6,2,-254
+SUSTAIN_SAMPLE t=235509 pot=4095 batt_raw=2583 batt_uv=1924000 accel=-19,-4,-257
+SUSTAIN_SAMPLE t=236017 pot=4095 batt_raw=2616 batt_uv=1956000 accel=-5,2,-256
+SUSTAIN_SAMPLE t=236526 pot=4095 batt_raw=2576 batt_uv=1925000 accel=-4,7,-257
+SUSTAIN_SAMPLE t=237026 pot=4095 batt_raw=2616 batt_uv=1955000 accel=1,6,-255
+SUSTAIN_SAMPLE t=237535 pot=4095 batt_raw=2573 batt_uv=1923000 accel=-8,-3,-249
+SUSTAIN_SAMPLE t=238045 pot=4095 batt_raw=2616 batt_uv=1955000 accel=-9,2,-256
+SUSTAIN_SAMPLE t=238555 pot=4095 batt_raw=2575 batt_uv=1924000 accel=-19,19,-260
+SUSTAIN_SAMPLE t=239064 pot=4095 batt_raw=2616 batt_uv=1955000 accel=-8,0,-256
+SUSTAIN_SAMPLE t=239574 pot=4095 batt_raw=2575 batt_uv=1925000 accel=-1,11,-260
+SUSTAIN_SAMPLE t=240084 pot=4095 batt_raw=2608 batt_uv=1956000 accel=-5,2,-254
+SUSTAIN_SAMPLE t=240595 pot=4095 batt_raw=2575 batt_uv=1924000 accel=-2,14,-260
+SUSTAIN_SAMPLE t=241107 pot=4095 batt_raw=2615 batt_uv=1948000 accel=-5,1,-254
+SUSTAIN_SAMPLE t=241618 pot=4095 batt_raw=2584 batt_uv=1931000 accel=-6,9,-262
+SUSTAIN_SAMPLE t=242130 pot=4095 batt_raw=2616 batt_uv=1955000 accel=-3,1,-256
+SUSTAIN_SAMPLE t=242642 pot=4095 batt_raw=2590 batt_uv=1936000 accel=4,-12,-251
+SUSTAIN_SAMPLE t=243154 pot=4095 batt_raw=2615 batt_uv=1948000 accel=-7,0,-255
+SUSTAIN_SAMPLE t=243657 pot=4095 batt_raw=2584 batt_uv=1931000 accel=2,-13,-255
+SUSTAIN_SAMPLE t=244168 pot=4095 batt_raw=2615 batt_uv=1953000 accel=-7,1,-255
+SUSTAIN_SAMPLE t=244678 pot=4095 batt_raw=2602 batt_uv=1943000 accel=-21,0,-251
+SUSTAIN_SAMPLE t=245181 pot=4095 batt_raw=2607 batt_uv=1948000 accel=-7,0,-254
+SUSTAIN_SAMPLE t=245690 pot=4095 batt_raw=2591 batt_uv=1936000 accel=-8,33,-258
+SUSTAIN_SAMPLE t=246208 pot=4095 batt_raw=2607 batt_uv=1955000 accel=-7,1,-255
+SUSTAIN_SAMPLE t=246719 pot=4095 batt_raw=2605 batt_uv=1947000 accel=-6,0,-255
+SUSTAIN_SAMPLE t=247232 pot=4095 batt_raw=2608 batt_uv=1948000 accel=-7,1,-254
+SUSTAIN_SAMPLE t=247747 pot=4095 batt_raw=2606 batt_uv=1947000 accel=-8,-6,-250
+SUSTAIN_SAMPLE t=248262 pot=4095 batt_raw=2616 batt_uv=1948000 accel=-5,1,-257
+SUSTAIN_SAMPLE t=248777 pot=4095 batt_raw=2615 batt_uv=1949000 accel=-4,1,-256
+SUSTAIN_SAMPLE t=249293 pot=4095 batt_raw=2607 batt_uv=1947000 accel=-6,1,-256
+SUSTAIN_SAMPLE t=249809 pot=4095 batt_raw=2605 batt_uv=1947000 accel=-5,0,-255
+SUSTAIN_SAMPLE t=250325 pot=4095 batt_raw=2607 batt_uv=1948000 accel=-4,1,-254
+SUSTAIN_SAMPLE t=250840 pot=4095 batt_raw=2607 batt_uv=1955000 accel=-6,4,-255
+SUSTAIN_SAMPLE t=251356 pot=4095 batt_raw=2616 batt_uv=1947000 accel=-7,0,-255
+SUSTAIN_SAMPLE t=251873 pot=4095 batt_raw=2606 batt_uv=1947000 accel=-6,1,-258
+SUSTAIN_SAMPLE t=252390 pot=4095 batt_raw=2616 batt_uv=1955000 accel=-6,0,-259
+SUSTAIN_SAMPLE t=252908 pot=4095 batt_raw=2606 batt_uv=1949000 accel=-7,0,-255
+SUSTAIN_SAMPLE t=253425 pot=4095 batt_raw=2615 batt_uv=1948000 accel=-4,1,-255
+SUSTAIN_SAMPLE t=253943 pot=4095 batt_raw=2607 batt_uv=1947000 accel=-6,0,-255
+SUSTAIN_SAMPLE t=254453 pot=4095 batt_raw=2606 batt_uv=1948000 accel=-4,0,-255
+SUSTAIN_SAMPLE t=254964 pot=4095 batt_raw=2605 batt_uv=1947000 accel=-5,2,-252
+SUSTAIN_SAMPLE t=255474 pot=4095 batt_raw=2616 batt_uv=1956000 accel=-5,1,-255
+SUSTAIN_SAMPLE t=255985 pot=4095 batt_raw=2606 batt_uv=1947000 accel=-4,0,-255
+SUSTAIN_SAMPLE t=256485 pot=4095 batt_raw=2616 batt_uv=1947000 accel=-5,1,-256
+SUSTAIN_SAMPLE t=257004 pot=4095 batt_raw=2606 batt_uv=1947000 accel=-5,1,-257
+SUSTAIN_SAMPLE t=257515 pot=4095 batt_raw=2607 batt_uv=1947000 accel=-5,1,-254
+SUSTAIN_SAMPLE t=258016 pot=4095 batt_raw=2603 batt_uv=1945000 accel=-6,2,-256
+SUSTAIN_SAMPLE t=258535 pot=4095 batt_raw=2615 batt_uv=1947000 accel=-8,1,-256
+SUSTAIN_SAMPLE t=259036 pot=4095 batt_raw=2606 batt_uv=1945000 accel=-6,1,-254
+SUSTAIN_SAMPLE t=259555 pot=4095 batt_raw=2605 batt_uv=1947000 accel=-5,1,-255
+SUSTAIN_SAMPLE t=260059 pot=4095 batt_raw=2606 batt_uv=1947000 accel=-6,2,-257
+SUSTAIN_SAMPLE t=260567 pot=4095 batt_raw=2607 batt_uv=1947000 accel=-3,3,-254
+SUSTAIN_SAMPLE t=261074 pot=4095 batt_raw=2606 batt_uv=1947000 accel=-6,-1,-256
+SUSTAIN_SAMPLE t=261581 pot=4095 batt_raw=2606 batt_uv=1947000 accel=-4,0,-255
+SUSTAIN_SAMPLE t=262090 pot=4095 batt_raw=2604 batt_uv=1945000 accel=-7,0,-254
+SUSTAIN_SAMPLE t=262598 pot=4095 batt_raw=2606 batt_uv=1947000 accel=-6,1,-256
+SUSTAIN_SAMPLE t=263107 pot=4095 batt_raw=2605 batt_uv=1947000 accel=-9,0,-254
+SUSTAIN_SAMPLE t=263616 pot=4095 batt_raw=2605 batt_uv=1947000 accel=-4,0,-256
+SUSTAIN_SAMPLE t=264126 pot=4095 batt_raw=2605 batt_uv=1947000 accel=-5,3,-257
+SUSTAIN_SAMPLE t=264636 pot=4095 batt_raw=2607 batt_uv=1947000 accel=-5,0,-254
+SUSTAIN_SAMPLE t=265146 pot=4095 batt_raw=2604 batt_uv=1947000 accel=-6,0,-258
+SUSTAIN_SAMPLE t=265655 pot=4095 batt_raw=2606 batt_uv=1947000 accel=-5,2,-257
+SUSTAIN_SAMPLE t=266166 pot=4095 batt_raw=2605 batt_uv=1946000 accel=-6,1,-256
+SUSTAIN_SAMPLE t=266676 pot=4095 batt_raw=2606 batt_uv=1947000 accel=-9,2,-255
+SUSTAIN_SAMPLE t=267188 pot=4095 batt_raw=2605 batt_uv=1947000 accel=-4,0,-252
+SUSTAIN_SAMPLE t=267699 pot=4095 batt_raw=2606 batt_uv=1947000 accel=-4,2,-256
+SUSTAIN_SAMPLE t=268211 pot=4095 batt_raw=2605 batt_uv=1947000 accel=-7,0,-256
+SUSTAIN_SAMPLE t=268724 pot=4095 batt_raw=2606 batt_uv=1947000 accel=-4,-2,-251
+SUSTAIN_SAMPLE t=269235 pot=4095 batt_raw=2605 batt_uv=1947000 accel=-8,0,-255
+SUSTAIN_SAMPLE t=269747 pot=4095 batt_raw=2615 batt_uv=1947000 accel=-5,2,-255
+SUSTAIN_SAMPLE t=270260 pot=4095 batt_raw=2606 batt_uv=1947000 accel=-6,0,-256
+SUSTAIN_SAMPLE t=270773 pot=4095 batt_raw=2607 batt_uv=1947000 accel=-7,1,-255
+SUSTAIN_SAMPLE t=271286 pot=4095 batt_raw=2606 batt_uv=1946000 accel=-10,1,-257
+SUSTAIN_SAMPLE t=271800 pot=4095 batt_raw=2615 batt_uv=1948000 accel=-6,2,-256
+SUSTAIN_SAMPLE t=272314 pot=4095 batt_raw=2605 batt_uv=1946000 accel=-5,1,-257
+SUSTAIN_SAMPLE t=272828 pot=4095 batt_raw=2606 batt_uv=1948000 accel=-5,1,-255
+SUSTAIN_SAMPLE t=273338 pot=4095 batt_raw=2569 batt_uv=1921000 accel=-6,-9,-247
+SUSTAIN_SAMPLE t=273852 pot=4095 batt_raw=2607 batt_uv=1947000 accel=-6,2,-256
+SUSTAIN_SAMPLE t=274367 pot=4095 batt_raw=2569 batt_uv=1923000 accel=1,8,-255
+SUSTAIN_SAMPLE t=274882 pot=4095 batt_raw=2614 batt_uv=1953000 accel=-5,1,-255
+STAGE_DONE stage=SUSTAIN
+WAITING_FOR_REBOOT stage=OFFON
+BOOT boot_num=4 reset_cause=1(PWRON_RESET) resume_stage=11
+REP stage=OFFON rep=1 (confirmed by this reboot)
+STAGE_DONE stage=OFFON
+REP stage=SENSOR addr=0x10
+STAGE_DONE stage=SENSOR
+SEQUENCE_COMPLETE
