@@ -5,13 +5,14 @@ the only thing a new D0## task needs to do to show up in `smcheck --quick` /
 `--full`.
 """
 
+from smcheck.checks.accel import check_d_acc
 from smcheck.checks.filesystem import check_d_fs
 from smcheck.checks.i2c import check_d_i2c
 from smcheck.checks.identity import check_d_fw, check_d_id
 from smcheck.checks.oled import check_d_oled
 from smcheck.checks.reset import check_d_rst
 
-QUICK_CHECKS = [check_d_id, check_d_fw, check_d_fs, check_d_rst, check_d_i2c]  # D002-D005. D007, D009 still to come.
+QUICK_CHECKS = [check_d_id, check_d_fw, check_d_fs, check_d_rst, check_d_i2c, check_d_acc]  # D002-D005, D007. D009 to come.
 FULL_ONLY_CHECKS = [check_d_oled]  # D006. D008 (D-POT/D-BTN) still to come.
 
 
