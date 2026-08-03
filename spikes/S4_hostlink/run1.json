@@ -1,0 +1,130 @@
+{
+  "port": "/dev/cu.usbmodem2101",
+  "ticks_us_overhead_ns": 6221,
+  "adc_1": {
+    "read_ms": 0.253,
+    "read_and_sort_ms": 0.275,
+    "us_per_sample": 253.0
+  },
+  "adc_100": {
+    "read_ms": 2.961,
+    "read_and_sort_ms": 3.305,
+    "us_per_sample": 29.61
+  },
+  "adc_200": {
+    "read_ms": 5.763,
+    "read_and_sort_ms": 6.427,
+    "us_per_sample": 28.82
+  },
+  "adc_1000": {
+    "read_ms": 28.184,
+    "read_and_sort_ms": 32.333,
+    "us_per_sample": 28.18
+  },
+  "rtt_readline_8B_ms": {
+    "median": 1.005,
+    "p95": 1.081,
+    "max": 5.135,
+    "n": 150
+  },
+  "rtt_readline_64B_ms": {
+    "median": 8.129,
+    "p95": 10.078,
+    "max": 13.895,
+    "n": 150
+  },
+  "rtt_readline_256B_ms": {
+    "median": 20.03,
+    "p95": 30.141,
+    "max": 30.262,
+    "n": 150
+  },
+  "rtt_bytewise_8B_ms": {
+    "median": 2.073,
+    "p95": 2.36,
+    "max": 3.33,
+    "n": 150
+  },
+  "rtt_bytewise_64B_ms": {
+    "median": 6.98,
+    "p95": 7.972,
+    "max": 9.256,
+    "n": 150
+  },
+  "rtt_bytewise_256B_ms": {
+    "median": 39.995,
+    "p95": 40.195,
+    "max": 43.281,
+    "n": 150
+  },
+  "throughput": {
+    "lines": 5000,
+    "seconds": 21.167,
+    "lines_per_s": 236,
+    "kbytes_per_s": 11.0
+  },
+  "stream_50hz": {
+    "requested_hz": 50.0,
+    "received": 100,
+    "dropped": 0,
+    "device_gap_ms": {
+      "median": 20.0,
+      "p95": 20.009
+    },
+    "host_gap_ms": {
+      "median": 19.999,
+      "p95": 20.212,
+      "max": 21.462
+    },
+    "device_elapsed_ms": 1980.2,
+    "max_late_us": 14
+  },
+  "stream_100hz": {
+    "requested_hz": 100.0,
+    "received": 200,
+    "dropped": 0,
+    "device_gap_ms": {
+      "median": 10.0,
+      "p95": 10.007
+    },
+    "host_gap_ms": {
+      "median": 9.998,
+      "p95": 10.165,
+      "max": 13.069
+    },
+    "device_elapsed_ms": 1990.2,
+    "max_late_us": 15
+  },
+  "stream_200hz": {
+    "requested_hz": 200.0,
+    "received": 400,
+    "dropped": 0,
+    "device_gap_ms": {
+      "median": 5.001,
+      "p95": 5.007
+    },
+    "host_gap_ms": {
+      "median": 4.997,
+      "p95": 6.52,
+      "max": 17.518
+    },
+    "device_elapsed_ms": 1995.2,
+    "max_late_us": 15
+  },
+  "stream_500hz": {
+    "requested_hz": 500.0,
+    "received": 1000,
+    "dropped": 0,
+    "device_gap_ms": {
+      "median": 2.0,
+      "p95": 2.008
+    },
+    "host_gap_ms": {
+      "median": 1.995,
+      "p95": 3.016,
+      "max": 15.441
+    },
+    "device_elapsed_ms": 1998.2,
+    "max_late_us": 15
+  }
+}
