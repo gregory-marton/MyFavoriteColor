@@ -28,3 +28,26 @@ def test_hardware_bridge_mock_device():
 
     bridge.send_command({"type": "press", "button": "up"})
     assert len(link.sent) > 0
+
+
+def test_find_serial_port():
+    from smotoremu.cli import find_serial_port
+    port = find_serial_port("/dev/cu.usbmodem2101")
+    assert port == "/dev/cu.usbmodem2101"
+
+
+def test_hardware_bridge_ping():
+    class DummySer:
+        def __init__(self):
+            self.data = []
+        def write(self, b):
+            self.data.append(b)
+        def flush(self):
+            pass
+        def readline(self):
+            return b'{"s": 50}\n'
+
+    hb = HardwareBridge()
+    hb._ser = DummySer()
+    hb.ping()
+    assert b'{"st":"e"}\n' in hb._ser.data

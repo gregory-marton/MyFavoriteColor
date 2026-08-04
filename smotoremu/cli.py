@@ -94,18 +94,58 @@ def read_vfs_file(filename, vfs_dir=None):
         return handle.read()
 
 
+def find_serial_port(custom_port=None):
+    if custom_port:
+        return custom_port
+    try:
+        import serial.tools.list_ports as list_ports
+        candidates = [p.device for p in list_ports.comports() if p.vid == 0x303A or "usbmodem" in p.device]
+        if candidates:
+            return candidates[0]
+    except Exception:
+        pass
+    return None
+
+
 class HardwareBridge:
     def __init__(self, port=None, link=None):
-        self.port = port
+        self.port = find_serial_port(port)
         self.link = link
+        self._ser = None
+        if self.link is None and self.port:
+            try:
+                import serial
+                self._ser = serial.Serial(self.port, 115200, timeout=0.1)
+            except Exception:
+                self._ser = None
+
+    def ping(self):
+        if self._ser is not None:
+            self._ser.write(b'{"st":"e"}\n')
+            self._ser.flush()
+        elif self.link is not None and hasattr(self.link, "write"):
+            self.link.write(b'{"st":"e"}\n')
 
     def poll_hardware(self):
         if self.link is not None and hasattr(self.link, "read_state"):
             return self.link.read_state()
+        if self._ser is not None:
+            self.ping()
+            line = self._ser.readline().decode(errors="ignore").strip()
+            if line.startswith("{"):
+                try:
+                    import json
+                    return json.loads(line)
+                except Exception:
+                    pass
         return {"angle": 0.0, "pot": 2048, "button": None}
 
     def send_command(self, msg):
-        if self.link is not None:
+        if self._ser is not None:
+            import json
+            self._ser.write((json.dumps(msg) + "\n").encode())
+            self._ser.flush()
+        elif self.link is not None:
             if hasattr(self.link, "write"):
                 self.link.write(str(msg).encode())
             elif hasattr(self.link, "send"):
