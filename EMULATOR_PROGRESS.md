@@ -716,3 +716,52 @@ Decisions:
 - Overlapping patch ranges raise at load.
 - Updated `EMULATOR_DESIGN.md`'s world example from YAML to JSON so the design
   doc matches the implemented format.
+
+## 2026-08-04 -- T017 sensor port and attachment probing
+
+Files touched:
+
+- `smotoremu/port.py`
+- `smotoremu/session.py`
+- `smotoremu/machine_shim.py`
+- `tests/emulator/test_port.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_port.py -v
+ModuleNotFoundError: No module named 'smotoremu.port'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_port.py -v
+4 passed in 0.01s
+
+python3 -m pytest tests/emulator/test_port.py tests/emulator/test_trace.py tests/emulator/test_session.py tests/emulator/test_inputs.py -q
+21 passed in 0.05s
+
+python3 -m pytest tests/ -q
+197 passed, 1 skipped in 0.44s
+```
+
+Decisions:
+
+- Added `Port` carrying pin 5 and the I2C bus.
+- With no attached sensor, pin 5 ADC follows the driven digital level: low maps
+  to `0`, high maps to `4095`, so the real `sensors.selectsensor()` reports no
+  sensor attached.
+- Analog sensors can provide `output_raw()` or `pin5_adc()`; the output ignores
+  the driven level, so a mid-scale analog sensor is detected as attached by the
+  real selection probe.
+- I2C sensors are modeled as objects with `i2c_address` and `device`.
+- `mode="analog"` unregisters attached I2C sensors from the bus, and
+  `mode="i2c"` restores them.
+- I2C-mode analog reads float near mid-scale. This is marked in code as
+  `ASSUMPTION: awaiting confirmation` because the analog/I2C toggle wiring is
+  still an open hardware question.
+- `Session.port` now uses the real `Port` model instead of a placeholder.
+- Port-backed pin 5 ADC reads now record `adc` trace events like other ADC
+  reads.

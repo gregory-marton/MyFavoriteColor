@@ -27,6 +27,7 @@ from smotoremu.peripherals.inputs import Battery, Buttons, Potentiometer
 from smotoremu.peripherals.servo import ServoModel
 from smotoremu.peripherals.ssd1306 import SSD1306Device
 from smotoremu.pinmap import PIN_SERVO
+from smotoremu.port import Port
 from smotoremu.trace import TraceRecorder
 from smotoremu.vfs import VFS
 
@@ -48,10 +49,6 @@ DEVICE_MODULES = [
     "prefs",
     "files",
 ]
-
-
-class Port:
-    pass
 
 
 class Session:
@@ -89,7 +86,7 @@ class Session:
         if self.board_config.get("accelerometer", True):
             self.accel = ADXL345Device(rng=self.rng)
             self.bus.register(0x53, self.accel)
-        self.port = Port()
+        self.port = Port(self.board, self.bus)
 
         self._thread = None
         self._exited = False

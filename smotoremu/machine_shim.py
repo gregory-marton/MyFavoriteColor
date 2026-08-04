@@ -83,8 +83,8 @@ class Board:
         self.validate_pin(pin_id)
         self.clock.sleep_us(self.ADC_SAMPLE_COST_US)
         if pin_id == PIN_SENSOR_PORT and self._port_adc_stub is not None:
-            return self._port_adc_stub(self.pin_values.get(PIN_SENSOR_PORT, 0))
-        if pin_id in self.adc_noise_callbacks:
+            value = self._port_adc_stub(self.pin_values.get(PIN_SENSOR_PORT, 0))
+        elif pin_id in self.adc_noise_callbacks:
             value = self.adc_noise_callbacks[pin_id]()
         else:
             value = self.adc_values.get(pin_id, 2048)
