@@ -1,0 +1,11 @@
+{
+  "part_number": "GROVE_LIGHT",
+  "noise_lsb": 8,
+  "lux_curve": [
+    {"lux": 0, "volts": 0.0},
+    {"lux": 10, "volts": 0.35},
+    {"lux": 100, "volts": 1.15},
+    {"lux": 1000, "volts": 2.45},
+    {"lux": 10000, "volts": 3.3}
+  ]
+}

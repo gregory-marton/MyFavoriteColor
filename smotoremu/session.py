@@ -79,6 +79,7 @@ class Session:
         )
         self.bus.register(0x3C, self.display)
         self.servo = ServoModel(self.board, PIN_SERVO)
+        self.board.servo_model = self.servo
         self.buttons = Buttons(self.board)
         self.pot = Potentiometer(self.board, rng=self.rng)
         self.battery = Battery(self.board)

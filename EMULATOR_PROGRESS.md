@@ -914,3 +914,49 @@ Decisions:
   high reads stay near zero, so it does not satisfy the no-sensor
   `low < 200 and high > 4000` condition.
 - `ui_schema()` exposes a slider field for future UI controls.
+
+## 2026-08-04 -- T021 Grove light sensor plug-in
+
+Files touched:
+
+- `smotoremu/sensors/grove_light.py`
+- `smotoremu/sensors/data/grove_light.json`
+- `smotoremu/session.py`
+- `tests/emulator/test_light_sensor.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_light_sensor.py -v
+KeyError: "unknown sensor 'GROVE_LIGHT'; available: GROVE_SLIDE_POT, VEML6040"
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_light_sensor.py -v
+5 passed in 0.02s
+
+python3 -m pytest tests/emulator/test_light_sensor.py tests/emulator/test_sensor_registry.py tests/emulator/test_port.py tests/emulator/test_session.py -q
+21 passed in 0.05s
+
+python3 -m pytest tests/ -q
+219 passed, 1 skipped in 0.46s
+```
+
+Decisions:
+
+- Added a registered `GROVE_LIGHT` analog sensor plug-in.
+- Light response is data-backed by a lux-to-voltage calibration table.
+- Interpolation is log-lux based and clamps at the table endpoints.
+- Raw output maps voltage to 12-bit ADC units and saturates at 4095.
+- Sensed lux combines `world.lux_at(angle)` with `world.ambient_lux`.
+- If the active board exposes `servo_model`, the light sensor samples at
+  `servo.actual_angle`; otherwise it falls back to angle 0.
+- Per-read Gaussian noise is supported with injectable RNG.
+- The real `sensors.readpoint()` path is now covered: repeated reads against a
+  stable noisy world stay close after the median slice, and increasing world
+  lux moves the light coordinate upward.
+- `Session` stores its servo model on the board so world-coupled analog sensors
+  can sample at the current arm angle.
