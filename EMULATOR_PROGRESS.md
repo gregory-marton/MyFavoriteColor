@@ -1022,3 +1022,51 @@ Decisions:
 - Added pytest fixtures `sm`, `sm_color`, and `sm_analog`.
 - Updated packaging metadata to include `smotoremu*`, `smcheck*`, top-level
   `smotor`, and the `pytest11` plugin entry point.
+
+## 2026-08-04 -- T023 auto-waiting expectations
+
+Files touched:
+
+- `smotoremu/expect.py`
+- `smotor.py`
+- `smotoremu/__init__.py`
+- `tests/emulator/test_expect.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_expect.py -v
+ModuleNotFoundError: No module named 'smotoremu.expect'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_expect.py -v
+7 passed in 0.34s
+
+python3 -m pytest tests/emulator/test_expect.py tests/emulator/test_facade.py tests/emulator/test_session.py tests/emulator/test_display.py -q
+28 passed in 0.48s
+
+python3 -m pytest tests/ -q
+235 passed, 1 skipped in 0.83s
+```
+
+Decisions:
+
+- Added `wait_for(predicate, session=..., timeout_ms=..., poll_ms=...)`.
+- Added Playwright-shaped `expect(target)` with `to_be`, `to_be_close`,
+  `to_contain`, `to_have_text`, and `not_`.
+- Waiting advances virtual time by polling intervals and never uses wall-clock
+  sleeps.
+- Already-true predicates return without advancing virtual time.
+- Timeouts occur at the exact requested virtual timeout.
+- Failure messages include expected condition, actual value, elapsed virtual
+  time, and the last 8 screen lines.
+- Expectations fail fast with `session.error` instead of spinning when the
+  device thread has crashed.
+- `expect(lambda: sm.arm.angle)` can infer the session from a facade object in
+  the lambda closure; facade objects such as `sm.screen` expose `session`
+  directly.
+- Exported `expect` and `wait_for` from both `smotor` and `smotoremu`.
