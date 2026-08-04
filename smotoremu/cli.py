@@ -1,9 +1,11 @@
 """Command-line interface for SmartMotor emulator.
 
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
+Co-authored-by: Claude Opus 4.6, Aug 2026
 """
 
 import argparse
+import base64
 import json
 import os
 import shutil
@@ -119,6 +121,10 @@ class HardwareBridge:
         self.port = find_serial_port(port)
         self.link = link
         self._ser = None
+        self._mirror_active = False
+        self._mirror_frame = None
+        self._mirror_frame_revision = 0
+        self._state = {"angle": 0.0, "pot": 2048, "button": None}
         if self.link is None and self.port:
             try:
                 import serial
@@ -140,8 +146,12 @@ class HardwareBridge:
         if self.link is not None and hasattr(self.link, "read_state"):
             return self.link.read_state()
         if self._ser is not None:
-            self.ping()
+            if not self._mirror_active:
+                self.ping()
             line = self._ser.readline().decode(errors="ignore").strip()
+            if line.startswith("@SMIRROR "):
+                self._parse_mirror_line(line)
+                return dict(self._state)
             if line.startswith("{"):
                 try:
                     import json, math
@@ -175,10 +185,41 @@ class HardwareBridge:
                         ax, ay, az = float(parsed["ax"]), float(parsed["ay"]), float(parsed["az"])
                         res["roll"] = math.degrees(math.atan2(ay, az)) if (ay or az) else 0.0
                         res["pitch"] = math.degrees(math.atan2(-ax, math.sqrt(ay*ay + az*az))) if (ax or ay or az) else 0.0
-                    return res
+                    self._state.update(res)
+                    return dict(self._state)
                 except Exception:
                     pass
-        return {"angle": 0.0, "pot": 2048, "button": None}
+        return dict(self._state)
+
+    @property
+    def mirror_frame_revision(self):
+        return self._mirror_frame_revision
+
+    def mirror_frame(self):
+        return self._mirror_frame
+
+    def _parse_mirror_line(self, line):
+        parts = line.split(" ", 5)
+        kind = parts[1] if len(parts) > 1 else ""
+        self._mirror_active = True
+        if kind == "FRAME" and len(parts) == 6:
+            sequence = int(parts[2])
+            width = int(parts[3])
+            height = int(parts[4])
+            framebuffer = base64.b64decode(parts[5], validate=True)
+            if len(framebuffer) != width * (height // 8):
+                return
+            self._mirror_frame_revision += 1
+            self._mirror_frame = (sequence, width, height, framebuffer)
+        elif kind == "ANGLE" and len(parts) >= 3:
+            self._state["angle"] = float(parts[2])
+        elif kind == "ACCEL" and len(parts) >= 5:
+            import math
+            ax, ay, az = (float(parts[2]), float(parts[3]), float(parts[4]))
+            self._state["roll"] = math.degrees(math.atan2(ay, az)) if (ay or az) else 0.0
+            self._state["pitch"] = math.degrees(
+                math.atan2(-ax, math.sqrt(ay * ay + az * az))
+            ) if (ax or ay or az) else 0.0
 
     def send_command(self, msg):
         import json
@@ -284,8 +325,21 @@ class HardwareServerSession:
         )
 
     def frame_message(self):
-        self.seq += 1
-        return protocol.frame_message(self.seq, b"", ["Hardware Mode (CDC)"])
+        frame = self.bridge.mirror_frame()
+        if frame is None:
+            self.seq += 1
+            return protocol.frame_message(self.seq, b"", ["Waiting for device display..."])
+
+        from smotoremu.peripherals.ssd1306 import framebuffer_to_png
+        from smotoremu.screen_text import extract_lines
+
+        device_sequence, width, height, framebuffer = frame
+        self.seq = max(self.seq + 1, device_sequence)
+        return protocol.frame_message(
+            self.seq,
+            framebuffer_to_png(framebuffer, width=width, height=height),
+            extract_lines(framebuffer, width=width, height=height),
+        )
 
 
 async def bridge_handler(websocket, hb, poll_interval=0.3):
@@ -306,15 +360,24 @@ async def bridge_handler(websocket, hb, poll_interval=0.3):
     # Send initial state + frame
     await websocket.send(protocol.dumps(session.state_message()))
     await websocket.send(protocol.dumps(session.frame_message()))
+    last_frame_revision = hb.mirror_frame_revision
+
+    loop = asyncio.get_event_loop()
 
     async def poll_loop():
         """Continuously poll hardware and push state to browser."""
+        nonlocal last_frame_revision
         while True:
             await asyncio.sleep(poll_interval)
             now_ms = int(time.time() * 1000)
-            state = session.state_message()
+            # Run blocking serial I/O in thread to avoid stalling event loop
+            state = await loop.run_in_executor(None, session.state_message)
             for outbound in coalescer.push(state, now_ms=now_ms):
                 await websocket.send(protocol.dumps(outbound))
+            if hb.mirror_frame_revision != last_frame_revision:
+                last_frame_revision = hb.mirror_frame_revision
+                for outbound in coalescer.push(session.frame_message(), now_ms=now_ms):
+                    await websocket.send(protocol.dumps(outbound))
             for outbound in coalescer.drain(now_ms=now_ms):
                 await websocket.send(protocol.dumps(outbound))
 
@@ -358,23 +421,58 @@ def bridge(port=None, host="127.0.0.1", web_port=8765):
     asyncio.run(main_loop())
     return 0
 
-def reset_hardware(port=None):
+def reset_hardware(port=None, soft=False):
     serial_port = find_serial_port(port)
     if not serial_port:
         print("❌ No physical serial port found.", file=sys.stderr)
         return 1
     try:
         import serial
-        print(f"⚡ Deinitializing hardware timers and resetting MicroPython on {serial_port}...")
-        s = serial.Serial(serial_port, 115200, timeout=0.5)
-        s.write(b"\x03\x03import machine; machine.Timer(0).deinit(); machine.reset()\r\n")
-        time.sleep(1.5)
-        s.close()
-        time.sleep(1.0)
-        print("✅ Hardware reset complete.")
+        if soft:
+            print(f"⚡ Interrupting MicroPython on {serial_port} (soft)...")
+            s = serial.Serial(serial_port, 115200, timeout=0.2)
+            s.write(b"\x03\x03\x04")
+            time.sleep(0.3)
+            s.close()
+            print("✅ Interrupted (REPL).")
+        else:
+            print(f"⚡ Deinitializing hardware timers and resetting MicroPython on {serial_port}...")
+            s = serial.Serial(serial_port, 115200, timeout=0.5)
+            s.write(b"\x03\x03import machine; machine.Timer(0).deinit(); machine.reset()\r\n")
+            time.sleep(1.5)
+            s.close()
+            time.sleep(1.0)
+            print("✅ Hardware reset complete.")
         return 0
     except Exception as exc:
         print(f"❌ Error resetting hardware: {exc}", file=sys.stderr)
+        return 1
+
+
+def diag_hardware(port=None, lines=5):
+    """Diagnostic: ping device and print raw serial responses."""
+    serial_port = find_serial_port(port)
+    if not serial_port:
+        print("❌ No physical serial port found.", file=sys.stderr)
+        return 1
+    try:
+        import serial
+        print(f"🔍 Connecting to {serial_port}...")
+        s = serial.Serial(serial_port, 115200, timeout=1.0)
+        s.write(b'{"st":"e"}\n')
+        s.flush()
+        time.sleep(0.5)
+        print("📥 Raw lines from device:")
+        for i in range(lines):
+            line = s.readline().decode(errors="ignore").strip()
+            print(f"  {i+1}: {repr(line)}")
+            s.write(b'{"st":"e"}\n')
+            s.flush()
+            time.sleep(0.3)
+        s.close()
+        return 0
+    except Exception as exc:
+        print(f"❌ Error: {exc}", file=sys.stderr)
         return 1
 
 
@@ -422,6 +520,12 @@ def main(argv=None):
     # reset
     reset_p = subparsers.add_parser("reset", help="Reset physical SmartMotor serial connection")
     reset_p.add_argument("--port", default=None, help="Serial port (e.g. /dev/cu.usbmodem1101)")
+    reset_p.add_argument("--soft", action="store_true", help="Soft interrupt (Ctrl-C to REPL) instead of full reset")
+
+    # diag
+    diag_p = subparsers.add_parser("diag", help="Ping device and print raw serial responses")
+    diag_p.add_argument("--port", default=None, help="Serial port")
+    diag_p.add_argument("--lines", type=int, default=5, help="Number of response lines to read")
 
     args = parser.parse_args(argv)
 
@@ -458,7 +562,9 @@ def main(argv=None):
     elif args.command == "bridge":
         return bridge(port=args.port, host=args.host, web_port=args.web_port)
     elif args.command == "reset":
-        return reset_hardware(port=args.port)
+        return reset_hardware(port=args.port, soft=args.soft)
+    elif args.command == "diag":
+        return diag_hardware(port=args.port, lines=args.lines)
     else:
         parser.print_help()
         return 0

@@ -208,6 +208,17 @@ def _png(width, height, raw_scanlines):
     )
 
 
+def framebuffer_to_png(buffer, width=128, height=64, scale=4):
+    """Render a physical-device MONO_VLSB framebuffer as a PNG."""
+    expected = width * (height // 8)
+    if len(buffer) != expected:
+        raise ValueError(f"expected {expected} framebuffer bytes, got {len(buffer)}")
+    display = SSD1306Device(width=width, height=height)
+    display._gddram[:] = buffer
+    display.on = True
+    return display.to_png(scale=scale)
+
+
 def _chunk(kind, payload):
     crc = zlib.crc32(kind + payload) & 0xFFFFFFFF
     return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", crc)

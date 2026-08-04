@@ -1,3 +1,4 @@
+# Co-authored-by: GPT-5, Aug 2026
 
 from machine import Pin,I2C
 import math
@@ -43,6 +44,22 @@ class ADXL345:
         if z > 32767:
             z -= 65536
         return z
+
+    def read(self):
+        """Read all three axes from one coherent six-byte sample."""
+        data = self.i2c.readfrom_mem(self.addr, regAddress, TO_READ)
+        values = []
+        for offset in (0, 2, 4):
+            value = (int(data[offset + 1]) << 8) | data[offset]
+            if value > 32767:
+                value -= 65536
+            values.append(value)
+        try:
+            import smirror
+            smirror.emit_accel(values[0], values[1], values[2])
+        except Exception:
+            pass
+        return tuple(values)
            
     def RP_calculate(self,x,y,z):
         roll = math.atan2(y , z) * 57.3

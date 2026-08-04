@@ -1,3 +1,5 @@
+# Co-authored-by: GPT-5, Aug 2026
+
 from machine import Pin,I2C
 from machine import Pin, SoftI2C, PWM, ADC
 import adxl345
@@ -81,6 +83,11 @@ class SENSORS:
 
     
     def readpot(self):
+        if self.adx is not None:
+            try:
+                self.adx.read()
+            except Exception:
+                pass
         return self.pot.read()
     
     def accel(self):
@@ -141,4 +148,3 @@ class SENSORS:
             pass
         
         return ""
-

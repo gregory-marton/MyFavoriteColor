@@ -1,10 +1,19 @@
 """Unit tests for smotor hardware bridge functionality.
 
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
+Co-authored-by: GPT-5, Aug 2026
 """
+
+import base64
 
 import pytest
 from smotoremu.cli import HardwareBridge, HardwareServerSession
+from smotoremu._font_data import FONT_DATA
+
+
+@pytest.fixture(autouse=True)
+def do_not_open_physical_serial_for_unit_tests(monkeypatch):
+    monkeypatch.setattr("smotoremu.cli.find_serial_port", lambda port=None: port)
 
 
 def test_hardware_bridge_mock_device():
@@ -227,3 +236,60 @@ def test_bridge_pushes_state_without_client_messages():
         f"Expected >=3 proactive state pushes in 1.5s, got {len(state_msgs)}"
     )
 
+
+def test_hardware_mirror_frame_is_rendered_and_text_extracted():
+    framebuffer = bytearray(128 * 8)
+    framebuffer[0:8] = _glyph("H")
+    framebuffer[8:16] = _glyph("I")
+    encoded = base64.b64encode(framebuffer).decode("ascii")
+
+    class MirrorSerial:
+        in_waiting = 0
+
+        def write(self, data):
+            pass
+
+        def flush(self):
+            pass
+
+        def readline(self):
+            return f"@SMIRROR FRAME 1 128 64 {encoded}\n".encode()
+
+    bridge = HardwareBridge()
+    bridge._ser = MirrorSerial()
+    session = HardwareServerSession(bridge)
+
+    session.state_message()
+    frame = session.frame_message()
+
+    assert frame["type"] == "frame"
+    assert frame["seq"] == 1
+    assert base64.b64decode(frame["png"]).startswith(b"\x89PNG\r\n\x1a\n")
+    assert frame["lines"] == ["HI"]
+
+
+def test_hardware_mirror_accelerometer_updates_orientation():
+    class MirrorSerial:
+        in_waiting = 0
+
+        def write(self, data):
+            pass
+
+        def flush(self):
+            pass
+
+        def readline(self):
+            return b"@SMIRROR ACCEL 128 0 222\n"
+
+    bridge = HardwareBridge()
+    bridge._ser = MirrorSerial()
+
+    state = bridge.poll_hardware()
+
+    assert state["roll"] == pytest.approx(0.0)
+    assert state["pitch"] == pytest.approx(-30.0, abs=0.2)
+
+
+def _glyph(character):
+    offset = (ord(character) - 32) * 8
+    return FONT_DATA[offset : offset + 8]

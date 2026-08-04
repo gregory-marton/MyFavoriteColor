@@ -1,6 +1,50 @@
 # Emulator Progress
 
 Co-authored-by: GPT-5, Aug 2026
+
+## 2026-08-04 -- Physical OLED, servo, and accelerometer mirror path
+
+Files touched:
+
+- `smirror.py`, `boot.py`, `EngAI_MANIFEST.txt`
+- `adxl345.py`, `sensors.py`
+- `smotoremu/cli.py`, `smotoremu/peripherals/ssd1306.py`
+- `tests/test_smirror.py`
+- `tests/emulator/test_adxl.py`, `tests/emulator/test_hardware_bridge.py`
+
+Red output:
+
+```text
+ModuleNotFoundError: No module named 'smirror'
+AttributeError: 'ADXL345' object has no attribute 'read'
+KeyError: 'roll'
+AssertionError: activity pot read emitted no @SMIRROR ACCEL line
+TypeError: install() got an unexpected keyword argument 'display_module'
+```
+
+Green output:
+
+```text
+.venv/bin/python -m pytest tests/test_smirror.py tests/emulator/test_adxl.py \
+  tests/emulator/test_hardware_bridge.py tests/emulator/test_e2e_mirror_telemetry.py \
+  tests/emulator/test_recording_bridge.py -q
+25 passed in 7.78s
+```
+
+Decisions:
+
+- Physical firmware emits a line-oriented `@SMIRROR` protocol that cannot be
+  mistaken for legacy `webconnect.py` JSON.
+- `boot.py` installs observational hooks around the shared SSD1306 and servo
+  drivers; hook failures never stop the activity being observed.
+- The host converts the real 1024-byte MONO_VLSB framebuffer to PNG and extracts
+  selectable text instead of manufacturing a placeholder hardware frame.
+- Accelerometer reads are coherent six-byte burst reads. Existing activity pot
+  reads sample the accelerometer, throttled to 10 Hz, so motion telemetry works
+  in either deployed activity rather than only in web-connect mode.
+- A live diagnostic against the pre-fix device returned three empty replies,
+  proving the prior physical test was accepting protocol defaults rather than
+  real device telemetry.
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
 
 ## 2026-08-04 -- T035 `deploy.sh` emulator target

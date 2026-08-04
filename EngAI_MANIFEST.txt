@@ -8,6 +8,7 @@ myfavcolor.py
 prefs.py
 sensors.py
 servo.py
+smirror.py
 ssd1306.py
 standalone.py
 swv.py

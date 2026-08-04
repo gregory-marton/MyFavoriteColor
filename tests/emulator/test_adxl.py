@@ -4,12 +4,14 @@ Co-authored-by: GPT-5, Aug 2026
 """
 
 import random
+import io
 
 import pytest
 
 from smotoremu.device_env import load_real_adxl345, load_real_sensors
 from smotoremu.machine_shim import Board, Pin, SoftI2C
 from smotoremu.peripherals.adxl345 import ADXL345Device
+import smirror
 
 
 def make_bus_with_adxl(**kwargs):
@@ -69,3 +71,29 @@ def test_absent_accelerometer_constructs_sensors_with_none_adx():
     real_sensors = sensors.SENSORS()
 
     assert real_sensors.adx is None
+
+
+def test_burst_read_supports_live_mirror_telemetry():
+    _, device, i2c = make_bus_with_adxl(noise_lsb=0)
+    adxl = load_real_adxl345().ADXL345(i2c)
+    output = io.StringIO()
+    smirror.set_writer(output)
+    device.set_orientation(30, -20)
+
+    x, y, z = adxl.read()
+
+    assert (x, y, z) != (0, 0, 0)
+    assert output.getvalue() == f"@SMIRROR ACCEL {x} {y} {z}\n"
+
+
+def test_activity_pot_reads_also_sample_accelerometer_for_mirror():
+    board, device, _ = make_bus_with_adxl(noise_lsb=0)
+    sensors_module = load_real_sensors()
+    sensors = sensors_module.SENSORS()
+    output = io.StringIO()
+    smirror.set_writer(output)
+    device.set_orientation(-25, 15)
+
+    sensors.readpot()
+
+    assert output.getvalue().startswith("@SMIRROR ACCEL ")
