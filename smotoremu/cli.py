@@ -100,6 +100,10 @@ def read_vfs_file(filename, vfs_dir=None):
 def find_serial_port(custom_port=None):
     if custom_port:
         return custom_port
+    import glob
+    ports = sorted(glob.glob("/dev/cu.usbmodem*"))
+    if ports:
+        return ports[0]
     try:
         import serial.tools.list_ports as list_ports
         candidates = [p.device for p in list_ports.comports() if p.vid == 0x303A or "usbmodem" in p.device]
@@ -118,7 +122,7 @@ class HardwareBridge:
         if self.link is None and self.port:
             try:
                 import serial
-                self._ser = serial.Serial(self.port, 115200, timeout=0.1)
+                self._ser = serial.Serial(self.port, 115200, timeout=0.5)
             except Exception:
                 self._ser = None
 
@@ -154,6 +158,11 @@ class HardwareBridge:
                         res["battery"] = int(parsed["bat"])
                     elif "battery" in parsed:
                         res["battery"] = int(parsed["battery"])
+
+                    if "attached" in parsed:
+                        res["attached"] = parsed["attached"]
+                    elif "s" in parsed:
+                        res["attached"] = "GROVE_LIGHT"
 
                     if parsed.get("btn_u") == 0:
                         res["button"] = "up"
@@ -264,7 +273,7 @@ class HardwareServerSession:
             angle=hw.get("angle", 0.0),
             pot=hw.get("pot", 2048),
             battery=hw.get("battery", 4200),
-            attached="Hardware (USB CDC)",
+            attached=hw.get("attached", "Hardware (USB CDC)"),
             clock_ms=0,
             commanded_angle=hw.get("angle", 0.0),
             world=None,
@@ -279,6 +288,57 @@ class HardwareServerSession:
         return protocol.frame_message(self.seq, b"", ["Hardware Mode (CDC)"])
 
 
+async def bridge_handler(websocket, hb, poll_interval=0.3):
+    """Handle a single WebSocket connection to the hardware bridge.
+
+    Runs two concurrent tasks:
+    - poll_loop: periodically reads hardware state and pushes to browser
+    - recv_loop: reads browser messages and forwards commands to device
+
+    Extracted as a module-level function so it can be tested without
+    starting a real WebSocket server.
+    """
+    import asyncio
+
+    session = HardwareServerSession(hb)
+    coalescer = protocol.UpdateCoalescer()
+
+    # Send initial state + frame
+    await websocket.send(protocol.dumps(session.state_message()))
+    await websocket.send(protocol.dumps(session.frame_message()))
+
+    async def poll_loop():
+        """Continuously poll hardware and push state to browser."""
+        while True:
+            await asyncio.sleep(poll_interval)
+            now_ms = int(time.time() * 1000)
+            state = session.state_message()
+            for outbound in coalescer.push(state, now_ms=now_ms):
+                await websocket.send(protocol.dumps(outbound))
+            for outbound in coalescer.drain(now_ms=now_ms):
+                await websocket.send(protocol.dumps(outbound))
+
+    async def recv_loop():
+        """Read client messages and forward commands to device."""
+        async for raw in websocket:
+            now_ms = int(time.time() * 1000)
+            for message in session.handle(raw):
+                for outbound in coalescer.push(message, now_ms=now_ms):
+                    await websocket.send(protocol.dumps(outbound))
+            for outbound in coalescer.drain(now_ms=now_ms):
+                await websocket.send(protocol.dumps(outbound))
+
+    poll_task = asyncio.create_task(poll_loop())
+    try:
+        await recv_loop()
+    finally:
+        poll_task.cancel()
+        try:
+            await poll_task
+        except asyncio.CancelledError:
+            pass
+
+
 def bridge(port=None, host="127.0.0.1", web_port=8765):
     from smotoremu.server import websocket_process_request
     import asyncio
@@ -289,49 +349,49 @@ def bridge(port=None, host="127.0.0.1", web_port=8765):
     print(f"🔌 Hardware Bridge starting on {host}:{web_port} (connected to {hb.port or 'auto'})")
 
     async def handler(websocket):
-        session = HardwareServerSession(hb)
-        coalescer = protocol.UpdateCoalescer()
-        try:
-            await websocket.send(protocol.dumps(session.state_message()))
-            await websocket.send(protocol.dumps(session.frame_message()))
-            async for raw in websocket:
-                now_ms = int(time.time() * 1000)
-                for message in session.handle(raw):
-                    for outbound in coalescer.push(message, now_ms=now_ms):
-                        await websocket.send(protocol.dumps(outbound))
-                for outbound in coalescer.drain(now_ms=now_ms):
-                    await websocket.send(protocol.dumps(outbound))
-        finally:
-            pass
-
-    async def heartbeat_loop():
-        while True:
-            hb.heartbeat()
-            await asyncio.sleep(0.3)
+        await bridge_handler(websocket, hb)
 
     async def main_loop():
-        asyncio.create_task(heartbeat_loop())
         async with websockets.serve(handler, host, web_port, process_request=websocket_process_request):
             await asyncio.Future()
 
     asyncio.run(main_loop())
     return 0
 
+def reset_hardware(port=None):
+    serial_port = find_serial_port(port)
+    if not serial_port:
+        print("❌ No physical serial port found.", file=sys.stderr)
+        return 1
+    try:
+        import serial
+        print(f"⚡ Deinitializing hardware timers and resetting MicroPython on {serial_port}...")
+        s = serial.Serial(serial_port, 115200, timeout=0.5)
+        s.write(b"\x03\x03import machine; machine.Timer(0).deinit(); machine.reset()\r\n")
+        time.sleep(1.5)
+        s.close()
+        time.sleep(1.0)
+        print("✅ Hardware reset complete.")
+        return 0
+    except Exception as exc:
+        print(f"❌ Error resetting hardware: {exc}", file=sys.stderr)
+        return 1
+
 
 def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
 
-    parser = argparse.ArgumentParser(prog="smotor", description="SmartMotor CLI")
-    subparsers = parser.add_subparsers(dest="command")
+    parser = argparse.ArgumentParser(prog="smotor", description="SmartMotor emulator CLI")
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
     # flash
-    flash_p = subparsers.add_parser("flash", help="Erase virtual device flash")
+    flash_p = subparsers.add_parser("flash", help="Flash default files into virtual device")
     flash_p.add_argument("--vfs-dir", default=None, help="Custom VFS directory")
 
     # deploy
-    deploy_p = subparsers.add_parser("deploy", help="Deploy manifest files to virtual device")
-    deploy_p.add_argument("manifest", nargs="?", default="EngAI_MANIFEST.txt", help="Manifest file")
+    deploy_p = subparsers.add_parser("deploy", help="Deploy manifest files into virtual device")
+    deploy_p.add_argument("manifest", nargs="?", default="EngAI_MANIFEST.txt", help="Manifest path")
     deploy_p.add_argument("--vfs-dir", default=None, help="Custom VFS directory")
 
     # ls
@@ -358,6 +418,10 @@ def main(argv=None):
     bridge_p.add_argument("--port", default=None, help="Serial port (e.g. /dev/cu.usbmodem2101)")
     bridge_p.add_argument("--host", default="127.0.0.1")
     bridge_p.add_argument("--web-port", type=int, default=8765)
+
+    # reset
+    reset_p = subparsers.add_parser("reset", help="Reset physical SmartMotor serial connection")
+    reset_p.add_argument("--port", default=None, help="Serial port (e.g. /dev/cu.usbmodem1101)")
 
     args = parser.parse_args(argv)
 
@@ -393,6 +457,8 @@ def main(argv=None):
         return 0
     elif args.command == "bridge":
         return bridge(port=args.port, host=args.host, web_port=args.web_port)
+    elif args.command == "reset":
+        return reset_hardware(port=args.port)
     else:
         parser.print_help()
         return 0
