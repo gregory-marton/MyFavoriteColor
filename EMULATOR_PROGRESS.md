@@ -95,3 +95,39 @@ Decisions:
 - `ACCEL_SAMPLE` events include estimated roll/pitch using the same formula as the device ADXL345 driver.
 - The replay UI shows the latest white-balance factors and light dark/bright means in the side panel.
 - Playwright-backed UI assertions remain skipped when Playwright is not installed.
+
+## 2026-08-04 -- T001 package metadata smoke
+
+Files touched:
+
+- `pyproject.toml`
+- `smotoremu/__init__.py`
+- `smotoremu/version.py`
+- `tests/emulator/test_smoke.py`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_smoke.py -v
+2 failed in 0.03s
+
+Failures:
+- `smotoremu.__version__` missing
+- `pyproject.toml` missing
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_smoke.py -v
+2 passed in 0.01s
+
+python3 -m pytest tests/ -v
+120 passed, 1 skipped in 0.10s
+```
+
+Decisions:
+
+- Added minimal setuptools metadata for `smotoremu`.
+- Exposed `smotoremu.__version__` from `smotoremu/version.py`.
+- Declared Python >=3.11, matching `EMULATOR_TASKS.md` T001.
