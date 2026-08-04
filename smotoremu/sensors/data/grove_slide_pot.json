@@ -1,0 +1,8 @@
+{
+  "part_number": "GROVE_SLIDE_POT",
+  "noise_lsb": 8,
+  "adc_curve": [
+    {"in": 0, "out": 0},
+    {"in": 4095, "out": 4095}
+  ]
+}

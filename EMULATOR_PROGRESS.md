@@ -871,3 +871,46 @@ Decisions:
   factors within 15% of measured `WHITE_BALANCE_RGB = (1.0, 1.066, 1.948)`.
 - Extremely bright worlds saturate raw counts at `65535` and the real driver's
   `rgb` path clamps scaled values to `255`.
+
+## 2026-08-04 -- T020 Grove slide potentiometer plug-in
+
+Files touched:
+
+- `smotoremu/sensors/grove_slide_pot.py`
+- `smotoremu/sensors/data/grove_slide_pot.json`
+- `tests/emulator/test_slide_pot.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_slide_pot.py -v
+KeyError: "unknown sensor 'GROVE_SLIDE_POT'; available: VEML6040"
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_slide_pot.py -v
+5 passed in 0.02s
+
+python3 -m pytest tests/emulator/test_slide_pot.py tests/emulator/test_sensor_registry.py tests/emulator/test_port.py -q
+15 passed in 0.02s
+
+python3 -m pytest tests/ -q
+214 passed, 1 skipped in 0.47s
+```
+
+Decisions:
+
+- Added a registered `GROVE_SLIDE_POT` analog sensor plug-in.
+- `position` maps linearly from `0.0..1.0` to ADC raw `0..4095`.
+- ADC non-linearity is data-backed through a piecewise-linear table; default
+  data is identity and marked as a bench-data guess.
+- Per-read Gaussian noise is supported with injectable RNG.
+- `attach()` uses the existing `Port` analog path.
+- The real `sensors.selectsensor()` probe reports attached at rail and
+  mid-scale positions. The `position=0.0` truth table is explicit: both low and
+  high reads stay near zero, so it does not satisfy the no-sensor
+  `low < 200 and high > 4000` condition.
+- `ui_schema()` exposes a slider field for future UI controls.
