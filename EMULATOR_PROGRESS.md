@@ -3,6 +3,43 @@
 Co-authored-by: GPT-5, Aug 2026
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
 
+## 2026-08-04 -- T030 Web UI: keyboard and switches
+
+Files touched:
+
+- `web/input.js`
+- `web/index.html`
+- `web/app.js`
+- `tests/emulator/test_web_inputs.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_web_inputs.py -v
+1 failed in 31.48s
+FAILED test_keyboard_shortcuts_and_buttons
+TimeoutError: Page.wait_for_selector: Timeout 30000ms exceeded waiting for locator("#controls-panel")
+```
+
+Green output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_web_inputs.py -v
+1 passed in 0.95s
+
+.venv/bin/python -m pytest tests/ -q
+274 passed in 23.96s
+```
+
+Decisions:
+
+- Created `web/input.js` to manage keyboard shortcuts (`ArrowUp`/`ArrowDown` for UP/DOWN buttons, `Space` for SELECT, `ArrowLeft`/`ArrowRight` for potentiometer adjustments with repeat, `~` for power toggle, `!` for detach/attach).
+- Added `preventDefault()` on arrow keys and space so browser scrolling does not interfere with control handling.
+- Built interactive on-screen buttons (`#btn-up`, `#btn-down`, `#btn-select`), potentiometer slider, power toggle, and sticky accessibility click mode.
+- Added `#controls-panel` to `web/index.html` and initialized inputs in `web/app.js`.
+- Preserved scrubber selection position on incoming live frame updates so user scrubbing stays locked to the chosen frame.
+
 ## 2026-08-04 -- T029 Web UI: arm and angle
 
 Files touched:

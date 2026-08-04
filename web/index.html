@@ -50,6 +50,28 @@
       </section>
     </section>
 
+    <section id="controls-panel" class="panel controls">
+      <h2>Controls</h2>
+      <div class="control-row">
+        <button id="btn-up" type="button">UP (↑)</button>
+        <button id="btn-down" type="button">DOWN (↓)</button>
+        <button id="btn-select" type="button">SELECT (Space)</button>
+      </div>
+      <div class="control-row">
+        <label>
+          Potentiometer (← / →):
+          <input id="pot-slider" type="range" min="0" max="4095" value="2048">
+          <span id="pot-val">2048</span>
+        </label>
+      </div>
+      <div class="control-row">
+        <button id="power-toggle" class="btn-power on" type="button">Power ON (~)</button>
+        <label>
+          <input id="sticky-mode" type="checkbox"> Sticky Click Mode
+        </label>
+      </div>
+    </section>
+
     <section class="history">
       <button id="prev-frame" type="button">[ previous</button>
       <input id="frame-scrub" type="range" min="0" max="0" value="0">

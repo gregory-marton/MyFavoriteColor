@@ -3,6 +3,7 @@
 
 import { drawFrame } from "./oled.js";
 import { renderArm } from "./arm.js";
+import { initInputs } from "./input.js";
 
 const MAX_FRAMES = 200;
 
@@ -31,6 +32,10 @@ let frameIndex = -1;
 let latestState = null;
 
 connect();
+initInputs({
+  send,
+  getPot: () => (latestState ? latestState.pot : 2048),
+});
 
 els.viewMode.addEventListener("change", () => setViewMode(els.viewMode.value));
 els.copy.addEventListener("click", copyText);
@@ -97,11 +102,13 @@ function updateState(state) {
 }
 
 function pushFrame(frame) {
+  const wasAtLatest = frameIndex === -1 || frameIndex === frames.length - 1;
   frames.push(frame);
   if (frames.length > MAX_FRAMES) frames.shift();
-  frameIndex = frames.length - 1;
   updateScrubber();
-  showFrame(frameIndex);
+  if (wasAtLatest) {
+    showFrame(frames.length - 1);
+  }
 }
 
 function showFrame(index) {
