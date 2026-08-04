@@ -3,6 +3,40 @@
 Co-authored-by: GPT-5, Aug 2026
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
 
+## 2026-08-04 -- T034 `smotor` CLI
+
+Files touched:
+
+- `smotoremu/cli.py`
+- `pyproject.toml`
+- `tests/emulator/test_cli.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_cli.py -v
+1 error during collection
+ImportError: cannot import name 'cli' from 'smotoremu'
+```
+
+Green output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_cli.py -v
+2 passed in 0.04s
+
+.venv/bin/python -m pytest tests/ -q
+281 passed in 26.93s
+```
+
+Decisions:
+
+- Implemented `smotoremu.cli` with `flash`, `deploy`, `ls`, `cat`, `run`, and `serve` commands.
+- Configured persistent session state directory default at `~/.smotor/default/` (overridable with `--vfs-dir` or `SMOTOR_DIR`).
+- Enforced manifest file size checks (`MAX_FILE_BYTES`) and missing file warnings matching `deploy.sh`.
+- Registered `smotor = "smotoremu.cli:main"` console script entry point in `pyproject.toml`.
+
 ## 2026-08-04 -- T033 Web UI: clock, trace, headed tests
 
 Files touched:

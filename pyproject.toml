@@ -15,3 +15,6 @@ py-modules = ["smotor"]
 
 [project.entry-points.pytest11]
 smotoremu = "smotoremu.testing"
+
+[project.scripts]
+smotor = "smotoremu.cli:main"
