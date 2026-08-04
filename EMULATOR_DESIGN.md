@@ -221,14 +221,17 @@ A failing test replays exactly.
 Sensors are meaningless without something to sense. The `World` is the sheet of
 paper under the arm:
 
-```yaml
-world:
-  ambient_lux: 300
-  surface:                      # angle ranges → what's there
-    - {from: 0,   to: 25,  color: "#e02020", name: "red patch"}
-    - {from: 25,  to: 50,  color: "#f0f0f0", name: "white"}
-    - {from: 50,  to: 75,  color: "#2050e0", name: "blue patch"}
-  default_color: "#ffffff"
+```json
+{
+  "ambient_lux": 300,
+  "default_color": "#ffffff",
+  "blur_deg": 3,
+  "patches": [
+    {"from": 0, "to": 25, "color": "#e02020", "name": "red patch"},
+    {"from": 25, "to": 50, "color": "#f0f0f0", "name": "white"},
+    {"from": 50, "to": 75, "color": "#2050e0", "name": "blue patch"}
+  ]
+}
 ```
 
 The arm angle selects the patch; the sensor plug-in converts patch colour +

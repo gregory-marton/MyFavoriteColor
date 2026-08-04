@@ -674,3 +674,45 @@ Decisions:
   charged.
 - Button, servo, display frame, and device `print()` output now emit `button`,
   `servo`, `frame`, and `log` trace events.
+
+## 2026-08-04 -- T016 world model
+
+Files touched:
+
+- `smotoremu/world.py`
+- `smotoremu/worlds/three_patches.json`
+- `tests/emulator/test_world.py`
+- `EMULATOR_DESIGN.md`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_world.py -v
+ModuleNotFoundError: No module named 'smotoremu.world'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_world.py -v
+5 passed in 0.02s
+
+python3 -m pytest tests/ -q
+193 passed, 1 skipped in 0.45s
+```
+
+Decisions:
+
+- Added `World` and `Patch` for angle-indexed virtual paper under the arm.
+- World files use JSON, matching T016's recommendation and avoiding PyYAML.
+- Added shipped `smotoremu/worlds/three_patches.json` with red, white, and blue
+  regions.
+- `color_at()` returns patch color inside a patch and `default_color` in gaps.
+- `patch_at()` returns the selected patch or `None`.
+- `lux_at()` derives a simple luminance-scaled lux from color and ambient light.
+- Adjacent patch boundaries can blur over `blur_deg`; default is the documented
+  `3 deg` bench-data guess.
+- Overlapping patch ranges raise at load.
+- Updated `EMULATOR_DESIGN.md`'s world example from YAML to JSON so the design
+  doc matches the implemented format.
