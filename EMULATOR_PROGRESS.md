@@ -253,3 +253,54 @@ Decisions:
   small guessed start/stop overhead; this is marked for future bench data.
 - Existing SSD1306 render tests now register a generic device at `0x3C`.
   A command-level SSD1306 peripheral remains T009; T007 only owns transport.
+
+## 2026-08-04 -- T008 Timer, unique_id, and reset
+
+Files touched:
+
+- `smotoremu/machine_shim.py`
+- `tests/emulator/test_timer.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_timer.py -v
+ImportError: cannot import name 'DeviceReset' from 'smotoremu.machine_shim'
+```
+
+Test correction:
+
+```text
+tests/emulator/test_timer.py::test_timers_with_different_ids_are_independent
+AssertionError: At index 5 diff: ('two', 50000) != ('one', 50000)
+```
+
+That assertion over-specified ordering for two callbacks scheduled at the same
+virtual timestamp. The scheduler orders equal timestamps by insertion sequence,
+so the test now asserts each timer's independent firing series instead.
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_timer.py -v
+6 passed in 0.01s
+
+python3 -m pytest tests/ -q
+144 passed, 1 skipped in 0.20s
+```
+
+Decisions:
+
+- Added `Timer.ONE_SHOT`, `Timer.PERIODIC`, `init()`, and `deinit()` backed by
+  the board's `EventScheduler`.
+- Timer callbacks receive the timer instance, matching the MicroPython call
+  shape used by `myfavcolor.displaybatt(p)`.
+- `deinit()` is safe before `init()` and cancels a scheduled callback after
+  `init()`.
+- `Board(unique_id=...)` and `board.set_unique_id(...)` configure the active
+  emulated machine identity; global `unique_id()` reads from `Pin._board`.
+- `reset()` now raises `DeviceReset`, ready for the future session runner to
+  catch.
+- The shim docstring now explicitly states that timer callbacks are scheduler
+  callbacks, not truly pre-emptive ISR execution.

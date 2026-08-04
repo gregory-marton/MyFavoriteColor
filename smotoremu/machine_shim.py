@@ -1,5 +1,5 @@
-"""T006/T007: machine + I2C shim -- enough to run ssd1306.py, servo.py, and
-adxl345.py unmodified.
+"""T006/T007/T008: machine + I2C shim -- enough to run ssd1306.py, servo.py,
+adxl345.py, and timer-backed device code unmodified.
 
 Unlike tests/fakes/machine.py (built for the existing device-code test
 suite, which never drives a real SSD1306 write), SoftI2C here implements
@@ -11,19 +11,28 @@ setting the column/page range to full, so the emulator's replay renderer
 reads the real FrameBuffer's own `buffer` attribute directly rather than
 reconstructing GDDRAM from the I2C byte stream.
 
+Timer callbacks run on the virtual scheduler, i.e. between device-code I/O
+operations or explicit clock advancement, not truly pre-emptively. Real ISR
+re-entrancy bugs will not reproduce in this shim.
+
 Co-authored-by: GPT-5, Aug 2026
 """
 
-from smotoremu.clock import VirtualClock
+from smotoremu.clock import EventScheduler, VirtualClock
 from smotoremu.i2c import I2CBus, I2CDevice
 from smotoremu.pinmap import BUTTON_PINS, KNOWN_PINS, PIN_SENSOR_PORT
+
+
+class DeviceReset(RuntimeError):
+    pass
 
 
 class Board:
     ADC_SAMPLE_COST_US = 20  # GUESS: ESP32-C3 SAR ADC sample cost; needs bench data.
 
-    def __init__(self, clock=None):
+    def __init__(self, clock=None, unique_id=b"\x12\x34\x56\x78"):
         self.clock = clock or VirtualClock()
+        self.scheduler = EventScheduler(self.clock)
         self.pin_modes = {}
         self.pin_values = {pin: 1 for pin in BUTTON_PINS.values()}
         self.adc_values = {}
@@ -31,6 +40,8 @@ class Board:
         self.pwm_callbacks = {}
         self._port_adc_stub = None
         self.i2c_bus = I2CBus(clock=self.clock)
+        self.timer_handles = {}
+        self.set_unique_id(unique_id)
 
     def validate_pin(self, pin_id):
         if pin_id not in KNOWN_PINS:
@@ -80,6 +91,11 @@ class Board:
     def on_pwm_change(self, pin_id, callback):
         self.validate_pin(pin_id)
         self.pwm_callbacks.setdefault(pin_id, []).append(callback)
+
+    def set_unique_id(self, unique_id):
+        if not isinstance(unique_id, (bytes, bytearray)) or len(unique_id) != 4:
+            raise ValueError("unique_id must be exactly 4 bytes")
+        self.unique_id = bytes(unique_id)
 
 
 _DEFAULT_BOARD = Board()
@@ -150,6 +166,38 @@ class PWM:
         return self._duty
 
 
+class Timer:
+    ONE_SHOT = 0
+    PERIODIC = 1
+
+    def __init__(self, id):
+        self.id = id
+        self._board = Pin._board
+
+    def init(self, period=1000, mode=PERIODIC, callback=None):
+        if period <= 0:
+            raise ValueError("period must be positive")
+        if mode not in {self.ONE_SHOT, self.PERIODIC}:
+            raise ValueError("unsupported timer mode")
+        self.deinit()
+        period_us = period * 1000
+
+        def fire():
+            if callback is not None:
+                callback(self)
+
+        if mode == self.PERIODIC:
+            handle = self._board.scheduler.every(period_us, fire)
+        else:
+            handle = self._board.scheduler.after(period_us, fire)
+        self._board.timer_handles[self.id] = handle
+
+    def deinit(self):
+        handle = self._board.timer_handles.pop(self.id, None)
+        if handle is not None:
+            self._board.scheduler.cancel(handle)
+
+
 class SoftI2C:
     def __init__(self, scl, sda, freq=400000):
         self.scl = scl
@@ -192,7 +240,11 @@ class I2C(SoftI2C):
 
 
 def unique_id():
-    return b"\xac\x27\x6e\x7c\xb6\x98"
+    return Pin._board.unique_id
+
+
+def reset():
+    raise DeviceReset()
 
 
 def const(x):
