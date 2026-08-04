@@ -67,13 +67,39 @@
       <div class="control-row">
         <button id="power-toggle" class="btn-power on" type="button">Power ON (~)</button>
         <label>
-          <input id="sticky-mode" type="checkbox"> Sticky Click Mode
-        </label>
       </div>
+    </section>
+
     <section id="tilt-panel" class="panel tilt">
       <h2>Tilt &amp; Accelerometer</h2>
       <canvas id="tilt-canvas" width="300" height="200"></canvas>
       <div id="tilt-readout" class="readout">Roll: 0.0° | Pitch: 0.0°</div>
+    </section>
+
+    <section id="world-editor-panel" class="panel world-editor">
+      <h2>World Editor</h2>
+      <div class="control-row">
+        <label>
+          Preset:
+          <select id="preset-select">
+            <option value="three_patches" selected>Three Patches</option>
+            <option value="rainbow">Rainbow</option>
+          </select>
+        </label>
+        <label>
+          Ambient Lux:
+          <input id="ambient-lux" type="number" min="0" max="10000" value="300">
+        </label>
+      </div>
+      <div id="patches-list" class="patches-container"></div>
+      <div class="control-row toolbar-row">
+        <button id="add-patch" type="button">+ Add Patch</button>
+        <button id="download-world" type="button">Save JSON</button>
+        <label class="btn-label">
+          Load JSON
+          <input id="upload-world" type="file" accept=".json" style="display:none;">
+        </label>
+      </div>
     </section>
 
     <section class="history">

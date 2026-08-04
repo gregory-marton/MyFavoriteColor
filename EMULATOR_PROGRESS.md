@@ -3,6 +3,41 @@
 Co-authored-by: GPT-5, Aug 2026
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
 
+## 2026-08-04 -- T032 Web UI: world editor
+
+Files touched:
+
+- `web/world.js`
+- `web/index.html`
+- `web/app.js`
+- `tests/emulator/test_web_world.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_web_world.py -v
+1 failed in 30.98s
+FAILED test_world_editor_preset_and_emits_set_world
+TimeoutError: Page.wait_for_selector: Timeout 30000ms exceeded waiting for locator("#world-editor-panel")
+```
+
+Green output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_web_world.py -v
+1 passed in 0.98s
+
+.venv/bin/python -m pytest tests/ -q
+276 passed in 25.83s
+```
+
+Decisions:
+
+- Created `web/world.js` module providing patch editing, start/end angle controls, native `<input type="color">` pickers, patch creation/deletion, ambient lux configuration, and JSON file download/upload without server-side file writes.
+- Added shipped presets for `three_patches` (red/white/blue) and `rainbow` (red/orange/yellow/green/blue/violet).
+- Added `#world-editor-panel` to `web/index.html` and initialized world editor in `web/app.js` to emit `set_world` messages over WebSocket.
+
 ## 2026-08-04 -- T031 Web UI: accelerometer tilt widget
 
 Files touched:
