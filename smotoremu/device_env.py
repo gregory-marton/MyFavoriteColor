@@ -81,6 +81,15 @@ def load_real_icons():
         _restore_module("ssd1306", old_ssd1306)
 
 
+def load_real_servo():
+    old_machine = sys.modules.get("machine")
+    try:
+        _install_machine_module()
+        return load_real_module("servo.py")
+    finally:
+        _restore_module("machine", old_machine)
+
+
 def _restore_module(name, module):
     if module is None:
         sys.modules.pop(name, None)

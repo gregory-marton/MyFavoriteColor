@@ -405,3 +405,42 @@ Decisions:
   `sys.modules` overrides after loading to avoid contaminating legacy tests.
 - Added minimal `MONO_HLSB` support to the framebuf shim so `icons.py` can load
   its icon framebuffers.
+
+## 2026-08-04 -- T010 servo model
+
+Files touched:
+
+- `smotoremu/peripherals/servo.py`
+- `smotoremu/device_env.py`
+- `tests/emulator/test_servo.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_servo.py -v
+ImportError: cannot import name 'load_real_servo' from 'smotoremu.device_env'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_servo.py -v
+6 passed in 0.01s
+
+python3 -m pytest tests/ -q
+161 passed, 1 skipped in 0.38s
+```
+
+Decisions:
+
+- Added `ServoModel` subscribed to board PWM changes on the configured pin.
+- The model decodes PWM duty back to pulse width and angle, preserving the
+  real 10-bit duty quantization from `servo.Servo.write_us()`.
+- `duty=0` disables the signal and holds the current model position.
+- `commanded_angle` jumps immediately; `actual_angle` slews at a guessed
+  `400 deg/s` and settles through the virtual scheduler.
+- `is_moving` updates from virtual time, so tests and future UI code can wait
+  for the servo to settle without wall-clock sleeps.
+- Added `load_real_servo()` with temporary `machine` shim installation so tests
+  exercise the repo's real servo driver without contaminating later imports.
