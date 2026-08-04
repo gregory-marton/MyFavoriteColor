@@ -60,6 +60,16 @@ def test_hline_and_vline():
     assert fb.pixel(0, 4) == 0
 
 
+def test_line_draws_bresenham_diagonal_and_clips():
+    buf = bytearray(16 * 8)
+    fb = framebuf.FrameBuffer(buf, 16, 64, framebuf.MONO_VLSB)
+    fb.line(-1, -1, 3, 3, 1)
+
+    for point in ((0, 0), (1, 1), (2, 2), (3, 3)):
+        assert fb.pixel(*point) == 1
+    assert fb.pixel(3, 2) == 0
+
+
 def test_rect_draws_outline_only():
     buf = bytearray(16 * 8)
     fb = framebuf.FrameBuffer(buf, 16, 64, framebuf.MONO_VLSB)

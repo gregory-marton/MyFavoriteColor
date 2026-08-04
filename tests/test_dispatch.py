@@ -1,34 +1,81 @@
-import importlib
+"""Boot dispatch tests.
 
-import machine
+Co-authored-by: GPT-5, Aug 2026
+"""
 
-
-def test_choose_activity_web_mode_ignores_i2c_devices():
-    main = importlib.import_module("main")
-
-    assert main.choose_activity(1, [0x10]) == "webconnect"
+from smotoremu.session import Session
 
 
-def test_choose_activity_favorite_color_when_color_sensor_present():
-    main = importlib.import_module("main")
-
-    assert main.choose_activity(0, [0x10, 0x3c]) == "myfavcolor"
-
-
-def test_choose_activity_standalone_when_color_sensor_absent():
-    main = importlib.import_module("main")
-
-    assert main.choose_activity(0, [0x3c]) == "standalone"
+def write_module(tmp_path, name, source):
+    path = tmp_path / f"{name}.py"
+    path.write_text(source)
+    return path
 
 
-def test_startup_chord_toggles_mode_to_web(monkeypatch):
-    main = importlib.import_module("main")
-    machine.state.pins[8] = 0
-    machine.state.pins[9] = 1
-    machine.state.pins[10] = 0
-    monkeypatch.setattr(main.prefs, "mode", 0)
-    writes = []
-    monkeypatch.setattr(main, "resetprefs", lambda mode: writes.append(mode))
+def test_choose_activity_web_mode_ignores_i2c_devices(tmp_path, monkeypatch):
+    results = _run_dispatch_program(
+        tmp_path,
+        monkeypatch,
+        "assert main.choose_activity(1, [0x10]) == 'webconnect'\n",
+    )
 
-    assert main.setmode() == 1
-    assert writes == [1]
+    assert results == ["ok"]
+
+
+def test_choose_activity_favorite_color_when_color_sensor_present(tmp_path, monkeypatch):
+    results = _run_dispatch_program(
+        tmp_path,
+        monkeypatch,
+        "assert main.choose_activity(0, [0x10, 0x3c]) == 'myfavcolor'\n",
+    )
+
+    assert results == ["ok"]
+
+
+def test_choose_activity_standalone_when_color_sensor_absent(tmp_path, monkeypatch):
+    results = _run_dispatch_program(
+        tmp_path,
+        monkeypatch,
+        "assert main.choose_activity(0, [0x3c]) == 'standalone'\n",
+    )
+
+    assert results == ["ok"]
+
+
+def test_startup_chord_toggles_mode_to_web(tmp_path, monkeypatch):
+    results = _run_dispatch_program(
+        tmp_path,
+        monkeypatch,
+        "main.switch_down.value(0)\n"
+        "main.switch_select.value(1)\n"
+        "main.switch_up.value(0)\n"
+        "main.prefs.mode = 0\n"
+        "writes = []\n"
+        "main.resetprefs = lambda mode: writes.append(mode)\n"
+        "assert main.setmode() == 1\n"
+        "assert writes == [1]\n",
+    )
+
+    assert results == ["ok"]
+
+
+def _run_dispatch_program(tmp_path, monkeypatch, body):
+    write_module(
+        tmp_path,
+        "dispatch_program",
+        "import builtins\n"
+        "def main():\n"
+        "    import main\n"
+        + "".join(f"    {line}" for line in body.splitlines(keepends=True))
+        + "    builtins.DISPATCH_RESULTS.append('ok')\n",
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    import builtins
+
+    builtins.DISPATCH_RESULTS = []
+    session = Session()
+    session.boot("dispatch_program")
+    session.run_until_idle()
+
+    assert session.error is None
+    return builtins.DISPATCH_RESULTS

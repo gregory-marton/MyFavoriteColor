@@ -1,13 +1,9 @@
 """T009: the real ssd1306.py driver running against our shims -- the
 "it's alive" milestone. Written before smotoremu/device_env.py exists.
 
-The existing test suite's tests/fakes/ssd1306.py is a *different*, fake
-driver used to keep myfavcolor.py's own tests fast and simple -- it's
-earlier on sys.path, so a plain `import ssd1306` here would silently pick
-up the wrong one. smotoremu.device_env loads the real repo-root ssd1306.py
-by file path instead, with our framebuf/machine shims injected into
-sys.modules first so its top-level `import framebuf` / `from micropython
-import const` resolve correctly.
+smotoremu.device_env loads the real repo-root ssd1306.py by file path, with
+our framebuf/machine shims injected into sys.modules first so its top-level
+`import framebuf` / `from micropython import const` resolve correctly.
 
 Co-authored-by: GPT-5, Aug 2026
 """
@@ -27,9 +23,8 @@ def make_display():
 
 def test_loads_the_real_driver_not_the_test_suites_fake():
     ssd1306 = load_real_ssd1306()
-    # loaded from the repo-root file, not tests/fakes/ssd1306.py
+    # loaded from the repo-root file, not a generated or compatibility shim
     assert ssd1306.__file__.endswith("/ssd1306.py")
-    assert "tests/fakes" not in ssd1306.__file__
     assert hasattr(ssd1306, "SSD1306_I2C")
 
 

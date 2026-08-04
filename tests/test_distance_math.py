@@ -1,5 +1,8 @@
 import pytest
-import myfavcolor
+
+from smotoremu.device_env import load_real_module
+
+myfavcolor = load_real_module("myfavcolor.py", module_name="myfavcolor_distance_test")
 
 def test_distance_functions():
     c1 = (100, 100, 100)

@@ -1193,3 +1193,79 @@ Decisions:
 - Screen expectations use direct rendered-glyph search over current and stored
   frame buffers, with permissive foreground matching so text embedded near
   graphics or wrapped lines can still be located quickly.
+
+## 2026-08-04 -- T026 migrate remaining tests and delete fakes
+
+Files touched:
+
+- `tests/test_import_safety.py`
+- `tests/test_dispatch.py`
+- `tests/test_distance_math.py`
+- `tests/test_qlearning.py`
+- `tests/conftest.py`
+- `tests/fakes/` (deleted)
+- `README.md`
+- `smotoremu/backends/cpython_shim/ubinascii.py`
+- `smotoremu/backends/cpython_shim/urandom.py`
+- `smotoremu/backends/cpython_shim/uselect.py`
+- `smotoremu/device_env.py`
+- `smotoremu/session.py`
+- `smotoremu/framebuf_shim.py`
+- `smotoremu/machine_shim.py`
+- `tests/emulator/test_framebuf.py`
+- `tests/emulator/test_machine_shim.py`
+- `tests/emulator/test_ssd1306_peripheral.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/test_import_safety.py tests/test_dispatch.py tests/test_distance_math.py tests/test_qlearning.py -v
+ERROR tests/test_distance_math.py
+ERROR tests/test_qlearning.py
+ModuleNotFoundError: No module named 'machine'
+```
+
+Intermediate failure found a real shim gap:
+
+```text
+python3 -m pytest tests/emulator/test_framebuf.py tests/test_import_safety.py tests/test_dispatch.py tests/test_distance_math.py tests/test_qlearning.py -v
+FAILED tests/test_import_safety.py::test_standalone_main_can_run_bounded
+AttributeError("'SSD1306_SMART' object has no attribute 'line'")
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_framebuf.py tests/test_import_safety.py tests/test_dispatch.py tests/test_distance_math.py tests/test_qlearning.py -v
+18 passed in 3.72s
+
+test ! -e tests/fakes
+
+python3 -m pytest tests/ -q
+242 passed, 1 skipped in 21.14s
+```
+
+Decisions:
+
+- Deleted the tracked `tests/fakes/` modules and removed the generated
+  `tests/fakes/__pycache__` directory so the path is absent on disk.
+- Stripped `tests/conftest.py` back to the repo-root path insert and pytest
+  plug-in registration; it no longer patches global time or resets fake
+  machine state.
+- Added maintained emulator shims for `ubinascii`, `urandom`, and `uselect`.
+- Extended `smotoremu.device_env` so direct real-device module loads get the
+  same MicroPython compatibility shims.
+- Moved import-safety and bounded runtime smoke tests onto `Session`, using
+  injected entry modules instead of host-side fake imports.
+- Moved dispatch tests onto `Session` while keeping the same boot-selection and
+  startup-chord assertions.
+- Loaded `myfavcolor.py` through `device_env` in the pure distance and
+  q-learning tests so those tests no longer depend on deleted fake modules.
+- Added `FrameBuffer.line()` and a regression test because the emulator-backed
+  bounded standalone run now exercises real `icons.SSD1306_SMART` drawing.
+- Updated README to describe `smotoremu` instead of the deleted fake module
+  directory and narrowed the hardware-only list: OLED layout and emulated color
+  readings are covered before hardware, while physical button feel, servo load
+  behavior, upload reliability, and real classroom lighting variation still
+  require the ESP32.

@@ -2,9 +2,8 @@
 
 Enough to run the real ssd1306.py, servo.py, and adxl345.py unmodified --
 in particular SoftI2C needs writeto()/writevto() (what SSD1306_I2C.write_cmd
-and .write_data actually call), which tests/fakes/machine.py -- built for
-the existing device-code test suite -- does not implement, since that suite
-never drives a real SSD1306 write.
+and .write_data actually call). This replaced the legacy test fake, which
+never drove a real SSD1306 write.
 """
 
 import pytest

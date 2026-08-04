@@ -1,12 +1,10 @@
 """Loads real, unmodified device .py files (ssd1306.py, servo.py, ...) against
 our shims, by absolute file path rather than plain `import`.
 
-Necessary because tests/fakes/ is earlier on sys.path than the repo root (set
-up in tests/conftest.py for the existing device-code test suite), so a plain
-`import ssd1306` would silently resolve to tests/fakes/ssd1306.py -- a
-different, simpler fake -- instead of the real driver this emulator needs to
-run pixel-faithfully. Per EMULATOR_TASKS.md ground rule R1, the real device
-files are never modified to make this work.
+This keeps device imports independent of host sys.path details and guarantees
+that display tests use the real repo-root driver with emulator shims injected
+for MicroPython-only modules. Per EMULATOR_TASKS.md ground rule R1, the real
+device files are never modified to make this work.
 
 Co-authored-by: GPT-5, Aug 2026
 """
@@ -35,6 +33,21 @@ def _install_fake_modules():
         micropython_fake.const = lambda x: x
         sys.modules["micropython"] = micropython_fake
 
+    if "ubinascii" not in sys.modules or getattr(sys.modules["ubinascii"], "__smotoremu__", False):
+        from smotoremu.backends.cpython_shim import ubinascii
+        ubinascii.__smotoremu__ = True
+        sys.modules["ubinascii"] = ubinascii
+
+    if "urandom" not in sys.modules or getattr(sys.modules["urandom"], "__smotoremu__", False):
+        from smotoremu.backends.cpython_shim import urandom
+        urandom.__smotoremu__ = True
+        sys.modules["urandom"] = urandom
+
+    if "uselect" not in sys.modules or getattr(sys.modules["uselect"], "__smotoremu__", False):
+        from smotoremu.backends.cpython_shim import uselect
+        uselect.__smotoremu__ = True
+        sys.modules["uselect"] = uselect
+
 
 def _install_machine_module():
     from smotoremu import machine_shim
@@ -59,6 +72,7 @@ def _install_machine_module():
 def load_real_module(filename, module_name=None):
     """Load a .py file from the repo root by path, bypassing sys.path order."""
     _install_fake_modules()
+    _install_machine_module()
     module_name = module_name or ("smotoremu_real_" + filename[:-3])
     path = os.path.join(REPO_ROOT, filename)
     spec = importlib.util.spec_from_file_location(module_name, path)

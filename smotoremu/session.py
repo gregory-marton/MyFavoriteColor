@@ -49,6 +49,9 @@ DEVICE_MODULES = [
     "servo",
     "prefs",
     "files",
+    "ubinascii",
+    "urandom",
+    "uselect",
 ]
 
 
@@ -134,6 +137,7 @@ class Session:
             "sleep_us": getattr(time_module, "sleep_us", None),
             "ticks_ms": getattr(time_module, "ticks_ms", None),
             "ticks_diff": getattr(time_module, "ticks_diff", None),
+            "time": getattr(time_module, "time", None),
         }
         old_open = builtins.open
         old_print = builtins.print
@@ -183,6 +187,7 @@ class Session:
         time_module.sleep_us = sleep_us
         time_module.ticks_ms = self.clock.now_ms
         time_module.ticks_diff = lambda t1, t2: t1 - t2
+        time_module.time = lambda: self.clock.now_us / 1_000_000
 
     def _raise_if_stop_requested(self):
         if self._stop_requested:

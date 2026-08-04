@@ -1,15 +1,11 @@
 """T006/T007/T008: machine + I2C shim -- enough to run ssd1306.py, servo.py,
 adxl345.py, and timer-backed device code unmodified.
 
-Unlike tests/fakes/machine.py (built for the existing device-code test
-suite, which never drives a real SSD1306 write), SoftI2C here implements
-writeto()/writevto() -- what SSD1306_I2C.write_cmd/.write_data actually
-call -- and simply records what was written rather than interpreting the
-SSD1306 command protocol. That's a deliberate simplification: ssd1306.py's
-show() always writes the *entire* framebuffer in one write_data call after
-setting the column/page range to full, so the emulator's replay renderer
-reads the real FrameBuffer's own `buffer` attribute directly rather than
-reconstructing GDDRAM from the I2C byte stream.
+SoftI2C implements writeto()/writevto() -- what SSD1306_I2C.write_cmd and
+.write_data actually call -- and records bus traffic while dispatching to
+registered I2CDevice models. The SSD1306 peripheral model reconstructs GDDRAM
+from those real writes, so screen assertions inspect the same framebuffer path
+device code uses.
 
 Timer callbacks run on the virtual scheduler, i.e. between device-code I/O
 operations or explicit clock advancement, not truly pre-emptively. Real ISR

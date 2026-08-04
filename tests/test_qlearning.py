@@ -1,5 +1,8 @@
 import pytest
-import myfavcolor
+
+from smotoremu.device_env import load_real_module
+
+myfavcolor = load_real_module("myfavcolor.py", module_name="myfavcolor_qlearning_test")
 
 def test_environment_dynamic_rewards(monkeypatch):
     # Mock hardware calibration to prevent interactive loops in testing.

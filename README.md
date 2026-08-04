@@ -47,19 +47,25 @@ The current desktop suite covers:
 - Dynamic reward computation and Q-learning environment stepping.
 - Manifest file-size checks.
 
-## Emulator Fakes
+## SmartMotor Emulator
 
-`tests/fakes/` contains lightweight desktop replacements for MicroPython-only modules:
+`smotoremu/` contains the desktop SmartMotor emulator used by tests and tooling
+when no ESP32 is connected. It runs the real device modules against maintained
+MicroPython shims for `machine`, `framebuf`, `ubinascii`, `urandom`, `uselect`,
+I2C peripherals, virtual time, a virtual filesystem, the OLED framebuffer, the
+servo, buttons, battery, potentiometer, accelerometer, and attachable sensor
+models.
 
-- `machine.py`: fake pins, ADC, PWM, timers, I2C devices, and I2C memory.
-- `icons.py`: fake Smart Motor OLED UI that records display calls.
-- `ssd1306.py`: fake web-connect OLED display.
-- `uselect.py`: fake polling interface for serial input.
-- `ubinascii.py` and `urandom.py`: desktop-compatible replacements used by runtime modules.
+Tests use the public facade through `smotor.launch(...)` and pytest fixtures
+from `smotoremu.testing`. The emulator can boot `main.py`, exercise real boot
+dispatch, attach a VEML6040 color sensor world, inspect OLED text and PNG
+frames, drive buttons and potentiometer input, and run auto-waiting assertions
+without wall-clock sleeps.
 
-`tests/conftest.py` puts `tests/fakes/` first on `sys.path`, patches MicroPython time helpers, and resets fake machine state between tests.
-
-The emulator is intentionally simple. It is meant to catch Python logic, dispatch drift, unbounded import behavior, and basic hardware-contract mistakes before hardware is connected. It does not simulate physical I2C timing, real servo motion, analog noise, OLED pixels, or the feel of the buttons.
+The emulator is meant to catch Python logic, dispatch drift, unbounded import
+behavior, screen regressions, and basic hardware-contract mistakes before
+hardware is connected. It still does not replace hardware validation for
+physical button feel, servo behavior under load, or target upload reliability.
 
 ## Runtime Entry Boundaries
 
@@ -88,13 +94,13 @@ If an upload through the CEEO RS232 web tool hangs or fails, reset the board bef
 
 Run on the ESP32 before relying on a classroom build for:
 
-- Real color-sensor detection and VEML6040 readings.
-- White-balance behavior under actual lighting.
-- OLED visual layout.
-- Servo direction, range, and settling behavior.
 - Button feel and debounce behavior.
+- Servo direction, range, and settling behavior.
 - Serial connection behavior with the actual web UI.
 - Upload reliability through the target flashing workflow.
+- Color-sensor readings under actual classroom lighting and sensor-to-sensor
+  variation.
+- White-balance behavior under actual classroom lighting.
 
 Desktop tests are the first gate. Hardware validation is still the final gate.
 
