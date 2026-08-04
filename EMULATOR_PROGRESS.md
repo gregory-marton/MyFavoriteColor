@@ -487,3 +487,43 @@ Decisions:
   `sensors.readbattery()` bands, while keeping `set_raw()` for edge cases.
 - Added `load_real_sensors()` so emulator tests can verify battery behavior
   through the repo's real `sensors.SENSORS` implementation.
+
+## 2026-08-04 -- T012 ADXL345 accelerometer peripheral
+
+Files touched:
+
+- `smotoremu/peripherals/adxl345.py`
+- `smotoremu/device_env.py`
+- `tests/emulator/test_adxl.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_adxl.py -v
+ImportError: cannot import name 'load_real_adxl345' from 'smotoremu.device_env'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_adxl.py -v
+5 passed in 0.01s
+
+python3 -m pytest tests/ -q
+172 passed, 1 skipped in 0.38s
+```
+
+Decisions:
+
+- Added `ADXL345Device` as an I2C device at the protocol level.
+- The device accepts the real driver's power-control init writes to register
+  `0x2D` and records that sequence for tests.
+- Register `0x32` reads now return six bytes of little-endian signed x/y/z
+  data at 256 LSB/g.
+- Flat level defaults to `(0, 0, 256)`.
+- `set_orientation(roll, pitch)` uses the inverse of the repo driver's
+  `RP_calculate()` formula, proving the UI-facing roll/pitch contract.
+- `set_gravity(x, y, z)` accepts direct g-units for world-model integration.
+- Noise is bounded per axis and generated per read from an injectable RNG.
+- Added `load_real_adxl345()` so emulator tests exercise the real driver.

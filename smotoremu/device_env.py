@@ -12,6 +12,7 @@ Co-authored-by: GPT-5, Aug 2026
 """
 
 import importlib.util
+import builtins
 import os
 import sys
 import types
@@ -20,6 +21,9 @@ REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
 
 def _install_fake_modules():
+    if not hasattr(builtins, "const"):
+        builtins.const = lambda x: x
+
     if "framebuf" not in sys.modules or getattr(sys.modules["framebuf"], "__smotoremu__", False):
         from smotoremu import framebuf_shim
         framebuf_shim.__smotoremu__ = True
@@ -99,6 +103,15 @@ def load_real_sensors():
     finally:
         _restore_module("machine", old_machine)
         _restore_module("adxl345", old_adxl345)
+
+
+def load_real_adxl345():
+    old_machine = sys.modules.get("machine")
+    try:
+        _install_machine_module()
+        return load_real_module("adxl345.py")
+    finally:
+        _restore_module("machine", old_machine)
 
 
 def _restore_module(name, module):
