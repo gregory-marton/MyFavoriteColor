@@ -1,5 +1,17 @@
 {
   "part_number": "VEML6040",
   "integration_time_ms": [40, 80, 160, 320, 640, 1280],
-  "noise_lsb": 2
+  "noise_lsb": 0,
+  "dark_counts": {
+    "red": 0,
+    "green": 0,
+    "blue": 0,
+    "white": 0
+  },
+  "sensitivity": {
+    "red": 2.6667,
+    "green": 2.5000,
+    "blue": 1.3688,
+    "white": 2.6667
+  }
 }

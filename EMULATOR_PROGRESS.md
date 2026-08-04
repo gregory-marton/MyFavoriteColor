@@ -806,3 +806,68 @@ Decisions:
   on package import.
 - Added a discoverable VEML6040 placeholder and JSON calibration data. T019
   owns the actual register-accurate VEML6040 model.
+
+## 2026-08-04 -- T019 VEML6040 colour sensor plug-in
+
+Files touched:
+
+- `smotoremu/sensors/veml6040.py`
+- `smotoremu/sensors/data/veml6040.json`
+- `tests/emulator/test_veml6040.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_veml6040.py -v
+6 failed
+
+Failures:
+- real `myfavcolor.VEML6040` construction did not see `0x10` in `scan()`
+- later tests could not reach CONF, shutdown, conversion-gating, white-balance,
+  or saturation behavior because the placeholder plug-in had no I2C device
+```
+
+Test correction:
+
+```text
+tests/emulator/test_veml6040.py::test_real_white_balance_calibration_matches_measured_factors
+KeyboardInterrupt
+```
+
+The test stub held SELECT forever. The real calibration routine saves white
+balance, then waits for SELECT release, so the stub now returns pressed once and
+released thereafter.
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_veml6040.py -v
+6 passed in 0.03s
+
+python3 -m pytest tests/emulator/test_sensor_registry.py tests/emulator/test_port.py tests/emulator/test_session.py tests/emulator/test_veml6040.py -q
+22 passed in 0.05s
+
+python3 -m pytest tests/ -q
+209 passed, 1 skipped in 0.46s
+```
+
+Decisions:
+
+- Replaced the T018 VEML6040 placeholder with a register-accurate I2C device
+  model at `0x10`.
+- The plug-in object is its own I2C device (`device = self`) so it attaches
+  cleanly through the existing `Port` gate.
+- Implemented `0x00` CONF as 16-bit little-endian, including shutdown and
+  integration-time bits.
+- Implemented RGBW data registers `0x08`-`0x0B` as 16-bit little-endian counts.
+- Conversion timing is gated by virtual time: reads return the last latched
+  counts until the selected integration time has elapsed.
+- Shutdown freezes latched counts.
+- Counts are emergent from world color, world luminance, integration time,
+  per-channel sensitivity, dark counts, and optional shot noise.
+- Calibration data now carries per-channel sensitivity. White-patch calibration
+  through the real `Environment.calibrate_white_balance()` produces normalized
+  factors within 15% of measured `WHITE_BALANCE_RGB = (1.0, 1.066, 1.948)`.
+- Extremely bright worlds saturate raw counts at `65535` and the real driver's
+  `rgb` path clamps scaled values to `255`.
