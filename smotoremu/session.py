@@ -32,6 +32,7 @@ from smotoremu.trace import TraceRecorder
 from smotoremu.vfs import VFS
 
 SHIM_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backends", "cpython_shim")
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DEVICE_MODULES = [
     "machine",
@@ -88,10 +89,12 @@ class Session:
             self.accel = ADXL345Device(rng=self.rng)
             self.bus.register(0x53, self.accel)
         self.port = Port(self.board, self.bus)
+        self.imported_modules = []
 
         self._thread = None
         self._exited = False
         self._error = None
+        self._stop_requested = False
 
     @property
     def exited(self) -> bool:
@@ -106,6 +109,8 @@ class Session:
             raise RuntimeError("session is already running")
         self._exited = False
         self._error = None
+        self._stop_requested = False
+        self.clock.stop_requested = False
         self._thread = threading.Thread(target=self._run_entry, args=(entry,), daemon=True)
         self._thread.start()
 
@@ -115,7 +120,9 @@ class Session:
         self._thread.join(timeout_ms / 1000)
 
     def stop(self) -> None:
-        self.run_until_idle(timeout_ms=0)
+        self._stop_requested = True
+        self.clock.stop_requested = True
+        self.run_until_idle(timeout_ms=100)
 
     def _run_entry(self, entry):
         saved_modules = {name: sys.modules.get(name) for name in DEVICE_MODULES}
@@ -130,6 +137,7 @@ class Session:
         }
         old_open = builtins.open
         old_print = builtins.print
+        old_import = builtins.__import__
         old_os = {
             "listdir": os.listdir,
             "remove": os.remove,
@@ -138,16 +146,12 @@ class Session:
         try:
             Pin.use_board(self.board)
             _purge_device_modules()
-            if SHIM_DIR in sys.path:
-                sys.path.remove(SHIM_DIR)
-            sys.path.insert(0, SHIM_DIR)
-            if self.vfs.root in sys.path:
-                sys.path.remove(self.vfs.root)
-            sys.path.insert(0, self.vfs.root)
+            sys.path[:] = _device_sys_path(old_path, self.vfs.root)
             os.chdir(self.vfs.root)
             self._install_time_shim()
             self._install_vfs_shim(old_open, old_os)
             self._install_print_shim(old_print)
+            self._install_import_trace(old_import)
             module = importlib.import_module(entry)
             if hasattr(module, "main"):
                 module.main()
@@ -161,6 +165,7 @@ class Session:
             _restore_time(old_time)
             builtins.open = old_open
             builtins.print = old_print
+            builtins.__import__ = old_import
             os.listdir = old_os["listdir"]
             os.remove = old_os["remove"]
             os.chdir(old_cwd)
@@ -168,11 +173,20 @@ class Session:
             _restore_modules(saved_modules)
 
     def _install_time_shim(self):
-        time_module.sleep = lambda seconds: self.clock.sleep_us(int(seconds * 1_000_000))
-        time_module.sleep_ms = lambda ms: self.clock.sleep_us(int(ms * 1000))
-        time_module.sleep_us = self.clock.sleep_us
+        def sleep_us(us):
+            self._raise_if_stop_requested()
+            self.clock.sleep_us(us)
+            self._raise_if_stop_requested()
+
+        time_module.sleep = lambda seconds: sleep_us(int(seconds * 1_000_000))
+        time_module.sleep_ms = lambda ms: sleep_us(int(ms * 1000))
+        time_module.sleep_us = sleep_us
         time_module.ticks_ms = self.clock.now_ms
         time_module.ticks_diff = lambda t1, t2: t1 - t2
+
+    def _raise_if_stop_requested(self):
+        if self._stop_requested:
+            raise SystemExit()
 
     def _install_vfs_shim(self, old_open, old_os):
         def checked_open(file, *args, **kwargs):
@@ -202,10 +216,26 @@ class Session:
 
         builtins.print = traced_print
 
+    def _install_import_trace(self, old_import):
+        def traced_import(name, globals=None, locals=None, fromlist=(), level=0):
+            top_level = name.split(".", 1)[0]
+            if level == 0 and top_level in DEVICE_MODULES and top_level not in self.imported_modules:
+                self.imported_modules.append(top_level)
+            return old_import(name, globals, locals, fromlist, level)
+
+        builtins.__import__ = traced_import
+
 
 def _purge_device_modules():
     for name in DEVICE_MODULES:
         sys.modules.pop(name, None)
+
+
+def _device_sys_path(old_path, vfs_root):
+    path = [entry for entry in old_path if entry not in {SHIM_DIR, vfs_root, REPO_ROOT}]
+    fakes_index = next((index for index, entry in enumerate(path) if entry.endswith(os.path.join("tests", "fakes"))), len(path))
+    path.insert(fakes_index, REPO_ROOT)
+    return [SHIM_DIR, vfs_root] + path
 
 
 def _restore_modules(saved_modules):

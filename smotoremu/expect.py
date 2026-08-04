@@ -17,8 +17,7 @@ def wait_for(predicate, *, session=None, timeout_ms=5000, poll_ms=10, message=No
             detail = message() if callable(message) else message
             raise TimeoutError(detail or _timeout_message("predicate to become true", False, session, now_ms - start_ms))
         step_ms = min(poll_ms, timeout_at - now_ms)
-        session.clock.sleep_us(step_ms * 1000)
-        session.run_until_idle(timeout_ms=0)
+        _poll(session, step_ms)
 
 
 def expect(target, *, session=None):
@@ -77,8 +76,7 @@ class Expectation:
                     expected = f"not {expected}"
                 raise TimeoutError(_timeout_message(expected, actual, self.session, now_ms - start_ms))
             step_ms = min(10, timeout_at - now_ms)
-            self.session.clock.sleep_us(step_ms * 1000)
-            self.session.run_until_idle(timeout_ms=0)
+            _poll(self.session, step_ms)
             actual = self._actual()
 
     def _actual(self):
@@ -92,6 +90,15 @@ def _fail_fast_if_device_stopped(session):
         raise session.error
     if session.exited:
         raise RuntimeError("device thread exited before expectation was satisfied")
+
+
+def _poll(session, step_ms):
+    thread = getattr(session, "_thread", None)
+    if thread is not None and thread.is_alive():
+        session.run_until_idle(timeout_ms=5)
+        return
+    session.clock.sleep_us(step_ms * 1000)
+    session.run_until_idle(timeout_ms=0)
 
 
 def _timeout_message(expected, actual, session, elapsed_ms):

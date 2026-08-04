@@ -7,7 +7,7 @@ import struct
 import zlib
 
 from smotoremu.i2c import I2CDevice
-from smotoremu.screen_text import extract_lines
+from smotoremu.screen_text import contains_rendered_text, extract_line_candidates, extract_lines
 
 
 class SSD1306Device(I2CDevice):
@@ -39,6 +39,7 @@ class SSD1306Device(I2CDevice):
         self.charge_pump = 0
         self.frame_count = 0
         self.frame_texts = []
+        self.frame_buffers = []
         self.on_frame = None
         self._pending_command = None
         self._pending_params = []
@@ -161,6 +162,7 @@ class SSD1306Device(I2CDevice):
         if self._is_full_frame_write(payload):
             self.frame_count += 1
             self.frame_texts.append("\n".join(self.text_lines()))
+            self.frame_buffers.append(self.gddram)
             if self.on_frame is not None:
                 self.on_frame(self)
 
@@ -172,6 +174,12 @@ class SSD1306Device(I2CDevice):
             and self.page_start == 0
             and self.page_end == self.pages - 1
         )
+
+    def text_candidates(self) -> list[str]:
+        return extract_line_candidates(self.gddram, width=self.width, height=self.height)
+
+    def contains_rendered_text(self, text: str) -> bool:
+        return contains_rendered_text(self.gddram, text, width=self.width, height=self.height)
 
 
 _PARAM_COUNTS = {

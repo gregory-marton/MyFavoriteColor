@@ -27,6 +27,7 @@ class VirtualClock:
     def __init__(self, mode: str = "instant", speed: float = 1.0):
         self._now_us = 0
         self._schedulers = []
+        self.stop_requested = False
         self.set_mode(mode, speed)
 
     @property
@@ -37,11 +38,15 @@ class VirtualClock:
         return self._now_us // 1000
 
     def sleep_us(self, us: int) -> None:
+        if self.stop_requested:
+            raise SystemExit()
         if us < 0:
             raise ValueError("sleep_us requires a non-negative duration")
         target = self._now_us + us
         if self.mode == "instant":
             self.advance_to(target)
+            if self.stop_requested:
+                raise SystemExit()
             return
 
         wall_sleep = us / 1_000_000
@@ -49,6 +54,8 @@ class VirtualClock:
             wall_sleep = wall_sleep / self.speed
         time.sleep(wall_sleep)
         self.advance_to(target)
+        if self.stop_requested:
+            raise SystemExit()
 
     def advance_to(self, t_us: int) -> None:
         if t_us < self._now_us:

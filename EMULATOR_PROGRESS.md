@@ -1120,3 +1120,76 @@ Decisions:
   tests can inspect screen-frame history.
 - `wait_for()` now accepts a callable `message`, allowing timeout details to
   reflect the final observed screen state.
+
+## 2026-08-04 -- T025 emulator-backed favorite-color flow
+
+Files touched:
+
+- `tests/emulator/test_myfavcolor_flow.py`
+- `tests/test_flow.py`
+- `smotoremu/session.py`
+- `smotoremu/clock.py`
+- `smotoremu/expect.py`
+- `smotoremu/screen.py`
+- `smotoremu/screen_text.py`
+- `smotoremu/peripherals/ssd1306.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_myfavcolor_flow.py tests/test_flow.py -v
+FAILED tests/emulator/test_myfavcolor_flow.py::test_favorite_color_walkthrough
+FAILED tests/emulator/test_myfavcolor_flow.py::test_main_without_color_sensor_dispatches_to_standalone_not_myfavcolor
+ERROR tests/test_flow.py::test_favorite_color_walkthrough - ValueError: device code may not open absolute host paths
+```
+
+Intermediate failures found real emulator gaps:
+
+```text
+TimeoutError: expected screen to contain 'Starting in 2s'
+display frame_count=0; bus devices=[16, 60, 83]; i2c counts={83: 6, None: 2, 16: 40211}
+
+KeyboardInterrupt
+smotoremu/screen_text.py:123
+
+AssertionError: main dispatched to myfavcolor without a color sensor
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_myfavcolor_flow.py -v
+2 passed in 0.59s
+
+python3 -m pytest tests/emulator/test_myfavcolor_flow.py tests/test_flow.py tests/emulator/test_screen_api.py tests/emulator/test_expect.py tests/emulator/test_session.py tests/emulator/test_facade.py -q
+29 passed in 4.13s
+
+python3 -m pytest tests/ -q
+241 passed, 1 skipped in 4.69s
+```
+
+Decisions:
+
+- Replaced the old mock-based `tests/test_flow.py` coverage with the real
+  emulator walkthrough in `tests/emulator/test_myfavcolor_flow.py`.
+- Kept `tests/test_flow.py` as a non-collecting compatibility note so the old
+  shallow MagicMock test does not run.
+- The walkthrough boots the real `main` dispatch, drives the VEML6040 color
+  sensor world, white balance, favorite color capture, all seven state
+  calibrations, and starts training until `E=0` appears.
+- The negative path boots with no color sensor and asserts the real import
+  trace reaches `standalone` and not `myfavcolor`.
+- Session import ordering now keeps injected test modules ahead of the repo but
+  moves the repo's real device modules ahead of `tests/fakes`, preventing the
+  old fake `ssd1306` from bypassing display I2C writes.
+- Added a device import trace to `Session` for dispatch assertions without
+  replacing activity modules.
+- Live-device expectations yield to the device thread instead of racing virtual
+  time ahead from the controller.
+- `Session.stop()` is now cooperative through both MicroPython sleep shims and
+  I2C-driven virtual sleeps, preventing stuck interactive tests from leaving
+  global shims installed.
+- Screen expectations use direct rendered-glyph search over current and stored
+  frame buffers, with permissive foreground matching so text embedded near
+  graphics or wrapped lines can still be located quickly.
