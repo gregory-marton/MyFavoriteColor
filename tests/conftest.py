@@ -4,6 +4,10 @@ import builtins
 import time
 import pytest
 
+# Co-authored-by: GPT-5, Aug 2026
+
+pytest_plugins = ["smotoremu.testing"]
+
 # Add the repo root and tests/fakes to sys.path so tests work from any cwd.
 tests_dir = os.path.dirname(__file__)
 repo_root = os.path.abspath(os.path.join(tests_dir, os.pardir))

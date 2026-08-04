@@ -960,3 +960,65 @@ Decisions:
   lux moves the light coordinate upward.
 - `Session` stores its servo model on the board so world-coupled analog sensors
   can sample at the current arm angle.
+
+## 2026-08-04 -- T022 `smotor` facade and pytest fixtures
+
+Files touched:
+
+- `smotor.py`
+- `smotoremu/testing.py`
+- `smotoremu/__init__.py`
+- `pyproject.toml`
+- `tests/conftest.py`
+- `tests/emulator/test_facade.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_facade.py -v
+ModuleNotFoundError: No module named 'smotor'
+```
+
+Test integration correction:
+
+```text
+fixture 'sm' not found
+fixture 'sm_color' not found
+fixture 'sm_analog' not found
+```
+
+The package entry point covers installed use, but the source-tree test run does
+not install the package first. `tests/conftest.py` now loads
+`smotoremu.testing` as a local pytest plugin for repo tests.
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_facade.py -v
+9 passed in 0.08s
+
+python3 -m pytest tests/emulator/test_smoke.py tests/emulator/test_facade.py tests/emulator/test_session.py -q
+17 passed in 0.10s
+
+python3 -m pytest tests/ -q
+228 passed, 1 skipped in 0.52s
+```
+
+Decisions:
+
+- Added top-level `smotor.launch(...)` facade.
+- Added `smotoremu.testing.launch()` returning a thin `SmartMotor` wrapper over
+  `Session`.
+- `launch()` supports `sensor`, `world`, `clock`, `seed`, and `headed`
+  arguments.
+- Relative world paths such as `worlds/three_patches.json` resolve against the
+  `smotoremu` package.
+- Sensor names go through the plug-in registry, so unknown sensors produce the
+  existing helpful available-parts error.
+- Convenience methods expose `press`, `release`, `click`, `pot`, `arm.angle`,
+  `screen.lines()`, `screen.png()`, `tilt`, `battery`, `world`, and `trace`.
+- `close()` is idempotent.
+- Added pytest fixtures `sm`, `sm_color`, and `sm_analog`.
+- Updated packaging metadata to include `smotoremu*`, `smcheck*`, top-level
+  `smotor`, and the `pytest11` plugin entry point.

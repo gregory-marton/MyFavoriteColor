@@ -9,4 +9,8 @@ description = "SmartMotor emulator and hardware-check tooling"
 requires-python = ">=3.11"
 
 [tool.setuptools]
-packages = ["smotoremu", "smcheck"]
+packages = {find = {include = ["smotoremu*", "smcheck*"]}}
+py-modules = ["smotor"]
+
+[project.entry-points.pytest11]
+smotoremu = "smotoremu.testing"
