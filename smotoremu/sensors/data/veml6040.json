@@ -1,0 +1,5 @@
+{
+  "part_number": "VEML6040",
+  "integration_time_ms": [40, 80, 160, 320, 640, 1280],
+  "noise_lsb": 2
+}

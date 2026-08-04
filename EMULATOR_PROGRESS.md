@@ -765,3 +765,44 @@ Decisions:
 - `Session.port` now uses the real `Port` model instead of a placeholder.
 - Port-backed pin 5 ADC reads now record `adc` trace events like other ADC
   reads.
+
+## 2026-08-04 -- T018 sensor plug-in registry
+
+Files touched:
+
+- `smotoremu/sensors/__init__.py`
+- `smotoremu/sensors/base.py`
+- `smotoremu/sensors/veml6040.py`
+- `smotoremu/sensors/data/veml6040.json`
+- `tests/emulator/test_sensor_registry.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_sensor_registry.py -v
+ModuleNotFoundError: No module named 'smotoremu.sensors'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_sensor_registry.py -v
+6 passed in 0.01s
+
+python3 -m pytest tests/ -q
+203 passed, 1 skipped in 0.46s
+```
+
+Decisions:
+
+- Added `SensorModel` base class with `attach()`, `ui_schema()`, and
+  data-backed `calibration()`.
+- Added `register(part_number)`, `get_sensor(part_number)`, and
+  `list_sensors()`.
+- Duplicate registrations raise a helpful `ValueError`.
+- Missing sensors raise a `KeyError` naming the available part numbers.
+- The `smotoremu.sensors` package auto-imports plug-in modules so decorators run
+  on package import.
+- Added a discoverable VEML6040 placeholder and JSON calibration data. T019
+  owns the actual register-accurate VEML6040 model.
