@@ -1,20 +1,19 @@
 # Emulator Progress
 
 Co-authored-by: GPT-5, Aug 2026
+Co-authored-by: Gemini 3.6 Flash, Aug 2026
 
-## 2026-08-04 -- T028 live WebSocket OLED UI (in progress at handoff)
+## 2026-08-04 -- T028 live WebSocket OLED UI
 
-Files currently changed but not yet committed:
+Files touched:
 
-- `web/index.html`, `web/style.css`, `web/app.js`, `web/oled.js`
+- `web/index.html`
+- `web/style.css`
+- `web/app.js`
+- `web/oled.js`
 - `tests/emulator/test_web_live.py`
-- deletion of `tests/emulator/test_web_replay.py`
-
-The old trace-only replay page is being replaced by a vanilla ES-module live
-viewer. It connects to the emulator WebSocket, renders PNG OLED frames at 4×
-with a pixel grid, exposes Pixels/Text/Both/Raw modes, keeps up to 200 frames
-with scrubber and `[`/`]` navigation, provides selectable text and Copy, and
-reports reconnecting/connected/disconnected states.
+- `tests/emulator/test_web_replay.py` (deleted)
+- `EMULATOR_PROGRESS.md`
 
 Red output:
 
@@ -25,15 +24,25 @@ FAILED test_text_view_is_selectable_and_copy_button_uses_clipboard
 NotAllowedError: Read permission denied (Playwright clipboard permission)
 ```
 
-The run also exposed a fixture teardown warning: the websocket server close
-coroutine is scheduled but not awaited. Before calling T028 complete, grant
-clipboard permissions (or stub clipboard access), await `server.wait_closed()`
-during fixture shutdown, rerun focused and full suites, then commit the T028
-files as one coherent unit.
+Green output:
 
-Known-good baseline immediately before T028: commit `3bc8eed Add emulator
-websocket protocol`; `.venv/bin/python -m pytest tests/ -q` reported `276 passed
-in 23.95s`.
+```text
+.venv/bin/python -m pytest tests/emulator/test_web_live.py -v
+6 passed in 0.96s
+
+.venv/bin/python -m pytest tests/ -q
+271 passed in 22.27s
+```
+
+Decisions:
+
+- Replaced the old trace-only replay page with a vanilla ES-module live viewer (`web/index.html`, `web/app.js`, `web/oled.js`, `web/style.css`).
+- Rendered PNG OLED frames on a canvas at 4× scaling with pixel grid aesthetics.
+- Added Pixels/Text/Both/Raw view modes.
+- Added frame history buffer (up to 200 frames) with scrubber slider and `[` / `]` keyboard navigation.
+- Added selectable text view with a Copy button, granted `clipboard-read`/`clipboard-write` Playwright permissions in tests, and locked scrubber to frame 0 during copy assertion to ensure deterministic tests under live socket updates.
+- Added status indicators for reconnecting, connected, and disconnected states.
+- Fixed websocket test fixture teardown to await `server.wait_closed()`, eliminating unawaited coroutine warnings.
 
 ## 2026-08-04 -- Guided button, accelerometer, replay, and sensor capture pass
 

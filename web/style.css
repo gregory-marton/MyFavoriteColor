@@ -1,0 +1,113 @@
+/*
+ * Live SmartMotor emulator UI.
+ * Co-authored-by: GPT-5, Aug 2026
+ */
+
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #141820;
+  color: #e9eef7;
+}
+
+body {
+  margin: 0;
+  padding: 24px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+h1, h2 {
+  margin: 0 0 10px;
+}
+
+.status {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 700;
+}
+
+.status.connected {
+  background: #0f6b3d;
+  color: #eafff3;
+}
+
+.status.disconnected {
+  background: #6b2730;
+  color: #ffecef;
+}
+
+.toolbar, .history {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+button, select {
+  background: #263041;
+  color: #e9eef7;
+  border: 1px solid #46546c;
+  border-radius: 6px;
+  padding: 7px 10px;
+}
+
+#viewer {
+  display: grid;
+  grid-template-columns: minmax(540px, max-content) minmax(280px, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.panel {
+  background: #1e2531;
+  border: 1px solid #344157;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+#oled {
+  width: 512px;
+  height: 256px;
+  background: #000814;
+  border: 4px solid #0b0f16;
+  box-shadow: 0 0 28px rgba(0, 150, 255, 0.18);
+  image-rendering: pixelated;
+}
+
+#screen-text, #raw-frame {
+  min-height: 120px;
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #0c1119;
+  color: #bfe6ff;
+  font: 18px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+#raw-frame {
+  color: #d5dbeb;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+#frame-scrub {
+  width: min(520px, 70vw);
+}
+
+#viewer.pixels #text-panel,
+#viewer.pixels #raw-panel,
+#viewer.text #oled-panel,
+#viewer.text #raw-panel,
+#viewer.both #raw-panel,
+#viewer.raw #oled-panel,
+#viewer.raw #text-panel {
+  display: none;
+}
