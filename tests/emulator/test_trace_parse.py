@@ -87,3 +87,45 @@ def test_parses_rep_stage_done_and_timeout():
     events = parse_guided_log(log)
     types = [e["type"] for e in events]
     assert "REP" in types and "STAGE_DONE" in types and "TIMEOUT" in types
+
+
+def test_parses_accel_calibration_samples_and_summary():
+    log = (
+        "BOOT boot_num=1 reset_cause=1(PWRON_RESET) resume_stage=0\n"
+        "ACCEL_SAMPLE stage=ACCEL_FLAT1 t=100 accel=-9,1,-253 mag=253\n"
+        "ACCEL_SUMMARY stage=ACCEL_FLAT1 status=pass n=12 span=4 mag=253.2 summary=flat reading is stable and near 1g\n"
+    )
+    events = parse_guided_log(log)
+    sample = [e for e in events if e["type"] == "ACCEL_SAMPLE"][0]
+    summary = [e for e in events if e["type"] == "ACCEL_SUMMARY"][0]
+
+    assert sample["stage"] == "ACCEL_FLAT1"
+    assert sample["orientation"]["pitch"] == 2.0
+    assert summary["status"] == "pass"
+    assert summary["max_axis_span"] == 4
+
+
+def test_parses_color_white_samples_and_summary():
+    log = (
+        "BOOT boot_num=1 reset_cause=1(PWRON_RESET) resume_stage=0\n"
+        "COLOR_WHITE_SAMPLE t=200 r=1024 g=512 b=256 w=1200\n"
+        "COLOR_WHITE_SUMMARY n=8 r=1000 g=500 b=250 w=1100 wb_milli=1000,2000,4000\n"
+    )
+    events = parse_guided_log(log)
+    sample = [e for e in events if e["type"] == "COLOR_WHITE_SAMPLE"][0]
+    summary = [e for e in events if e["type"] == "COLOR_WHITE_SUMMARY"][0]
+
+    assert sample["rgbw"] == (1024, 512, 256, 1200)
+    assert summary["white_balance_milli"] == (1000, 2000, 4000)
+
+
+def test_parses_light_summary():
+    log = (
+        "BOOT boot_num=1 reset_cause=1(PWRON_RESET) resume_stage=0\n"
+        "LIGHT_SUMMARY stage=LIGHT_DARK n=50 min=12 max=20 mean=16\n"
+    )
+    events = parse_guided_log(log)
+    summary = [e for e in events if e["type"] == "LIGHT_SUMMARY"][0]
+
+    assert summary["stage"] == "LIGHT_DARK"
+    assert summary["mean"] == 16

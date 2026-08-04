@@ -56,3 +56,42 @@ Decisions:
 - Replay UI now shows DOWN and estimated orientation.
 - The guided sequence now records first-pass `COLOR_WHITE`, `LIGHT_DARK`, and `LIGHT_BRIGHT` sample sets. This is capture infrastructure, not the full fleet QA analysis yet.
 - `tests/emulator/test_web_replay.py` now skips cleanly when Playwright is not installed in the active interpreter.
+
+## 2026-08-04 -- Parse and replay guided calibration summaries
+
+Files touched:
+
+- `smotoremu/trace.py`
+- `tests/emulator/test_trace_parse.py`
+- `tests/emulator/test_web_replay.py`
+- `web/index.html`
+- `web/app.js`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_trace_parse.py -v
+3 failed, 7 passed in 0.03s
+
+Failures:
+- no ACCEL_SAMPLE / ACCEL_SUMMARY event parsed
+- no COLOR_WHITE_SAMPLE / COLOR_WHITE_SUMMARY event parsed
+- no LIGHT_SUMMARY event parsed
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_trace_parse.py tests/emulator/test_web_replay.py -v
+10 passed, 1 skipped in 0.03s
+
+python3 -m pytest tests/ -v
+118 passed, 1 skipped in 0.10s
+```
+
+Decisions:
+
+- The trace parser now treats guided accelerometer, color white-balance, and light-summary lines as typed replay events.
+- `ACCEL_SAMPLE` events include estimated roll/pitch using the same formula as the device ADXL345 driver.
+- The replay UI shows the latest white-balance factors and light dark/bright means in the side panel.
+- Playwright-backed UI assertions remain skipped when Playwright is not installed.

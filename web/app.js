@@ -16,7 +16,10 @@ let virtualT = 0; // accumulates across frames -- must not be re-derived from ev
 // Sticky state carried forward between events of different types, so e.g.
 // the battery readout still shows the last known value while a SCREEN event
 // is being drawn.
-let state = { usb: null, batteryV: null, pot: null, accel: null, orientation: null, angle: 0 };
+let state = {
+  usb: null, batteryV: null, pot: null, accel: null, orientation: null, angle: 0,
+  colorWb: null, light: {}
+};
 
 function decodeScreenBuffer(b64) {
   const raw = atob(b64);
@@ -53,6 +56,11 @@ function updatePanel() {
   document.getElementById("accel-v").textContent = state.accel === null ? "--" : state.accel.join(",");
   document.getElementById("orientation-v").textContent = state.orientation === null ? "--" :
     `roll ${state.orientation.roll.toFixed(1)}°, pitch ${state.orientation.pitch.toFixed(1)}°`;
+  document.getElementById("color-wb-v").textContent = state.colorWb === null ? "--" : state.colorWb.join(",");
+  const lightParts = [];
+  if (state.light.LIGHT_DARK !== undefined) lightParts.push(`dark ${state.light.LIGHT_DARK}`);
+  if (state.light.LIGHT_BRIGHT !== undefined) lightParts.push(`bright ${state.light.LIGHT_BRIGHT}`);
+  document.getElementById("light-v").textContent = lightParts.length === 0 ? "--" : lightParts.join(" / ");
   document.getElementById("arm-needle").style.transform = `translate(-50%, 0) rotate(${state.angle - 90}deg)`;
 }
 
@@ -93,6 +101,14 @@ function applyEvent(e) {
     state.orientation = e.orientation;
   } else if (e.type === "BOOT") {
     logLine(`[${e.t}] BOOT #${e.boot_num} (${e.reset_cause_name})`, true);
+  } else if (e.type === "ACCEL_SUMMARY") {
+    logLine(`[${e.t}] ${e.stage}: ${e.status} (${e.summary})`, e.status !== "pass");
+  } else if (e.type === "COLOR_WHITE_SUMMARY") {
+    state.colorWb = e.white_balance_milli;
+    logLine(`[${e.t}] COLOR_WHITE wb=${e.white_balance_milli.join(",")}`, true);
+  } else if (e.type === "LIGHT_SUMMARY") {
+    state.light[e.stage] = e.mean;
+    logLine(`[${e.t}] ${e.stage}: mean=${e.mean}`, true);
   } else if (e.type === "REP") {
     logLine(`[${e.t}] REP ${e.stage}`);
     if (e.stage.startsWith("UP")) flashButton("btn-up");
@@ -109,7 +125,10 @@ function applyEvent(e) {
 function seekTo(targetIdx) {
   // re-derive sticky state by replaying from the start -- simplest correct
   // way to scrub backward, and the trace sizes here don't need speed.
-  state = { usb: null, batteryV: null, pot: null, accel: null, orientation: null, angle: 0 };
+  state = {
+    usb: null, batteryV: null, pot: null, accel: null, orientation: null, angle: 0,
+    colorWb: null, light: {}
+  };
   document.getElementById("log").innerHTML = "";
   for (let i = 0; i <= targetIdx && i < events.length; i++) applyEvent(events[i]);
   idx = targetIdx;

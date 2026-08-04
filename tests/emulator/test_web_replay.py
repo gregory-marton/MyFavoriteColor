@@ -33,6 +33,9 @@ def fixture_trace_written():
          "accel": (-9, 1, -253), "orientation": {"roll": 179.8, "pitch": 2.0}, "on_usb": False},
         {"type": "REP", "t": 450, "stage": "UP"},
         {"type": "REP", "t": 475, "stage": "DOWN"},
+        {"type": "COLOR_WHITE_SUMMARY", "t": 480, "n_samples": 8, "rgbw": [1000, 500, 250, 1100],
+         "white_balance_milli": [1000, 2000, 4000]},
+        {"type": "LIGHT_SUMMARY", "t": 490, "stage": "LIGHT_DARK", "n_samples": 50, "min": 12, "max": 20, "mean": 16},
         {"type": "STAGE_DONE", "t": 500, "stage": "POT"},
     ]
     events = render_screens(events)
@@ -129,6 +132,15 @@ def test_down_button_indicator_exists_and_flashes_on_down_rep(browser_page):
     page.dispatch_event("#scrub", "input")
     page.wait_for_function("document.getElementById('btn-down').classList.contains('pressed')")
     assert "pressed" in page.get_attribute("#btn-down", "class")
+
+
+def test_calibration_summary_events_update_panel(browser_page):
+    page = browser_page
+    page.fill("#scrub", "8")
+    page.dispatch_event("#scrub", "input")
+    page.wait_for_function("document.getElementById('light-v').textContent.includes('dark 16')")
+    assert page.text_content("#color-wb-v") == "1000,2000,4000"
+    assert "dark 16" in page.text_content("#light-v")
 
 
 def test_play_button_advances_the_scrub_position(browser_page):
