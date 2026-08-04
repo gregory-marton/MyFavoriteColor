@@ -51,3 +51,23 @@ def test_hardware_bridge_ping():
     hb._ser = DummySer()
     hb.ping()
     assert b'{"st":"e"}\n' in hb._ser.data
+
+
+def test_hardware_bridge_session():
+    from smotoremu.cli import HardwareServerSession
+    class DummySer:
+        def __init__(self):
+            self.sent = []
+        def write(self, b):
+            self.sent.append(b)
+        def flush(self):
+            pass
+        def readline(self):
+            return b'{"s": 50}\n'
+
+    hb = HardwareBridge()
+    hb._ser = DummySer()
+    session = HardwareServerSession(hb)
+    messages = session.handle('{"v":1,"type":"press","button":"up"}')
+    assert len(hb._ser.sent) > 0
+    assert messages[0]["type"] == "state"

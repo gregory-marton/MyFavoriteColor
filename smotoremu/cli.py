@@ -9,6 +9,7 @@ import shutil
 import sys
 
 from smotoremu.vfs import VFS, FileTooLargeError
+from smotoremu import protocol
 
 DEFAULT_SMOTOR_DIR = os.path.expanduser("~/.smotor/default")
 
@@ -152,12 +153,64 @@ class HardwareBridge:
                 self.link.send(str(msg))
 
 
-def bridge(port=None, host="127.0.0.1", web_port=8765):
-    from smotoremu.server import ServerSession, serve
-    import asyncio
+class HardwareServerSession:
+    def __init__(self, bridge_inst):
+        self.bridge = bridge_inst
+        self.seq = 0
 
-    print(f"🔌 Hardware Bridge starting on {host}:{web_port} (target port: {port or 'auto'})")
-    asyncio.run(serve(host=host, port=web_port))
+    def handle(self, raw):
+        message = protocol.decode_client(raw)
+        if message["type"] == "error":
+            return [message]
+        self.bridge.send_command(message)
+        return [self.state_message()]
+
+    def state_message(self):
+        hw = self.bridge.poll_hardware()
+        return protocol.state_message(
+            angle=hw.get("angle", 0.0),
+            pot=hw.get("pot", 2048),
+            battery=4200,
+            attached="Hardware (USB CDC)",
+            clock_ms=0,
+            commanded_angle=hw.get("angle", 0.0),
+            world=None,
+        )
+
+    def frame_message(self):
+        self.seq += 1
+        return protocol.frame_message(self.seq, b"", ["Hardware Mode (CDC)"])
+
+
+def bridge(port=None, host="127.0.0.1", web_port=8765):
+    from smotoremu.server import websocket_process_request
+    import asyncio
+    import websockets
+
+    hb = HardwareBridge(port=port)
+    hb.ping()
+    print(f"🔌 Hardware Bridge starting on {host}:{web_port} (connected to {hb.port or 'auto'})")
+
+    async def handler(websocket):
+        session = HardwareServerSession(hb)
+        coalescer = protocol.UpdateCoalescer()
+        try:
+            await websocket.send(protocol.dumps(session.state_message()))
+            await websocket.send(protocol.dumps(session.frame_message()))
+            async for raw in websocket:
+                for message in session.handle(raw):
+                    for outbound in coalescer.push(message):
+                        await websocket.send(protocol.dumps(outbound))
+                for outbound in coalescer.drain():
+                    await websocket.send(protocol.dumps(outbound))
+        finally:
+            pass
+
+    async def main_loop():
+        async with websockets.serve(handler, host, web_port, process_request=websocket_process_request):
+            await asyncio.Future()
+
+    asyncio.run(main_loop())
     return 0
 
 
