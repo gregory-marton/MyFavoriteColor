@@ -164,3 +164,38 @@ Decisions:
 - Event ordering at equal timestamps uses a monotonic sequence counter.
 - Periodic events can cancel themselves from inside their callback.
 - Repeated scheduling at one timestamp raises `ClockStuckError` instead of hanging.
+
+## 2026-08-04 -- T006 board-backed Pin/ADC/PWM
+
+Files touched:
+
+- `smotoremu/machine_shim.py`
+- `smotoremu/pinmap.py`
+- `tests/emulator/test_machine_shim.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_machine_shim.py -v
+ImportError: cannot import name 'Board' from 'smotoremu.machine_shim'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_machine_shim.py -v
+12 passed in 0.01s
+
+python3 -m pytest tests/ -v
+133 passed, 1 skipped in 0.18s
+```
+
+Decisions:
+
+- Added `smotoremu.pinmap` with named SmartMotor pin constants from `EMULATOR_TASKS.md` T006.
+- Added a shared `Board` model behind `Pin`, `ADC`, and `PWM`.
+- Buttons are active-low and can be driven through `board.press()` / `board.release()`.
+- Pin 5 can be driven as digital output and read back through an injected port ADC stub, preserving the analog/I2C toggle probe shape.
+- `ADC.read()` advances the virtual clock by 20 us per sample, marked as a bench-data guess.
+- `PWM` changes notify board callbacks so the servo model can subscribe later.

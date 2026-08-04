@@ -1,0 +1,32 @@
+"""SmartMotor ESP32-C3 pin assignments used by the emulator.
+
+Co-authored-by: GPT-5, Aug 2026
+"""
+
+PIN_SERVO = 2
+PIN_POT = 3
+PIN_BATTERY = 4
+PIN_SENSOR_PORT = 5
+PIN_I2C_SDA = 6
+PIN_I2C_SCL = 7
+PIN_BUTTON_DOWN = 8
+PIN_BUTTON_SELECT = 9
+PIN_BUTTON_UP = 10
+
+KNOWN_PINS = {
+    PIN_SERVO,
+    PIN_POT,
+    PIN_BATTERY,
+    PIN_SENSOR_PORT,
+    PIN_I2C_SDA,
+    PIN_I2C_SCL,
+    PIN_BUTTON_DOWN,
+    PIN_BUTTON_SELECT,
+    PIN_BUTTON_UP,
+}
+
+BUTTON_PINS = {
+    "down": PIN_BUTTON_DOWN,
+    "select": PIN_BUTTON_SELECT,
+    "up": PIN_BUTTON_UP,
+}
