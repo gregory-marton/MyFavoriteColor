@@ -217,10 +217,11 @@ def bridge(port=None, host="127.0.0.1", web_port=8765):
             await websocket.send(protocol.dumps(session.state_message()))
             await websocket.send(protocol.dumps(session.frame_message()))
             async for raw in websocket:
+                now_ms = int(time.time() * 1000)
                 for message in session.handle(raw):
-                    for outbound in coalescer.push(message):
+                    for outbound in coalescer.push(message, now_ms=now_ms):
                         await websocket.send(protocol.dumps(outbound))
-                for outbound in coalescer.drain():
+                for outbound in coalescer.drain(now_ms=now_ms):
                     await websocket.send(protocol.dumps(outbound))
         finally:
             pass
