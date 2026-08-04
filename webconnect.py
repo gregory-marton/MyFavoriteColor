@@ -30,8 +30,16 @@ switch_select = Pin(9, Pin.IN)
 run_manual = False 
 
 
+pot_hw = None
+btn_u = None
+btn_d = None
+btn_s = None
+adx = None
+current_m = 90
+
+
 def init_hardware():
-    global serialPoll, i2c, display, light, motor
+    global serialPoll, i2c, display, light, motor, pot_hw, btn_u, btn_d, btn_s, adx
     if serialPoll is not None:
         return
 
@@ -47,16 +55,29 @@ def init_hardware():
     light = ADC(Pin(5))
     light.atten(ADC.ATTN_11DB)
 
+    pot_hw = ADC(Pin(3))
+    pot_hw.atten(ADC.ATTN_11DB)
+
+    btn_u = Pin(10, Pin.IN, Pin.PULL_UP)
+    btn_d = Pin(8, Pin.IN, Pin.PULL_UP)
+    btn_s = Pin(9, Pin.IN, Pin.PULL_UP)
+
+    try:
+        import adxl345
+        adx = adxl345.ADXL345(i2c)
+    except Exception:
+        adx = None
+
     motor = servo.Servo(Pin(2))
     motor.write_angle(90)
 
 def readSensor():
     init_hardware()
     l=[]
-    for i in range(1000):
+    for i in range(100):
         l.append(light.read())
     l.sort()
-    l=l[300:600]
+    l=l[30:60]
     avlight=sum(l)/len(l)
     
     point = avlight
@@ -98,14 +119,28 @@ def readSerial():
 
 # Handles explore mode of json dict 
 def explore(json_obj):
-
+    global current_m
     dict_obj = {}
     if("m" in json_obj):
         global motor
-        motor.write_angle(180-int(json_obj["m"]))
+        current_m = int(json_obj["m"])
+        motor.write_angle(180-current_m)
     t = readSensor()
     sensor_val = int((100 * int(t))/4095)
     dict_obj["s"] = sensor_val
+    dict_obj["m"] = current_m
+    if pot_hw is not None:
+        dict_obj["pot"] = pot_hw.read()
+    if btn_u is not None:
+        dict_obj["btn_u"] = btn_u.value()
+        dict_obj["btn_d"] = btn_d.value()
+        dict_obj["btn_s"] = btn_s.value()
+    if adx is not None:
+        try:
+            x, y, z = adx.read()
+            dict_obj["ax"], dict_obj["ay"], dict_obj["az"] = x, y, z
+        except Exception:
+            pass
     
     string = json.dumps(dict_obj)
     sys.stdout.write(string+"\n")

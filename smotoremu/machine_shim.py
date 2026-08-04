@@ -121,6 +121,9 @@ def get_default_board():
 class Pin:
     IN = "IN"
     OUT = "OUT"
+    PULL_UP = 1
+    PULL_DOWN = 2
+    PULL_HOLD = 3
     _board = _DEFAULT_BOARD
 
     @classmethod

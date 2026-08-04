@@ -4,9 +4,11 @@ Co-authored-by: Gemini 3.6 Flash, Aug 2026
 """
 
 import argparse
+import json
 import os
 import shutil
 import sys
+import time
 
 from smotoremu.vfs import VFS, FileTooLargeError
 from smotoremu import protocol
@@ -138,13 +140,32 @@ class HardwareBridge:
             line = self._ser.readline().decode(errors="ignore").strip()
             if line.startswith("{"):
                 try:
-                    import json
+                    import json, math
                     parsed = json.loads(line)
                     res = {}
                     if "m" in parsed:
                         res["angle"] = float(parsed["m"])
-                    if "s" in parsed:
+                    if "pot" in parsed:
+                        res["pot"] = int(parsed["pot"])
+                    elif "s" in parsed:
                         res["pot"] = int(parsed["s"] * 40.95)
+
+                    if "bat" in parsed:
+                        res["battery"] = int(parsed["bat"])
+                    elif "battery" in parsed:
+                        res["battery"] = int(parsed["battery"])
+
+                    if parsed.get("btn_u") == 0:
+                        res["button"] = "up"
+                    elif parsed.get("btn_d") == 0:
+                        res["button"] = "down"
+                    elif parsed.get("btn_s") == 0:
+                        res["button"] = "select"
+
+                    if "ax" in parsed and "ay" in parsed and "az" in parsed:
+                        ax, ay, az = float(parsed["ax"]), float(parsed["ay"]), float(parsed["az"])
+                        res["roll"] = math.degrees(math.atan2(ay, az)) if (ay or az) else 0.0
+                        res["pitch"] = math.degrees(math.atan2(-ax, math.sqrt(ay*ay + az*az))) if (ax or ay or az) else 0.0
                     return res
                 except Exception:
                     pass
@@ -172,28 +193,85 @@ class HardwareBridge:
                 self.link.send(data.decode())
 
 
+DEFAULT_REC_STATE = os.path.expanduser("~/.smotor/recording_state.json")
+DEFAULT_REC_DIR = os.path.expanduser("~/.smotor/recordings")
+
+
 class HardwareServerSession:
-    def __init__(self, bridge_inst):
+    def __init__(self, bridge_inst, state_file=None, rec_dir=None):
         self.bridge = bridge_inst
         self.seq = 0
+        self.state_file = state_file or DEFAULT_REC_STATE
+        self.rec_dir = rec_dir or DEFAULT_REC_DIR
+        os.makedirs(self.rec_dir, exist_ok=True)
+
+        self.is_recording = False
+        self.current_rec_path = None
+        self._load_recording_state()
+
+    def _load_recording_state(self):
+        if os.path.isfile(self.state_file):
+            try:
+                with open(self.state_file, "r", encoding="utf-8") as h:
+                    data = json.load(h)
+                    self.is_recording = data.get("is_recording", False)
+                    self.current_rec_path = data.get("current_rec_path", None)
+            except Exception:
+                pass
+
+    def _save_recording_state(self):
+        os.makedirs(os.path.dirname(os.path.abspath(self.state_file)), exist_ok=True)
+        with open(self.state_file, "w", encoding="utf-8") as h:
+            json.dump({
+                "is_recording": self.is_recording,
+                "current_rec_path": self.current_rec_path,
+            }, h)
+
+    def record_event(self, event):
+        if not self.is_recording or not self.current_rec_path:
+            return
+        entry = {"t_ms": int(time.time() * 1000), **event}
+        with open(self.current_rec_path, "a", encoding="utf-8") as h:
+            h.write(json.dumps(entry) + "\n")
 
     def handle(self, raw):
         message = protocol.decode_client(raw)
         if message["type"] == "error":
             return [message]
+        if message["type"] == "record":
+            want_rec = bool(message.get("recording", False))
+            if want_rec and not self.is_recording:
+                import time as t_mod
+                timestamp = int(t_mod.time())
+                self.current_rec_path = os.path.join(self.rec_dir, f"recording_{timestamp}.jsonl")
+                self.is_recording = True
+                self._save_recording_state()
+            elif not want_rec and self.is_recording:
+                self.is_recording = False
+                self.current_rec_path = None
+                self._save_recording_state()
+            return [self.state_message()]
+
         self.bridge.send_command(message)
+        self.record_event({"kind": message["type"], "detail": message})
         return [self.state_message()]
 
     def state_message(self):
         hw = self.bridge.poll_hardware()
+        if self.is_recording:
+            self.record_event({"kind": "hardware_poll", "detail": hw})
         return protocol.state_message(
             angle=hw.get("angle", 0.0),
             pot=hw.get("pot", 2048),
-            battery=4200,
+            battery=hw.get("battery", 4200),
             attached="Hardware (USB CDC)",
             clock_ms=0,
             commanded_angle=hw.get("angle", 0.0),
             world=None,
+            is_recording=self.is_recording,
+            button=hw.get("button"),
+            roll=hw.get("roll"),
+            pitch=hw.get("pitch"),
         )
 
     def frame_message(self):

@@ -25,6 +25,7 @@ const els = {
   next: document.querySelector("#next-frame"),
   count: document.querySelector("#frame-count"),
   boot: document.querySelector("#boot"),
+  record: document.querySelector("#record-btn"),
 };
 
 let socket = null;
@@ -33,6 +34,7 @@ let reconnectDelayMs = 250;
 let frames = [];
 let frameIndex = -1;
 let latestState = null;
+let isRecording = false;
 
 connect();
 initInputs({
@@ -49,6 +51,12 @@ els.scrub.addEventListener("input", () => showFrame(parseInt(els.scrub.value, 10
 els.prev.addEventListener("click", () => stepFrame(-1));
 els.next.addEventListener("click", () => stepFrame(1));
 els.boot.addEventListener("click", () => send({ type: "boot" }));
+if (els.record) {
+  els.record.addEventListener("click", () => {
+    isRecording = !isRecording;
+    send({ type: "record", recording: isRecording });
+  });
+}
 document.addEventListener("keydown", (event) => {
   if (event.key === "[") stepFrame(-1);
   if (event.key === "]") stepFrame(1);
@@ -107,6 +115,13 @@ function handleMessage(message) {
 
 function updateState(state) {
   latestState = state;
+  if (state.is_recording != null) {
+    isRecording = Boolean(state.is_recording);
+    if (els.record) {
+      els.record.textContent = isRecording ? "⏹ Stop Recording" : "⏺ Record";
+      els.record.className = `btn-record ${isRecording ? "recording" : ""}`;
+    }
+  }
   if (els.armAngle) {
     els.armAngle.textContent = `${(state.angle || 0).toFixed(1)}°`;
   }

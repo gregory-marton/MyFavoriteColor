@@ -21,6 +21,7 @@ CLIENT_SCHEMAS = {
     "boot": set(),
     "reset": set(),
     "power": {"on"},
+    "record": {"recording"},
 }
 
 
@@ -33,10 +34,14 @@ def loads(raw):
 
 
 def decode_client(raw):
-    try:
-        message = loads(raw)
-    except json.JSONDecodeError as exc:
-        return error_message("invalid_json", str(exc))
+    if isinstance(raw, str):
+        try:
+            message = json.loads(raw)
+        except Exception:
+            return error_message("invalid_json", "failed to parse client message as JSON")
+    else:
+        message = raw
+
     if not isinstance(message, dict):
         return error_message("invalid_message", "client message must be a JSON object")
 
@@ -69,7 +74,7 @@ def frame_message(seq, png, lines):
     }
 
 
-def state_message(*, angle, pot, battery, attached, clock_ms, commanded_angle=None, world=None):
+def state_message(*, angle, pot, battery, attached, clock_ms, commanded_angle=None, world=None, is_recording=None, button=None, roll=None, pitch=None):
     msg = {
         "v": PROTOCOL_VERSION,
         "type": "state",
@@ -83,6 +88,14 @@ def state_message(*, angle, pot, battery, attached, clock_ms, commanded_angle=No
         msg["commanded_angle"] = commanded_angle
     if world is not None:
         msg["world"] = world
+    if is_recording is not None:
+        msg["is_recording"] = is_recording
+    if button is not None:
+        msg["button"] = button
+    if roll is not None:
+        msg["roll"] = roll
+    if pitch is not None:
+        msg["pitch"] = pitch
     return msg
 
 
