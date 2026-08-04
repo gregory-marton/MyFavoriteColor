@@ -527,3 +527,54 @@ Decisions:
 - `set_gravity(x, y, z)` accepts direct g-units for world-model integration.
 - Noise is bounded per axis and generated per read from an injectable RNG.
 - Added `load_real_adxl345()` so emulator tests exercise the real driver.
+
+## 2026-08-04 -- T013 session and device-code runner
+
+Files touched:
+
+- `smotoremu/session.py`
+- `smotoremu/backends/__init__.py`
+- `smotoremu/backends/cpython_shim/__init__.py`
+- `smotoremu/backends/cpython_shim/machine.py`
+- `smotoremu/backends/cpython_shim/framebuf.py`
+- `smotoremu/backends/cpython_shim/micropython.py`
+- `tests/emulator/test_session.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_session.py -v
+ModuleNotFoundError: No module named 'smotoremu.session'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_session.py -v
+6 passed in 0.03s
+
+python3 -m pytest tests/ -q
+178 passed, 1 skipped in 0.40s
+```
+
+Decisions:
+
+- Added a `Session` object that owns a `Board`, virtual clock, I2C bus, seeded
+  RNG, display, servo, buttons, potentiometer, battery, optional ADXL345, and
+  placeholder port.
+- `boot(entry)` runs device code in a daemon thread and calls `main()` when the
+  imported entry module defines it.
+- `run_until_idle()` joins the device thread with a timeout; exceptions are
+  captured in `session.error` instead of raised on the controller thread.
+- `SystemExit` is treated as a clean device-code exit and sets
+  `session.exited`.
+- Added CPython shim modules for `machine`, `framebuf`, and `micropython`, with
+  active session state held in a `ContextVar`.
+- Session boot purges an explicit list of device modules before import and
+  restores prior `sys.modules`, `sys.path`, and time functions afterward.
+- MicroPython-style `time.sleep*` and `ticks*` functions advance/read the
+  session virtual clock while device code runs.
+- This checkpoint documents but does not yet fully implement the future
+  condition-variable handoff invariant for interactive controller/device
+  concurrency.
