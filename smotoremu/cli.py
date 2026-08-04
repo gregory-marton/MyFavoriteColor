@@ -94,6 +94,33 @@ def read_vfs_file(filename, vfs_dir=None):
         return handle.read()
 
 
+class HardwareBridge:
+    def __init__(self, port=None, link=None):
+        self.port = port
+        self.link = link
+
+    def poll_hardware(self):
+        if self.link is not None and hasattr(self.link, "read_state"):
+            return self.link.read_state()
+        return {"angle": 0.0, "pot": 2048, "button": None}
+
+    def send_command(self, msg):
+        if self.link is not None:
+            if hasattr(self.link, "write"):
+                self.link.write(str(msg).encode())
+            elif hasattr(self.link, "send"):
+                self.link.send(str(msg))
+
+
+def bridge(port=None, host="127.0.0.1", web_port=8765):
+    from smotoremu.server import ServerSession, serve
+    import asyncio
+
+    print(f"🔌 Hardware Bridge starting on {host}:{web_port} (target port: {port or 'auto'})")
+    asyncio.run(serve(host=host, port=web_port))
+    return 0
+
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
@@ -129,6 +156,12 @@ def main(argv=None):
     serve_p.add_argument("--host", default="127.0.0.1")
     serve_p.add_argument("--port", type=int, default=8765)
 
+    # bridge
+    bridge_p = subparsers.add_parser("bridge", help="Bridge physical SmartMotor to Web UI")
+    bridge_p.add_argument("--port", default=None, help="Serial port (e.g. /dev/cu.usbmodem2101)")
+    bridge_p.add_argument("--host", default="127.0.0.1")
+    bridge_p.add_argument("--web-port", type=int, default=8765)
+
     args = parser.parse_args(argv)
 
     if args.command == "flash":
@@ -161,6 +194,8 @@ def main(argv=None):
         import asyncio
         asyncio.run(serve(host=args.host, port=args.port))
         return 0
+    elif args.command == "bridge":
+        return bridge(port=args.port, host=args.host, web_port=args.web_port)
     else:
         parser.print_help()
         return 0
