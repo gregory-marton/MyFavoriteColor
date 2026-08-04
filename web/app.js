@@ -2,12 +2,15 @@
 // Co-authored-by: GPT-5, Aug 2026
 
 import { drawFrame } from "./oled.js";
+import { renderArm } from "./arm.js";
 
 const MAX_FRAMES = 200;
 
 const els = {
   status: document.querySelector("#connection-status"),
   canvas: document.querySelector("#oled"),
+  armCanvas: document.querySelector("#arm-canvas"),
+  armAngle: document.querySelector("#arm-angle"),
   text: document.querySelector("#screen-text"),
   raw: document.querySelector("#raw-frame"),
   viewMode: document.querySelector("#view-mode"),
@@ -25,6 +28,7 @@ let reconnectTimer = null;
 let reconnectDelayMs = 250;
 let frames = [];
 let frameIndex = -1;
+let latestState = null;
 
 connect();
 
@@ -73,10 +77,22 @@ function webSocketUrl() {
 function handleMessage(message) {
   if (message.type === "frame") {
     pushFrame(message);
+  } else if (message.type === "state") {
+    updateState(message);
   } else if (message.type === "error") {
     setStatus(`error: ${message.message}`);
   } else if (message.type === "exited" && message.error) {
     setStatus(`exited: ${message.error}`);
+  }
+}
+
+function updateState(state) {
+  latestState = state;
+  if (els.armAngle) {
+    els.armAngle.textContent = `${(state.angle || 0).toFixed(1)}°`;
+  }
+  if (els.armCanvas) {
+    renderArm(els.armCanvas, state);
   }
 }
 

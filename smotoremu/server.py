@@ -36,12 +36,18 @@ class ServerSession:
         attached = None
         if self.sm.sensor is not None:
             attached = getattr(self.sm.sensor, "display_name", type(self.sm.sensor).__name__)
+        commanded_angle = self.sm.arm.angle
+        if getattr(self.sm.session.board, "servo_model", None) is not None:
+            commanded_angle = self.sm.session.board.servo_model.commanded_angle
+        world = self.sm.world.to_dict() if self.sm.world is not None else None
         return protocol.state_message(
             angle=self.sm.arm.angle,
             pot=self.sm.pot.raw,
             battery=self.sm.battery.raw,
             attached=attached,
             clock_ms=self.sm.session.clock.now_ms(),
+            commanded_angle=commanded_angle,
+            world=world,
         )
 
     def frame_message(self):

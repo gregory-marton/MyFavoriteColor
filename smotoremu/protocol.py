@@ -69,8 +69,8 @@ def frame_message(seq, png, lines):
     }
 
 
-def state_message(*, angle, pot, battery, attached, clock_ms):
-    return {
+def state_message(*, angle, pot, battery, attached, clock_ms, commanded_angle=None, world=None):
+    msg = {
         "v": PROTOCOL_VERSION,
         "type": "state",
         "angle": angle,
@@ -79,6 +79,11 @@ def state_message(*, angle, pot, battery, attached, clock_ms):
         "attached": attached,
         "clock_ms": clock_ms,
     }
+    if commanded_angle is not None:
+        msg["commanded_angle"] = commanded_angle
+    if world is not None:
+        msg["world"] = world
+    return msg
 
 
 def log_message(t_us, text):

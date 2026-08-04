@@ -3,6 +3,43 @@
 Co-authored-by: GPT-5, Aug 2026
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
 
+## 2026-08-04 -- T029 Web UI: arm and angle
+
+Files touched:
+
+- `web/arm.js`
+- `web/index.html`
+- `web/app.js`
+- `smotoremu/protocol.py`
+- `smotoremu/server.py`
+- `tests/emulator/test_web_arm.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_web_arm.py -v
+1 failed, 1 error in 0.09s
+FAILED test_server_session_state_message_includes_commanded_angle_and_world
+TypeError: state_message() got an unexpected keyword argument 'commanded_angle'
+```
+
+Green output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_web_arm.py -v
+2 passed in 1.44s
+
+.venv/bin/python -m pytest tests/ -q
+273 passed in 23.35s
+```
+
+Decisions:
+
+- Added `commanded_angle` and `world` optional fields to `protocol.state_message` and populated them in `ServerSession.state_message()`.
+- Created `web/arm.js` module to render a 2D side view of the arm, pivot hub, LEGO beam, ghost position overlay when commanded angle differs from actual angle, world arc colored by patch data, position marker, and big numeric angle readout.
+- Added `#arm-panel` to `web/index.html` and integrated `renderArm()` calls into `web/app.js` state message handling.
+
 ## 2026-08-04 -- T028 live WebSocket OLED UI
 
 Files touched:
