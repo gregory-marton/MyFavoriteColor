@@ -578,3 +578,51 @@ Decisions:
 - This checkpoint documents but does not yet fully implement the future
   condition-variable handoff invariant for interactive controller/device
   concurrency.
+
+## 2026-08-04 -- T014 virtual filesystem
+
+Files touched:
+
+- `smotoremu/vfs.py`
+- `smotoremu/session.py`
+- `smotoremu/backends/cpython_shim/os_shim.py`
+- `tests/emulator/test_vfs.py`
+- `tests/emulator/test_session.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_vfs.py -v
+ModuleNotFoundError: No module named 'smotoremu.vfs'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_vfs.py -v
+5 passed in 0.04s
+
+python3 -m pytest tests/emulator/test_session.py -v
+6 passed in 0.03s
+
+python3 -m pytest tests/ -q
+183 passed, 1 skipped in 0.44s
+```
+
+Decisions:
+
+- Added `VFS` with `put`, `get`, `listdir`, `wipe`, and `load_manifest`.
+- `VFS.MAX_FILE_BYTES` is read from `tests/test_filesize.py` so emulator flash
+  limits stay aligned with the existing manifest-size gate.
+- `put()` raises `FileTooLargeError` above the manifest threshold.
+- `Session` now creates a temp-backed flash directory by default, or uses the
+  caller-provided `vfs_dir`.
+- During device execution the session changes cwd to the VFS root, prepends the
+  VFS root to `sys.path`, and restores cwd/sys.path afterward.
+- Device-thread `open`, `os.listdir`, and `os.remove` reject absolute host
+  paths, matching the documented non-parallel chroot-style limitation.
+- Real `files.py` now round-trips `savetofile()`/`readfile()` and
+  `resetprefs()`/`import prefs` inside session flash.
+- Added `os_shim.py` as the documented upgrade point if path-rewriting shims
+  later replace the cwd-based approach.

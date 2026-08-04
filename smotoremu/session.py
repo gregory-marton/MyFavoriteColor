@@ -11,11 +11,13 @@ Co-authored-by: GPT-5, Aug 2026
 """
 
 import importlib
+import builtins
 import os
 import random
 import sys
 import threading
 import time as time_module
+import tempfile
 
 from smotoremu.backends.cpython_shim import active_session
 from smotoremu.clock import VirtualClock
@@ -25,6 +27,7 @@ from smotoremu.peripherals.inputs import Battery, Buttons, Potentiometer
 from smotoremu.peripherals.servo import ServoModel
 from smotoremu.peripherals.ssd1306 import SSD1306Device
 from smotoremu.pinmap import PIN_SERVO
+from smotoremu.vfs import VFS
 
 SHIM_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backends", "cpython_shim")
 
@@ -59,7 +62,8 @@ class Session:
         Pin.use_board(self.board)
         self.bus = self.board.i2c_bus
         self.world = world
-        self.vfs_dir = vfs_dir
+        self.vfs = VFS(vfs_dir or tempfile.mkdtemp(prefix="smotoremu-flash-"))
+        self.vfs_dir = self.vfs.root
         self.board_config = board_config or {}
 
         self.display = SSD1306Device()
@@ -105,12 +109,18 @@ class Session:
     def _run_entry(self, entry):
         saved_modules = {name: sys.modules.get(name) for name in DEVICE_MODULES}
         old_path = list(sys.path)
+        old_cwd = os.getcwd()
         old_time = {
             "sleep": getattr(time_module, "sleep", None),
             "sleep_ms": getattr(time_module, "sleep_ms", None),
             "sleep_us": getattr(time_module, "sleep_us", None),
             "ticks_ms": getattr(time_module, "ticks_ms", None),
             "ticks_diff": getattr(time_module, "ticks_diff", None),
+        }
+        old_open = builtins.open
+        old_os = {
+            "listdir": os.listdir,
+            "remove": os.remove,
         }
         token = active_session.set(self)
         try:
@@ -119,7 +129,12 @@ class Session:
             if SHIM_DIR in sys.path:
                 sys.path.remove(SHIM_DIR)
             sys.path.insert(0, SHIM_DIR)
+            if self.vfs.root in sys.path:
+                sys.path.remove(self.vfs.root)
+            sys.path.insert(0, self.vfs.root)
+            os.chdir(self.vfs.root)
             self._install_time_shim()
+            self._install_vfs_shim(old_open, old_os)
             module = importlib.import_module(entry)
             if hasattr(module, "main"):
                 module.main()
@@ -131,6 +146,10 @@ class Session:
         finally:
             active_session.reset(token)
             _restore_time(old_time)
+            builtins.open = old_open
+            os.listdir = old_os["listdir"]
+            os.remove = old_os["remove"]
+            os.chdir(old_cwd)
             sys.path[:] = old_path
             _restore_modules(saved_modules)
 
@@ -140,6 +159,24 @@ class Session:
         time_module.sleep_us = self.clock.sleep_us
         time_module.ticks_ms = self.clock.now_ms
         time_module.ticks_diff = lambda t1, t2: t1 - t2
+
+    def _install_vfs_shim(self, old_open, old_os):
+        def checked_open(file, *args, **kwargs):
+            if isinstance(file, (str, bytes, os.PathLike)) and os.path.isabs(os.fspath(file)):
+                raise ValueError("device code may not open absolute host paths")
+            return old_open(file, *args, **kwargs)
+
+        def checked_listdir(path="."):
+            _reject_absolute(path)
+            return old_os["listdir"](path)
+
+        def checked_remove(path):
+            _reject_absolute(path)
+            return old_os["remove"](path)
+
+        builtins.open = checked_open
+        os.listdir = checked_listdir
+        os.remove = checked_remove
 
 
 def _purge_device_modules():
@@ -164,3 +201,8 @@ def _restore_time(old_time):
                 pass
         else:
             setattr(time_module, name, value)
+
+
+def _reject_absolute(path):
+    if os.path.isabs(os.fspath(path)):
+        raise ValueError("device code may not use absolute host paths")

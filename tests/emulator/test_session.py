@@ -3,6 +3,8 @@
 Co-authored-by: GPT-5, Aug 2026
 """
 
+import builtins
+
 from smotoremu.i2c import I2CDevice
 from smotoremu.session import Session
 
@@ -33,21 +35,21 @@ def test_trivial_injected_module_sets_pin_and_completes(tmp_path, monkeypatch):
 
 
 def test_boot_main_without_color_sensor_dispatches_to_standalone(tmp_path, monkeypatch):
-    marker = tmp_path / "activity.txt"
-    write_module(tmp_path, "standalone", f"def main():\n    open({str(marker)!r}, 'w').write('standalone')\n")
+    builtins.SESSION_MARKERS = []
+    write_module(tmp_path, "standalone", "import builtins\ndef main():\n    builtins.SESSION_MARKERS.append('standalone')\n")
     monkeypatch.syspath_prepend(str(tmp_path))
     session = Session()
 
     session.boot("main")
     session.run_until_idle()
 
-    assert marker.read_text() == "standalone"
+    assert builtins.SESSION_MARKERS == ["standalone"]
     assert session.error is None
 
 
 def test_boot_main_with_color_sensor_dispatches_to_myfavcolor(tmp_path, monkeypatch):
-    marker = tmp_path / "activity.txt"
-    write_module(tmp_path, "myfavcolor", f"def main():\n    open({str(marker)!r}, 'w').write('myfavcolor')\n")
+    builtins.SESSION_MARKERS = []
+    write_module(tmp_path, "myfavcolor", "import builtins\ndef main():\n    builtins.SESSION_MARKERS.append('myfavcolor')\n")
     monkeypatch.syspath_prepend(str(tmp_path))
     session = Session()
     session.bus.register(0x10, I2CDevice())
@@ -55,7 +57,7 @@ def test_boot_main_with_color_sensor_dispatches_to_myfavcolor(tmp_path, monkeypa
     session.boot("main")
     session.run_until_idle()
 
-    assert marker.read_text() == "myfavcolor"
+    assert builtins.SESSION_MARKERS == ["myfavcolor"]
     assert session.error is None
 
 
@@ -84,9 +86,9 @@ def test_sys_exit_in_device_code_sets_exited_cleanly(tmp_path, monkeypatch):
 
 
 def test_two_sessions_do_not_leak_main_or_activity_modules(tmp_path, monkeypatch):
-    marker = tmp_path / "activity.txt"
-    write_module(tmp_path, "standalone", f"def main():\n    open({str(marker)!r}, 'a').write('standalone\\n')\n")
-    write_module(tmp_path, "myfavcolor", f"def main():\n    open({str(marker)!r}, 'a').write('myfavcolor\\n')\n")
+    builtins.SESSION_MARKERS = []
+    write_module(tmp_path, "standalone", "import builtins\ndef main():\n    builtins.SESSION_MARKERS.append('standalone')\n")
+    write_module(tmp_path, "myfavcolor", "import builtins\ndef main():\n    builtins.SESSION_MARKERS.append('myfavcolor')\n")
     monkeypatch.syspath_prepend(str(tmp_path))
 
     first = Session()
@@ -98,6 +100,6 @@ def test_two_sessions_do_not_leak_main_or_activity_modules(tmp_path, monkeypatch
     second.boot("main")
     second.run_until_idle()
 
-    assert marker.read_text().splitlines() == ["standalone", "myfavcolor"]
+    assert builtins.SESSION_MARKERS == ["standalone", "myfavcolor"]
     assert first.error is None
     assert second.error is None
