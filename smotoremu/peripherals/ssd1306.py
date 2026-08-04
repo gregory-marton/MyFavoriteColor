@@ -38,6 +38,7 @@ class SSD1306Device(I2CDevice):
         self.entire_display_on = False
         self.charge_pump = 0
         self.frame_count = 0
+        self.frame_texts = []
         self.on_frame = None
         self._pending_command = None
         self._pending_params = []
@@ -159,6 +160,7 @@ class SSD1306Device(I2CDevice):
                     self.page = self.page_start
         if self._is_full_frame_write(payload):
             self.frame_count += 1
+            self.frame_texts.append("\n".join(self.text_lines()))
             if self.on_frame is not None:
                 self.on_frame(self)
 

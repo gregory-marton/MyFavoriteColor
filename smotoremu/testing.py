@@ -9,6 +9,7 @@ import pytest
 
 from smotoremu.sensors import get_sensor
 from smotoremu.session import Session
+from smotoremu.screen import Screen
 from smotoremu.world import World
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -35,7 +36,7 @@ class SmartMotor:
         self.world = session.world
         self.trace = session.trace
         self.arm = ArmFacade(session)
-        self.screen = ScreenFacade(session)
+        self.screen = Screen(session)
         self._closed = False
 
     def boot(self, entry="main"):
@@ -69,17 +70,6 @@ class ArmFacade:
     @property
     def angle(self):
         return self.session.servo.actual_angle
-
-
-class ScreenFacade:
-    def __init__(self, session):
-        self.session = session
-
-    def lines(self):
-        return self.session.display.text_lines()
-
-    def png(self, scale=4):
-        return self.session.display.to_png(scale=scale)
 
 
 @pytest.fixture

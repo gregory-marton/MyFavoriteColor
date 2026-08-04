@@ -1070,3 +1070,53 @@ Decisions:
   the lambda closure; facade objects such as `sm.screen` expose `session`
   directly.
 - Exported `expect` and `wait_for` from both `smotor` and `smotoremu`.
+
+## 2026-08-04 -- T024 screen locators and snapshots
+
+Files touched:
+
+- `smotoremu/screen.py`
+- `smotoremu/expect.py`
+- `smotoremu/peripherals/ssd1306.py`
+- `smotoremu/testing.py`
+- `tests/emulator/test_screen_api.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_screen_api.py -v
+AttributeError: 'ScreenFacade' object has no attribute 'expect_text'
+AttributeError: 'ScreenFacade' object has no attribute 'expect_lines'
+AttributeError: 'ScreenFacade' object has no attribute 'assert_snapshot'
+AttributeError: 'ScreenFacade' object has no attribute 'text'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_screen_api.py -v
+5 passed in 3.85s
+
+python3 -m pytest tests/emulator/test_screen_api.py tests/emulator/test_expect.py tests/emulator/test_facade.py tests/emulator/test_display.py -q
+27 passed in 4.89s
+
+python3 -m pytest tests/ -q
+240 passed, 1 skipped in 5.18s
+```
+
+Decisions:
+
+- Replaced the minimal `ScreenFacade` with `smotoremu.screen.Screen`.
+- Added `sm.screen.lines()`, `text()`, `contains()`, `expect_text()`,
+  `expect_lines()`, `png()`, `frames()`, and `assert_snapshot()`.
+- Screen expectations reuse the virtual-time `wait_for()` helper, so tests do
+  not sleep on wall-clock time.
+- `expect_lines()` reports a readable line diff on mismatch.
+- `assert_snapshot(name)` stores text snapshots under
+  `tests/emulator/__snapshots__/`, creates missing snapshots loudly, compares
+  existing snapshots, and updates when `SMOTOR_UPDATE_SNAPSHOTS=1`.
+- The SSD1306 model now records text extracted from each full-frame write, so
+  tests can inspect screen-frame history.
+- `wait_for()` now accepts a callable `message`, allowing timeout details to
+  reflect the final observed screen state.

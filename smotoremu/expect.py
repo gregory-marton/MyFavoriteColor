@@ -14,7 +14,8 @@ def wait_for(predicate, *, session=None, timeout_ms=5000, poll_ms=10, message=No
             return
         now_ms = session.clock.now_ms()
         if now_ms >= timeout_at:
-            raise TimeoutError(message or _timeout_message("predicate to become true", False, session, now_ms - start_ms))
+            detail = message() if callable(message) else message
+            raise TimeoutError(detail or _timeout_message("predicate to become true", False, session, now_ms - start_ms))
         step_ms = min(poll_ms, timeout_at - now_ms)
         session.clock.sleep_us(step_ms * 1000)
         session.run_until_idle(timeout_ms=0)
