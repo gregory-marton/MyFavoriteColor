@@ -339,3 +339,69 @@ Decisions:
 - Added automatic origin search across all 8x8 offsets, scored by non-space
   glyph matches so blank display area does not dominate alignment.
 - Added `extract_lines()` for right-stripped, blank-row-dropped screen text.
+
+## 2026-08-04 -- T009 SSD1306 command-level peripheral
+
+Files touched:
+
+- `smotoremu/peripherals/__init__.py`
+- `smotoremu/peripherals/ssd1306.py`
+- `smotoremu/device_env.py`
+- `smotoremu/framebuf_shim.py`
+- `tests/emulator/test_display.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_display.py -v
+ImportError: cannot import name 'load_real_icons' from 'smotoremu.device_env'
+```
+
+Test correction:
+
+```text
+tests/emulator/test_display.py::test_invert_affects_pixels_but_not_gddram
+assert 0 == 1
+```
+
+The test was reading rendered pixels before sending display-on (`0xAF`).
+`pixels()` correctly returns black when the controller is off, so the test now
+turns the display on before checking inversion.
+
+Integration fallout:
+
+```text
+python3 -m pytest tests/ -q
+4 failed, 151 passed, 1 skipped in 0.39s
+
+Failures:
+- `load_real_icons()` left the emulator `machine` module in `sys.modules`,
+  causing later legacy runtime imports to use the wrong machine fake
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_display.py -v
+6 passed in 0.08s
+
+python3 -m pytest tests/ -q
+155 passed, 1 skipped in 0.37s
+```
+
+Decisions:
+
+- Added `SSD1306Device` at the I2C-device protocol level.
+- Implemented the command subset emitted by the repo's real `ssd1306.py`,
+  including multi-byte command parameter state.
+- Data writes now fill emulated GDDRAM in horizontal addressing mode and count
+  full-frame writes.
+- `pixels()` honors display on/off and inversion without mutating GDDRAM.
+- `to_png()` emits dependency-free grayscale PNG bytes via `struct` and `zlib`.
+- `text_lines()` uses the T005 reverse-map path, proving rendered text can be
+  recovered from actual display bytes.
+- Added `load_real_icons()` and restored temporary `machine`/`ssd1306`
+  `sys.modules` overrides after loading to avoid contaminating legacy tests.
+- Added minimal `MONO_HLSB` support to the framebuf shim so `icons.py` can load
+  its icon framebuffers.

@@ -5,20 +5,24 @@ Only MONO_VLSB is implemented: that's the only format ssd1306.py's SSD1306
 base class constructs (see ssd1306.py, `framebuf.MONO_VLSB`). Byte index =
 x + (y // 8) * width; bit index = y % 8, bit 0 is the top row of that
 8-pixel vertical strip -- MicroPython's actual bit order.
+
+Co-authored-by: GPT-5, Aug 2026
 """
 
 from smotoremu._font_data import FONT_DATA
 
 MONO_VLSB = "MONO_VLSB"
+MONO_HLSB = "MONO_HLSB"
 
 
 class FrameBuffer:
     def __init__(self, buf, width, height, format, stride=None):
-        if format != MONO_VLSB:
-            raise NotImplementedError("only MONO_VLSB is implemented")
+        if format not in {MONO_VLSB, MONO_HLSB}:
+            raise NotImplementedError("only MONO_VLSB and MONO_HLSB are implemented")
         self.buf = buf
         self.width = width
         self.height = height
+        self.format = format
         self.stride = stride if stride is not None else width
 
     def _in_bounds(self, x, y):
@@ -27,14 +31,18 @@ class FrameBuffer:
     def pixel(self, x, y, color=None):
         if not self._in_bounds(x, y):
             return 0 if color is None else None
-        idx = x + (y // 8) * self.stride
-        bit = y % 8
+        idx, bit = self._byte_and_bit(x, y)
         if color is None:
             return (self.buf[idx] >> bit) & 1
         if color:
             self.buf[idx] |= 1 << bit
         else:
             self.buf[idx] &= ~(1 << bit) & 0xFF
+
+    def _byte_and_bit(self, x, y):
+        if self.format == MONO_VLSB:
+            return x + (y // 8) * self.stride, y % 8
+        return (x // 8) + y * ((self.stride + 7) // 8), 7 - (x % 8)
 
     def fill(self, color):
         fill_byte = 0xFF if color else 0x00

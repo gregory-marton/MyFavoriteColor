@@ -7,6 +7,8 @@ up in tests/conftest.py for the existing device-code test suite), so a plain
 different, simpler fake -- instead of the real driver this emulator needs to
 run pixel-faithfully. Per EMULATOR_TASKS.md ground rule R1, the real device
 files are never modified to make this work.
+
+Co-authored-by: GPT-5, Aug 2026
 """
 
 import importlib.util
@@ -30,6 +32,26 @@ def _install_fake_modules():
         sys.modules["micropython"] = micropython_fake
 
 
+def _install_machine_module():
+    from smotoremu import machine_shim
+
+    machine_fake = types.ModuleType("machine")
+    machine_fake.__smotoremu__ = True
+    for name in (
+        "ADC",
+        "DeviceReset",
+        "I2C",
+        "PWM",
+        "Pin",
+        "SoftI2C",
+        "Timer",
+        "reset",
+        "unique_id",
+    ):
+        setattr(machine_fake, name, getattr(machine_shim, name))
+    sys.modules["machine"] = machine_fake
+
+
 def load_real_module(filename, module_name=None):
     """Load a .py file from the repo root by path, bypassing sys.path order."""
     _install_fake_modules()
@@ -44,3 +66,23 @@ def load_real_module(filename, module_name=None):
 
 def load_real_ssd1306():
     return load_real_module("ssd1306.py")
+
+
+def load_real_icons():
+    old_machine = sys.modules.get("machine")
+    old_ssd1306 = sys.modules.get("ssd1306")
+    _install_fake_modules()
+    try:
+        sys.modules["ssd1306"] = load_real_ssd1306()
+        _install_machine_module()
+        return load_real_module("icons.py")
+    finally:
+        _restore_module("machine", old_machine)
+        _restore_module("ssd1306", old_ssd1306)
+
+
+def _restore_module(name, module):
+    if module is None:
+        sys.modules.pop(name, None)
+    else:
+        sys.modules[name] = module
