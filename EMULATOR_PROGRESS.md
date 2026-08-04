@@ -131,3 +131,36 @@ Decisions:
 - Added minimal setuptools metadata for `smotoremu`.
 - Exposed `smotoremu.__version__` from `smotoremu/version.py`.
 - Declared Python >=3.11, matching `EMULATOR_TASKS.md` T001.
+
+## 2026-08-04 -- T002 virtual clock and event scheduler
+
+Files touched:
+
+- `smotoremu/clock.py`
+- `tests/emulator/test_clock.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_clock.py -v
+ModuleNotFoundError: No module named 'smotoremu.clock'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_clock.py -v
+8 passed in 0.08s
+
+python3 -m pytest tests/ -v
+128 passed, 1 skipped in 0.18s
+```
+
+Decisions:
+
+- Implemented deterministic `instant` virtual time first.
+- Added `realtime` and `scaled` mode hooks, but kept tests focused on instant mode per T002.
+- Event ordering at equal timestamps uses a monotonic sequence counter.
+- Periodic events can cancel themselves from inside their callback.
+- Repeated scheduling at one timestamp raises `ClockStuckError` instead of hanging.
