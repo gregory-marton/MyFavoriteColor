@@ -14,9 +14,11 @@ class Buttons:
         self.bounce_ms = bounce_ms
 
     def press(self, name: str) -> None:
+        self.board.record("button", {"name": name, "action": "press"})
         self._set(name, 0)
 
     def release(self, name: str) -> None:
+        self.board.record("button", {"name": name, "action": "release"})
         self._set(name, 1)
 
     def click(self, name: str, hold_ms: int = 120) -> None:

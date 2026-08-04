@@ -82,5 +82,14 @@ class ServoModel:
             self._settle_handle = None
 
     def _notify(self):
+        self.board.record(
+            "servo",
+            {
+                "pin": self.pin_id,
+                "commanded_angle": self.commanded_angle,
+                "actual_angle": self._actual_angle,
+                "is_moving": self._is_moving,
+            },
+        )
         if self.on_change is not None:
             self.on_change(self)

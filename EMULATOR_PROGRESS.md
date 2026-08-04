@@ -626,3 +626,51 @@ Decisions:
   `resetprefs()`/`import prefs` inside session flash.
 - Added `os_shim.py` as the documented upgrade point if path-rewriting shims
   later replace the cwd-based approach.
+
+## 2026-08-04 -- T015 trace recorder
+
+Files touched:
+
+- `smotoremu/trace.py`
+- `smotoremu/session.py`
+- `smotoremu/machine_shim.py`
+- `smotoremu/i2c.py`
+- `smotoremu/peripherals/inputs.py`
+- `smotoremu/peripherals/servo.py`
+- `tests/emulator/test_trace.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_trace.py -v
+ImportError: cannot import name 'TraceRecorder' from 'smotoremu.trace'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_trace.py -v
+5 passed in 0.03s
+
+python3 -m pytest tests/emulator/test_i2c.py tests/emulator/test_machine_shim.py tests/emulator/test_inputs.py tests/emulator/test_servo.py tests/emulator/test_display.py tests/emulator/test_session.py -q
+41 passed in 0.12s
+
+python3 -m pytest tests/ -q
+188 passed, 1 skipped in 0.44s
+```
+
+Decisions:
+
+- Added `TraceRecorder` to `smotoremu.trace` without disturbing the existing
+  guided-log parser functions.
+- Trace events are dictionaries with `t_us`, `kind`, and `detail`.
+- Ring-buffer retention drops oldest events after `max_events`.
+- `to_jsonl()` and `from_jsonl()` round-trip trace metadata and events.
+- Session traces start with a header event recording seed and configuration.
+- Board-level pin, ADC, PWM, and timer events now record through the session
+  trace when present.
+- I2C bus operations record scan/read/write metadata after virtual timing is
+  charged.
+- Button, servo, display frame, and device `print()` output now emit `button`,
+  `servo`, `frame`, and `log` trace events.

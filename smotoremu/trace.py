@@ -12,6 +12,8 @@ Co-authored-by: GPT-5, Aug 2026
 """
 
 import base64
+from collections import deque
+import json
 import math
 import re
 
@@ -21,6 +23,36 @@ from smotoremu.machine_shim import Pin, SoftI2C
 
 BOOT_GAP_MS = 2000  # inserted between boots; not a measurement, just visual separation
 ON_USB_CHARGING_THRESHOLD = 2850  # matches sensors.readbattery()'s 'charging' bucket
+
+
+class TraceRecorder:
+    def __init__(self, max_events=100_000, seed=None, config=None):
+        self.max_events = max_events
+        self._events = deque(maxlen=max_events)
+        if seed is not None or config is not None:
+            self.record(0, "header", {"seed": seed, "config": config or {}})
+
+    @property
+    def events(self):
+        return list(self._events)
+
+    def record(self, t_us, kind, detail):
+        self._events.append({"t_us": int(t_us), "kind": kind, "detail": detail})
+
+    def to_jsonl(self):
+        header = {"type": "trace", "max_events": self.max_events}
+        lines = [json.dumps(header, sort_keys=True)]
+        lines.extend(json.dumps(event, sort_keys=True) for event in self._events)
+        return "\n".join(lines) + "\n"
+
+    @classmethod
+    def from_jsonl(cls, text):
+        lines = [line for line in text.splitlines() if line.strip()]
+        header = json.loads(lines[0])
+        trace = cls(max_events=header["max_events"])
+        for line in lines[1:]:
+            trace._events.append(json.loads(line))
+        return trace
 
 
 def orientation_from_accel(accel):

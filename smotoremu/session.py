@@ -27,6 +27,7 @@ from smotoremu.peripherals.inputs import Battery, Buttons, Potentiometer
 from smotoremu.peripherals.servo import ServoModel
 from smotoremu.peripherals.ssd1306 import SSD1306Device
 from smotoremu.pinmap import PIN_SERVO
+from smotoremu.trace import TraceRecorder
 from smotoremu.vfs import VFS
 
 SHIM_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backends", "cpython_shim")
@@ -57,8 +58,15 @@ class Session:
     def __init__(self, *, seed=0, clock_mode="instant", world=None, vfs_dir=None, board_config=None):
         self.seed = seed
         self.rng = random.Random(seed)
+        self.trace = TraceRecorder(
+            seed=seed,
+            config={
+                "clock_mode": clock_mode,
+                "board_config": board_config or {},
+            },
+        )
         self.clock = VirtualClock(mode=clock_mode)
-        self.board = Board(clock=self.clock)
+        self.board = Board(clock=self.clock, trace=self.trace)
         Pin.use_board(self.board)
         self.bus = self.board.i2c_bus
         self.world = world
@@ -67,6 +75,11 @@ class Session:
         self.board_config = board_config or {}
 
         self.display = SSD1306Device()
+        self.display.on_frame = lambda display: self.trace.record(
+            self.clock.now_us,
+            "frame",
+            {"frame_count": display.frame_count, "nbytes": len(display.gddram)},
+        )
         self.bus.register(0x3C, self.display)
         self.servo = ServoModel(self.board, PIN_SERVO)
         self.buttons = Buttons(self.board)
@@ -118,6 +131,7 @@ class Session:
             "ticks_diff": getattr(time_module, "ticks_diff", None),
         }
         old_open = builtins.open
+        old_print = builtins.print
         old_os = {
             "listdir": os.listdir,
             "remove": os.remove,
@@ -135,6 +149,7 @@ class Session:
             os.chdir(self.vfs.root)
             self._install_time_shim()
             self._install_vfs_shim(old_open, old_os)
+            self._install_print_shim(old_print)
             module = importlib.import_module(entry)
             if hasattr(module, "main"):
                 module.main()
@@ -147,6 +162,7 @@ class Session:
             active_session.reset(token)
             _restore_time(old_time)
             builtins.open = old_open
+            builtins.print = old_print
             os.listdir = old_os["listdir"]
             os.remove = old_os["remove"]
             os.chdir(old_cwd)
@@ -177,6 +193,16 @@ class Session:
         builtins.open = checked_open
         os.listdir = checked_listdir
         os.remove = checked_remove
+
+    def _install_print_shim(self, old_print):
+        def traced_print(*args, **kwargs):
+            sep = kwargs.get("sep", " ")
+            end = kwargs.get("end", "\n")
+            message = sep.join(str(arg) for arg in args)
+            self.trace.record(self.clock.now_us, "log", {"message": message, "end": end})
+            old_print(*args, **kwargs)
+
+        builtins.print = traced_print
 
 
 def _purge_device_modules():

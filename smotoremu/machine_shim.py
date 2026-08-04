@@ -30,8 +30,9 @@ class DeviceReset(RuntimeError):
 class Board:
     ADC_SAMPLE_COST_US = 20  # GUESS: ESP32-C3 SAR ADC sample cost; needs bench data.
 
-    def __init__(self, clock=None, unique_id=b"\x12\x34\x56\x78"):
+    def __init__(self, clock=None, unique_id=b"\x12\x34\x56\x78", trace=None):
         self.clock = clock or VirtualClock()
+        self.trace = trace
         self.scheduler = EventScheduler(self.clock)
         self.pin_modes = {}
         self.pin_values = {pin: 1 for pin in BUTTON_PINS.values()}
@@ -40,7 +41,7 @@ class Board:
         self.pwm_values = {}
         self.pwm_callbacks = {}
         self._port_adc_stub = None
-        self.i2c_bus = I2CBus(clock=self.clock)
+        self.i2c_bus = I2CBus(clock=self.clock, trace=self.trace)
         self.timer_handles = {}
         self.set_unique_id(unique_id)
 
@@ -58,6 +59,7 @@ class Board:
         self.validate_pin(pin_id)
         if value is not None:
             self.pin_values[pin_id] = value
+            self.record("pin", {"pin": pin_id, "value": value})
         return self.pin_values.get(pin_id, 1)
 
     def press(self, name):
@@ -83,8 +85,11 @@ class Board:
         if pin_id == PIN_SENSOR_PORT and self._port_adc_stub is not None:
             return self._port_adc_stub(self.pin_values.get(PIN_SENSOR_PORT, 0))
         if pin_id in self.adc_noise_callbacks:
-            return self.adc_noise_callbacks[pin_id]()
-        return self.adc_values.get(pin_id, 2048)
+            value = self.adc_noise_callbacks[pin_id]()
+        else:
+            value = self.adc_values.get(pin_id, 2048)
+        self.record("adc", {"pin": pin_id, "value": value})
+        return value
 
     def adc_read_uv(self, pin_id):
         return self.adc_read(pin_id) * 1000
@@ -92,6 +97,7 @@ class Board:
     def pwm_set(self, pin_id, freq, duty):
         self.validate_pin(pin_id)
         self.pwm_values[pin_id] = {"freq": freq, "duty": duty}
+        self.record("pwm", {"pin": pin_id, "freq": freq, "duty": duty})
         for callback in self.pwm_callbacks.get(pin_id, []):
             callback(pin_id, freq, duty)
 
@@ -103,6 +109,10 @@ class Board:
         if not isinstance(unique_id, (bytes, bytearray)) or len(unique_id) != 4:
             raise ValueError("unique_id must be exactly 4 bytes")
         self.unique_id = bytes(unique_id)
+
+    def record(self, kind, detail):
+        if self.trace is not None:
+            self.trace.record(self.clock.now_us, kind, detail)
 
 
 _DEFAULT_BOARD = Board()
@@ -190,6 +200,7 @@ class Timer:
         period_us = period * 1000
 
         def fire():
+            self._board.record("timer", {"id": self.id, "action": "fire"})
             if callback is not None:
                 callback(self)
 
@@ -203,6 +214,7 @@ class Timer:
         handle = self._board.timer_handles.pop(self.id, None)
         if handle is not None:
             self._board.scheduler.cancel(handle)
+            self._board.record("timer", {"id": self.id, "action": "deinit"})
 
 
 class SoftI2C:
