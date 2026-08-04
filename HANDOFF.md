@@ -4,6 +4,41 @@ Living document. Update as tasks land.
 Design docs: `EMULATOR_DESIGN.md`, `EMULATOR_TASKS.md`, `HOSTLINK_DESIGN.md`,
 `SENSOR_QA_DESIGN.md`, `DEVICE_HEALTH_DESIGN.md`.
 
+## Current execution checkpoint — 2026-08-04
+
+The emulator implementation is through T027 and is installed editable in the
+repo-local `.venv`. The latest committed baseline is:
+
+```text
+3bc8eed Add emulator websocket protocol
+```
+
+At that point the complete suite was green: `.venv/bin/python -m pytest tests/ -q`
+reported `276 passed in 23.95s`.
+
+T028 is staged in the working tree but intentionally not committed yet. It is
+the live browser OLED shell (`web/index.html`, `web/style.css`, `web/app.js`,
+`web/oled.js`) plus `tests/emulator/test_web_live.py`; the former replay test is
+being replaced. The first live run reached `5 passed, 1 failed`: the only
+assertion failure is Playwright clipboard read permission, and teardown warns
+that the websocket server close coroutine is not awaited. Fix those two
+fixture issues, rerun focused and full suites, append green output to
+`EMULATOR_PROGRESS.md`, and commit with a message such as `Add live websocket
+OLED UI`.
+
+Use the repo interpreter for validation:
+
+```bash
+.venv/bin/python -m pytest tests/emulator/test_web_live.py -v
+.venv/bin/python -m pytest tests/emulator/test_web_live.py tests/emulator/test_protocol.py -q
+.venv/bin/python -m pytest tests/ -q
+```
+
+Do not stage unrelated local artifacts: `.dev_log_redactor_state.json`,
+`dev.log`, or `device_backup_2026-08-03/`. After T028, continue from the
+dependency graph in `EMULATOR_TASKS.md` (T029 onward), preserving red-green
+discipline and recording each task's evidence in both durable progress docs.
+
 ---
 
 ## Ready for Sonnet right now (no hardware, no decisions needed)

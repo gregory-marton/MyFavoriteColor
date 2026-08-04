@@ -2,6 +2,39 @@
 
 Co-authored-by: GPT-5, Aug 2026
 
+## 2026-08-04 -- T028 live WebSocket OLED UI (in progress at handoff)
+
+Files currently changed but not yet committed:
+
+- `web/index.html`, `web/style.css`, `web/app.js`, `web/oled.js`
+- `tests/emulator/test_web_live.py`
+- deletion of `tests/emulator/test_web_replay.py`
+
+The old trace-only replay page is being replaced by a vanilla ES-module live
+viewer. It connects to the emulator WebSocket, renders PNG OLED frames at 4×
+with a pixel grid, exposes Pixels/Text/Both/Raw modes, keeps up to 200 frames
+with scrubber and `[`/`]` navigation, provides selectable text and Copy, and
+reports reconnecting/connected/disconnected states.
+
+Red output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_web_live.py -v
+5 passed, 1 failed
+FAILED test_text_view_is_selectable_and_copy_button_uses_clipboard
+NotAllowedError: Read permission denied (Playwright clipboard permission)
+```
+
+The run also exposed a fixture teardown warning: the websocket server close
+coroutine is scheduled but not awaited. Before calling T028 complete, grant
+clipboard permissions (or stub clipboard access), await `server.wait_closed()`
+during fixture shutdown, rerun focused and full suites, then commit the T028
+files as one coherent unit.
+
+Known-good baseline immediately before T028: commit `3bc8eed Add emulator
+websocket protocol`; `.venv/bin/python -m pytest tests/ -q` reported `276 passed
+in 23.95s`.
+
 ## 2026-08-04 -- Guided button, accelerometer, replay, and sensor capture pass
 
 Files touched:
