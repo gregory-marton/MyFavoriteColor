@@ -3,6 +3,39 @@
 Co-authored-by: GPT-5, Aug 2026
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
 
+## 2026-08-04 -- T035 `deploy.sh` emulator target
+
+Files touched:
+
+- `deploy.sh`
+- `tests/emulator/test_deploy_script.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_deploy_script.py -v
+1 failed in 8.86s
+FAILED test_deploy_sh_with_port_emu
+AssertionError: assert [] == ['adxl345.py', ...]
+```
+
+Green output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_deploy_script.py -v
+1 passed in 0.25s
+
+.venv/bin/python -m pytest tests/ -q
+282 passed in 27.50s
+```
+
+Decisions:
+
+- Updated `deploy.sh` to check `PORT=emu` and route `mpremote` and `esptool.py` calls to `smotor` CLI commands (`flash`, file copy, `reset`).
+- Kept non-emulator behavior byte-identical to existing workflow when `PORT` is unset or set to hardware ports.
+- Supported `FLASH=1` environment variable alongside `FLASH` positional parameter.
+
 ## 2026-08-04 -- T034 `smotor` CLI
 
 Files touched:
