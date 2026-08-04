@@ -15,6 +15,7 @@ Co-authored-by: GPT-5, Aug 2026
 """
 
 from smotoremu.clock import VirtualClock
+from smotoremu.i2c import I2CBus, I2CDevice
 from smotoremu.pinmap import BUTTON_PINS, KNOWN_PINS, PIN_SENSOR_PORT
 
 
@@ -29,6 +30,7 @@ class Board:
         self.pwm_values = {}
         self.pwm_callbacks = {}
         self._port_adc_stub = None
+        self.i2c_bus = I2CBus(clock=self.clock)
 
     def validate_pin(self, pin_id):
         if pin_id not in KNOWN_PINS:
@@ -153,28 +155,36 @@ class SoftI2C:
         self.scl = scl
         self.sda = sda
         self.freq = freq
+        self._board = Pin._board
+        self._board.i2c_bus.freq = freq
         self.last_writeto = None
         self.last_writevto = None
-        self._devices = []
 
     def set_devices(self, addrs):
-        self._devices = list(addrs)
+        self._board.i2c_bus.devices = {}
+        for addr in addrs:
+            self._board.i2c_bus.register(addr, I2CDevice())
 
     def scan(self):
-        return list(self._devices)
+        return self._board.i2c_bus.scan()
 
     def writeto(self, addr, buf):
         self.last_writeto = (addr, buf)
+        self._board.i2c_bus.writeto(addr, buf)
 
     def writevto(self, addr, vector):
         combined = b"".join(bytes(part) for part in vector)
         self.last_writevto = (addr, combined)
+        self._board.i2c_bus.writevto(addr, vector)
+
+    def readfrom(self, addr, nbytes):
+        return self._board.i2c_bus.readfrom(addr, nbytes)
 
     def readfrom_mem(self, addr, memaddr, nbytes):
-        return b"\x00" * nbytes
+        return self._board.i2c_bus.readfrom_mem(addr, memaddr, nbytes)
 
     def writeto_mem(self, addr, memaddr, buf):
-        pass
+        self._board.i2c_bus.writeto_mem(addr, memaddr, buf)
 
 
 class I2C(SoftI2C):

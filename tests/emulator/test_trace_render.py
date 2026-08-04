@@ -5,6 +5,8 @@ mockup. Written before smotoremu/trace.py's render_screens exists.
 Layout (x=4, y=8+row*12) must match spikes/S7_guided/guided_test_device.py's
 Display.show() exactly, or the replay wouldn't show what the device
 actually showed.
+
+Co-authored-by: GPT-5, Aug 2026
 """
 
 import base64

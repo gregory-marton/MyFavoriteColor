@@ -7,6 +7,8 @@ boot so the whole session is one increasing timeline -- real elapsed time
 across a reboot (especially the OFF/ON stage, where a human took some
 unknown real-world time to flip the switch) isn't known, so a fixed gap is
 inserted rather than claimed as measured.
+
+Co-authored-by: GPT-5, Aug 2026
 """
 
 import base64
@@ -14,6 +16,7 @@ import math
 import re
 
 from smotoremu.device_env import load_real_ssd1306
+from smotoremu.i2c import I2CDevice
 from smotoremu.machine_shim import Pin, SoftI2C
 
 BOOT_GAP_MS = 2000  # inserted between boots; not a measurement, just visual separation
@@ -234,6 +237,7 @@ def render_screens(events):
     spikes/S7_guided/guided_test_device.py's Display.show()."""
     ssd1306 = load_real_ssd1306()
     i2c = SoftI2C(scl=Pin(7), sda=Pin(6))
+    Pin._board.i2c_bus.register(0x3C, I2CDevice())
     display = ssd1306.SSD1306_I2C(128, 64, i2c)
 
     rendered = []

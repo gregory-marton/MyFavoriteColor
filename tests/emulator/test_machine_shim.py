@@ -10,6 +10,7 @@ never drives a real SSD1306 write.
 import pytest
 
 from smotoremu.clock import VirtualClock
+from smotoremu.i2c import I2CDevice
 from smotoremu.machine_shim import ADC, Board, PWM, Pin, SoftI2C
 from smotoremu.pinmap import PIN_BUTTON_UP, PIN_SENSOR_PORT, PIN_SERVO
 
@@ -43,12 +44,18 @@ def test_pwm_duty_round_trips():
 
 
 def test_soft_i2c_writeto_records_the_write():
+    board = Board()
+    Pin.use_board(board)
+    board.i2c_bus.register(0x3C, I2CDevice())
     i2c = SoftI2C(scl=Pin(7), sda=Pin(6))
     i2c.writeto(0x3C, bytearray([0x80, 0xAE]))
     assert i2c.last_writeto == (0x3C, bytearray([0x80, 0xAE]))
 
 
 def test_soft_i2c_writevto_records_the_concatenated_write():
+    board = Board()
+    Pin.use_board(board)
+    board.i2c_bus.register(0x3C, I2CDevice())
     i2c = SoftI2C(scl=Pin(7), sda=Pin(6))
     i2c.writevto(0x3C, [b"@", bytearray([1, 2, 3])])
     assert i2c.last_writevto == (0x3C, b"@" + bytearray([1, 2, 3]))

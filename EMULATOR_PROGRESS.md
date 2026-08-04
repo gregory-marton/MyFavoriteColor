@@ -199,3 +199,57 @@ Decisions:
 - Pin 5 can be driven as digital output and read back through an injected port ADC stub, preserving the analog/I2C toggle probe shape.
 - `ADC.read()` advances the virtual clock by 20 us per sample, marked as a bench-data guess.
 - `PWM` changes notify board callbacks so the servo model can subscribe later.
+
+## 2026-08-04 -- T007 I2C bus and SoftI2C delegation
+
+Files touched:
+
+- `smotoremu/i2c.py`
+- `smotoremu/machine_shim.py`
+- `smotoremu/trace.py`
+- `tests/emulator/test_i2c.py`
+- `tests/emulator/test_machine_shim.py`
+- `tests/emulator/test_ssd1306_peripheral.py`
+- `tests/emulator/test_trace_render.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_i2c.py -v
+ModuleNotFoundError: No module named 'smotoremu.i2c'
+```
+
+Integration fallout:
+
+```text
+python3 -m pytest tests/ -q
+7 failed, 131 passed, 1 skipped in 0.28s
+
+Failures:
+- real SSD1306 driver writes to 0x3C now raised OSError(19) when no display
+  device was registered
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_i2c.py tests/emulator/test_machine_shim.py -v
+17 passed in 0.03s
+
+python3 -m pytest tests/ -q
+138 passed, 1 skipped in 0.22s
+```
+
+Decisions:
+
+- Added an `I2CBus` with explicit device registration, sorted `scan()`, and
+  `OSError(19)` for unregistered addresses.
+- `SoftI2C` now delegates `scan`, `writeto`, `writevto`, `readfrom`,
+  `writeto_mem`, and `readfrom_mem` through the board-owned bus.
+- `writevto` combines vector payloads into one transaction, matching the real
+  SSD1306 driver's display-buffer write path.
+- I2C transactions advance the virtual clock using 9 bus bits per byte plus a
+  small guessed start/stop overhead; this is marked for future bench data.
+- Existing SSD1306 render tests now register a generic device at `0x3C`.
+  A command-level SSD1306 peripheral remains T009; T007 only owns transport.
