@@ -1250,9 +1250,8 @@ Decisions:
 
 - Deleted the tracked `tests/fakes/` modules and removed the generated
   `tests/fakes/__pycache__` directory so the path is absent on disk.
-- Stripped `tests/conftest.py` back to the repo-root path insert and pytest
-  plug-in registration; it no longer patches global time or resets fake
-  machine state.
+- Stripped `tests/conftest.py` back to the repo-root path insert; it no longer
+  patches global time or resets fake machine state.
 - Added maintained emulator shims for `ubinascii`, `urandom`, and `uselect`.
 - Extended `smotoremu.device_env` so direct real-device module loads get the
   same MicroPython compatibility shims.
@@ -1269,3 +1268,69 @@ Decisions:
   readings are covered before hardware, while physical button feel, servo load
   behavior, upload reliability, and real classroom lighting variation still
   require the ESP32.
+
+## 2026-08-04 -- T027 WebSocket server and protocol
+
+Files touched:
+
+- `smotoremu/protocol.py`
+- `smotoremu/server.py`
+- `tests/emulator/test_protocol.py`
+- `pyproject.toml`
+- `tests/conftest.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_protocol.py -v
+ImportError: cannot import name 'protocol' from 'smotoremu'
+
+.venv/bin/python -m pytest tests/emulator/test_protocol.py -v
+ModuleNotFoundError: No module named 'smotoremu.server'
+```
+
+Intermediate failures:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_protocol.py -v
+FAILED test_frame_and_state_updates_coalesce_to_latest_at_30hz
+
+.venv/bin/python -m pytest tests/emulator/test_protocol.py::test_websocket_round_trip_with_real_socket -v
+PermissionError: [Errno 1] error while attempting to bind on address ('127.0.0.1', 0): operation not permitted
+```
+
+Green output:
+
+```text
+.venv/bin/python -m pip install -e . --no-build-isolation
+Successfully installed smotoremu-0.1.0
+
+.venv/bin/python -m pytest tests/emulator/test_protocol.py -v
+23 passed in 0.08s
+
+.venv/bin/python -m pytest tests/emulator/test_protocol.py::test_websocket_round_trip_with_real_socket -v
+1 passed in 0.07s
+
+.venv/bin/python -m pytest tests/ -q
+276 passed in 23.95s
+```
+
+Decisions:
+
+- Added `websockets>=12` as the T027 runtime dependency and verified the
+  package installs editable into the repo-local `.venv`.
+- Removed the now-redundant `pytest_plugins = ["smotoremu.testing"]` from
+  `tests/conftest.py`; installed test runs load the plug-in through the
+  package entry point, avoiding duplicate registration.
+- Added `smotoremu.protocol` with versioned JSON encode/decode helpers,
+  validation for all client command types, versioned server messages, error
+  replies for malformed/unknown input, and a 30 Hz frame/state coalescer.
+- Added `smotoremu.server.ServerSession` as the testable one-session command
+  application layer for press/release, pot, tilt, world, clock, attach/detach,
+  boot/reset, and power commands.
+- Added static `web/` file response helpers and a `websockets` 17-compatible
+  `process_request` adapter for serving `/` and `/app.js` while leaving `/ws`
+  for WebSocket upgrade.
+- Added a thin real-socket WebSocket round-trip test. It skips when sandbox
+  socket bind is denied, and passes when run with local socket permission.
