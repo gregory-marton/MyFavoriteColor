@@ -304,3 +304,38 @@ Decisions:
   catch.
 - The shim docstring now explicitly states that timer callbacks are scheduler
   callbacks, not truly pre-emptive ISR execution.
+
+## 2026-08-04 -- T005 glyph reverse map and aligned text extraction
+
+Files touched:
+
+- `smotoremu/screen_text.py`
+- `tests/emulator/test_screen_text.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_screen_text.py -v
+ModuleNotFoundError: No module named 'smotoremu.screen_text'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_screen_text.py -v
+5 passed in 0.13s
+
+python3 -m pytest tests/ -q
+149 passed, 1 skipped in 0.30s
+```
+
+Decisions:
+
+- Added `build_glyph_map()` from the byte-exact emulator font data.
+- Duplicate non-blank glyph bitmaps raise immediately; the blank bitmap is
+  treated explicitly as space.
+- Added `extract_text()` with optional forced `origin=(x, y)`.
+- Added automatic origin search across all 8x8 offsets, scored by non-space
+  glyph matches so blank display area does not dominate alignment.
+- Added `extract_lines()` for right-stripped, blank-row-dropped screen text.
