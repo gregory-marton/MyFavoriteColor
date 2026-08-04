@@ -4,7 +4,7 @@ Co-authored-by: Gemini 3.6 Flash, Aug 2026
 """
 
 import pytest
-from smotoremu.cli import HardwareBridge
+from smotoremu.cli import HardwareBridge, HardwareServerSession
 
 
 def test_hardware_bridge_mock_device():
@@ -88,3 +88,29 @@ def test_hardware_bridge_heartbeat():
     assert len(hb._ser.data) == 1
     hb.heartbeat()
     assert len(hb._ser.data) == 2
+
+
+def test_hardware_bridge_webconnect_translation():
+    class DummySer:
+        def __init__(self):
+            self.sent = []
+        def write(self, b):
+            self.sent.append(b)
+        def flush(self):
+            pass
+        def readline(self):
+            return b'{"s": 85, "m": 90}\n'
+
+    hb = HardwareBridge()
+    hb._ser = DummySer()
+    session = HardwareServerSession(hb)
+    session.handle('{"v":1,"type":"press","button":"down"}')
+    
+    # Must NOT send raw {"type": "press"} to physical device because webconnect.py crashes without "st" key
+    last_sent = hb._ser.sent[-1].decode()
+    assert '"st"' in last_sent
+    assert '"type"' not in last_sent
+
+    state = session.state_message()
+    assert state["type"] == "state"
+    assert state["angle"] == 90.0

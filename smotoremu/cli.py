@@ -139,21 +139,37 @@ class HardwareBridge:
             if line.startswith("{"):
                 try:
                     import json
-                    return json.loads(line)
+                    parsed = json.loads(line)
+                    res = {}
+                    if "m" in parsed:
+                        res["angle"] = float(parsed["m"])
+                    if "s" in parsed:
+                        res["pot"] = int(parsed["s"] * 40.95)
+                    return res
                 except Exception:
                     pass
         return {"angle": 0.0, "pot": 2048, "button": None}
 
     def send_command(self, msg):
+        import json
+        payload = {"st": "e"}
+        if isinstance(msg, dict):
+            if "angle" in msg:
+                payload["m"] = int(msg["angle"])
+            elif msg.get("type") in {"press", "release"}:
+                payload["m"] = 90
+            elif msg.get("type") == "set_pot":
+                payload["m"] = int(msg.get("raw", 2048) / 40.95)
+
+        data = (json.dumps(payload) + "\n").encode()
         if self._ser is not None:
-            import json
-            self._ser.write((json.dumps(msg) + "\n").encode())
+            self._ser.write(data)
             self._ser.flush()
         elif self.link is not None:
             if hasattr(self.link, "write"):
-                self.link.write(str(msg).encode())
+                self.link.write(data)
             elif hasattr(self.link, "send"):
-                self.link.send(str(msg))
+                self.link.send(data.decode())
 
 
 class HardwareServerSession:
