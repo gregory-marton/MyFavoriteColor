@@ -16,7 +16,7 @@ let virtualT = 0; // accumulates across frames -- must not be re-derived from ev
 // Sticky state carried forward between events of different types, so e.g.
 // the battery readout still shows the last known value while a SCREEN event
 // is being drawn.
-let state = { usb: null, batteryV: null, pot: null, accel: null, angle: 0 };
+let state = { usb: null, batteryV: null, pot: null, accel: null, orientation: null, angle: 0 };
 
 function decodeScreenBuffer(b64) {
   const raw = atob(b64);
@@ -51,6 +51,8 @@ function updatePanel() {
   document.getElementById("pot-v").textContent = state.pot === null ? "--" : state.pot;
   document.getElementById("pot-bar-fill").style.width = state.pot === null ? "0%" : `${(state.pot / 4095) * 100}%`;
   document.getElementById("accel-v").textContent = state.accel === null ? "--" : state.accel.join(",");
+  document.getElementById("orientation-v").textContent = state.orientation === null ? "--" :
+    `roll ${state.orientation.roll.toFixed(1)}°, pitch ${state.orientation.pitch.toFixed(1)}°`;
   document.getElementById("arm-needle").style.transform = `translate(-50%, 0) rotate(${state.angle - 90}deg)`;
 }
 
@@ -83,16 +85,18 @@ function applyEvent(e) {
     }
   } else if (e.type === "SERVO") {
     state.angle = e.angle;
-  } else if (e.type === "SUSTAIN_SAMPLE") {
+  } else if (e.type === "SUSTAIN_SAMPLE" || e.type === "START_SAMPLE") {
     state.usb = e.on_usb;
-    state.batteryV = e.batt_uv / 1e6;
+    state.batteryV = e.battery_v === undefined ? e.batt_uv / 1e6 : e.battery_v;
     state.pot = e.pot;
     state.accel = e.accel;
+    state.orientation = e.orientation;
   } else if (e.type === "BOOT") {
     logLine(`[${e.t}] BOOT #${e.boot_num} (${e.reset_cause_name})`, true);
   } else if (e.type === "REP") {
     logLine(`[${e.t}] REP ${e.stage}`);
     if (e.stage.startsWith("UP")) flashButton("btn-up");
+    if (e.stage.startsWith("DOWN")) flashButton("btn-down");
     if (e.stage.startsWith("SELECT")) flashButton("btn-select");
   } else if (e.type === "STAGE_DONE") {
     logLine(`[${e.t}] STAGE_DONE ${e.stage}`, true);
@@ -105,7 +109,7 @@ function applyEvent(e) {
 function seekTo(targetIdx) {
   // re-derive sticky state by replaying from the start -- simplest correct
   // way to scrub backward, and the trace sizes here don't need speed.
-  state = { usb: null, batteryV: null, pot: null, accel: null, angle: 0 };
+  state = { usb: null, batteryV: null, pot: null, accel: null, orientation: null, angle: 0 };
   document.getElementById("log").innerHTML = "";
   for (let i = 0; i <= targetIdx && i < events.length; i++) applyEvent(events[i]);
   idx = targetIdx;

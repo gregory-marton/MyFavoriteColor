@@ -13,9 +13,10 @@ import os
 import threading
 
 import pytest
-from playwright.sync_api import sync_playwright
 
 from smotoremu.trace import render_screens
+
+sync_playwright = pytest.importorskip("playwright.sync_api").sync_playwright
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "web")
 
@@ -27,10 +28,11 @@ def fixture_trace_written():
         {"type": "SCREEN", "t": 100, "lines": ["POT x3", "sweep fully"]},
         {"type": "SERVO", "t": 150, "angle": 90},
         {"type": "SUSTAIN_SAMPLE", "t": 200, "pot": 1500, "batt_raw": 2900, "batt_uv": 2100000,
-         "accel": (-9, 1, -253), "on_usb": True},
+         "accel": (-9, 1, -253), "orientation": {"roll": 179.8, "pitch": 2.0}, "on_usb": True},
         {"type": "SUSTAIN_SAMPLE", "t": 400, "pot": 1500, "batt_raw": 1900, "batt_uv": 1400000,
-         "accel": (-9, 1, -253), "on_usb": False},
+         "accel": (-9, 1, -253), "orientation": {"roll": 179.8, "pitch": 2.0}, "on_usb": False},
         {"type": "REP", "t": 450, "stage": "UP"},
+        {"type": "REP", "t": 475, "stage": "DOWN"},
         {"type": "STAGE_DONE", "t": 500, "stage": "POT"},
     ]
     events = render_screens(events)
@@ -92,6 +94,7 @@ def test_scrubbing_to_usb_connected_sample_shows_connected_badge(browser_page):
     page.wait_for_function("document.getElementById('usb-badge').textContent === 'connected'")
     assert page.text_content("#usb-badge") == "connected"
     assert "usb-on" in page.get_attribute("#usb-badge", "class")
+    assert "roll" in page.text_content("#orientation-v")
 
 
 def test_scrubbing_to_usb_disconnected_sample_shows_disconnected_badge(browser_page):
@@ -118,6 +121,14 @@ def test_oled_canvas_has_nonblank_pixels_after_screen_event(browser_page):
         }"""
     )
     assert has_pixels
+
+
+def test_down_button_indicator_exists_and_flashes_on_down_rep(browser_page):
+    page = browser_page
+    page.fill("#scrub", "6")
+    page.dispatch_event("#scrub", "input")
+    page.wait_for_function("document.getElementById('btn-down').classList.contains('pressed')")
+    assert "pressed" in page.get_attribute("#btn-down", "class")
 
 
 def test_play_button_advances_the_scrub_position(browser_page):

@@ -10,6 +10,7 @@ inserted rather than claimed as measured.
 """
 
 import base64
+import math
 import re
 
 from smotoremu.device_env import load_real_ssd1306
@@ -17,6 +18,41 @@ from smotoremu.machine_shim import Pin, SoftI2C
 
 BOOT_GAP_MS = 2000  # inserted between boots; not a measurement, just visual separation
 ON_USB_CHARGING_THRESHOLD = 2850  # matches sensors.readbattery()'s 'charging' bucket
+
+
+def orientation_from_accel(accel):
+    if accel is None:
+        return None
+    x, y, z = accel
+    roll = math.atan2(y, z) * 57.3
+    pitch = math.atan2(-x, math.sqrt(y * y + z * z)) * 57.3
+    return {"roll": round(roll, 1), "pitch": round(pitch, 1)}
+
+
+def _parse_sample_line(line, event_type, boot_offset):
+    m = re.search(
+        r"t=(\d+) pot=(\d+) batt_raw=(\d+) batt_uv=(\d+) "
+        r"accel=([\-\d]+|None),([\-\d]+|None),([\-\d]+|None)",
+        line,
+    )
+    if not m:
+        return None
+    batt_raw = int(m.group(3))
+    accel = None if m.group(5) == "None" else (
+        int(m.group(5)), int(m.group(6)), int(m.group(7))
+    )
+    batt_uv = int(m.group(4))
+    return {
+        "type": event_type,
+        "t": boot_offset + int(m.group(1)),
+        "pot": int(m.group(2)),
+        "batt_raw": batt_raw,
+        "batt_uv": batt_uv,
+        "battery_v": batt_uv / 1e6,
+        "accel": accel,
+        "orientation": orientation_from_accel(accel),
+        "on_usb": batt_raw > ON_USB_CHARGING_THRESHOLD,
+    }
 
 
 def parse_guided_log(text):
@@ -59,28 +95,13 @@ def parse_guided_log(text):
                 last_t_in_boot = max(last_t_in_boot, t)
                 events.append({"type": "SERVO", "t": boot_offset + t, "angle": int(m.group(2))})
 
-        elif line.startswith("SUSTAIN_SAMPLE "):
-            m = re.search(
-                r"t=(\d+) pot=(\d+) batt_raw=(\d+) batt_uv=(\d+) "
-                r"accel=([\-\d]+|None),([\-\d]+|None),([\-\d]+|None)",
-                line,
-            )
-            if m:
-                t = int(m.group(1))
+        elif line.startswith("START_SAMPLE ") or line.startswith("SUSTAIN_SAMPLE "):
+            event_type = "START_SAMPLE" if line.startswith("START_SAMPLE ") else "SUSTAIN_SAMPLE"
+            event = _parse_sample_line(line, event_type, boot_offset)
+            if event is not None:
+                t = event["t"] - boot_offset
                 last_t_in_boot = max(last_t_in_boot, t)
-                batt_raw = int(m.group(3))
-                accel = None if m.group(5) == "None" else (
-                    int(m.group(5)), int(m.group(6)), int(m.group(7))
-                )
-                events.append({
-                    "type": "SUSTAIN_SAMPLE",
-                    "t": boot_offset + t,
-                    "pot": int(m.group(2)),
-                    "batt_raw": batt_raw,
-                    "batt_uv": int(m.group(4)),
-                    "accel": accel,
-                    "on_usb": batt_raw > ON_USB_CHARGING_THRESHOLD,
-                })
+                events.append(event)
 
         elif line.startswith("REP "):
             m = re.search(r"stage=(\w+)", line)

@@ -1,0 +1,58 @@
+# Emulator Progress
+
+Co-authored-by: GPT-5, Aug 2026
+
+## 2026-08-04 -- Guided button, accelerometer, replay, and sensor capture pass
+
+Files touched:
+
+- `spikes/S7_guided/guided_logic.py`
+- `spikes/S7_guided/guided_test_device.py`
+- `spikes/S7_guided/read_guided_log.py`
+- `smotoremu/trace.py`
+- `web/index.html`
+- `web/app.js`
+- `tests/spikes/test_guided_logic.py`
+- `tests/emulator/test_trace_parse.py`
+- `tests/emulator/test_web_replay.py`
+
+Red output:
+
+```text
+tests/spikes/test_guided_logic.py
+ModuleNotFoundError: No module named 'spikes.S7_guided.guided_logic'
+
+tests/spikes/test_guided_logic.py
+ImportError: cannot import name 'accel_magnitude'
+
+tests/emulator/test_trace_parse.py
+AssertionError: assert 'orientation' in SUSTAIN_SAMPLE
+IndexError: no START_SAMPLE parsed
+
+tests/emulator/test_web_replay.py
+ModuleNotFoundError: No module named 'playwright'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/spikes/test_guided_logic.py -v
+8 passed in 0.01s
+
+python3 -m pytest tests/emulator/test_trace_parse.py -v
+7 passed in 0.01s
+
+python3 -m pytest tests/ -v
+115 passed, 1 skipped in 0.16s
+```
+
+Decisions:
+
+- The guided button flow now asks for `SELECT`, `UP`, and `DOWN` explicitly.
+- During each button prompt it watches all three pins. A wrong pin transition logs `BUTTON_MISMATCH expected=... observed=...` and advances, so a swapped UP/DOWN unit is diagnosed instead of hanging.
+- The disconnected portion now includes `ACCEL_FLAT1`, `ACCEL_FIG8`, and `ACCEL_FLAT2` stages.
+- The guided device log now emits `START_SAMPLE` immediately after hardware init so USB-connected voltage context is present before later disconnected sampling.
+- Trace parsing now adds `battery_v` and roll/pitch `orientation` for `START_SAMPLE` and `SUSTAIN_SAMPLE`.
+- Replay UI now shows DOWN and estimated orientation.
+- The guided sequence now records first-pass `COLOR_WHITE`, `LIGHT_DARK`, and `LIGHT_BRIGHT` sample sets. This is capture infrastructure, not the full fleet QA analysis yet.
+- `tests/emulator/test_web_replay.py` now skips cleanly when Playwright is not installed in the active interpreter.

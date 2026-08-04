@@ -2,6 +2,8 @@
 """
 S7 guided hardware test -- HOST side reader.
 
+Co-authored-by: GPT-5, Aug 2026
+
 Parses guided_log.txt (pulled after a guided_test_device.py run) and prints
 what was detected per stage, so you can sanity-check it against what you
 actually did.
@@ -17,6 +19,7 @@ import sys
 def summarize(path):
     boots = []
     stage_reps = {}
+    button_mismatches = []
     stage_done = set()
     stage_timeout = set()
     sequence_complete = False
@@ -40,6 +43,8 @@ def summarize(path):
                 m = re.search(r"stage=(\w+)", line)
                 if m:
                     stage_reps.setdefault(m.group(1), []).append(line)
+            elif line.startswith("BUTTON_MISMATCH "):
+                button_mismatches.append(line)
             elif line.startswith("STAGE_DONE "):
                 m = re.search(r"stage=(\w+)", line)
                 if m:
@@ -64,11 +69,12 @@ def summarize(path):
 
     print("\nStage results:")
     for stage in (
-        "POT", "SELECT", "UP", "FLIP",
+        "POT", "SELECT", "UP", "DOWN", "FLIP",
         "DISCONNECT_PROMPT",
-        "POT_B", "SELECT_B", "UP_B", "FLIP_B",
+        "ACCEL_FLAT1", "ACCEL_FIG8", "ACCEL_FLAT2",
+        "POT_B", "SELECT_B", "UP_B", "DOWN_B", "FLIP_B",
         "SUSTAIN",
-        "OFFON", "SENSOR",
+        "OFFON", "SENSOR", "COLOR_WHITE", "LIGHT_DARK", "LIGHT_BRIGHT",
     ):
         if stage == "SUSTAIN" and sustain_samples:
             status = "DONE" if stage in stage_done else ("TIMEOUT" if stage in stage_timeout else "not reached")
@@ -82,6 +88,11 @@ def summarize(path):
             print(f"  {stage:8s} TIMEOUT ({n_reps} rep(s) detected before giving up)")
         else:
             print(f"  {stage:8s} not reached")
+
+    if button_mismatches:
+        print("\nButton mismatches:")
+        for line in button_mismatches:
+            print(f"  {line}")
 
     print(f"\nSequence complete: {sequence_complete}")
 

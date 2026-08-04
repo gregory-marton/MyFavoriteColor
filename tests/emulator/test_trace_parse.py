@@ -43,6 +43,21 @@ def test_parses_sustain_sample_and_flags_on_usb():
     assert samples[0]["on_usb"] is True   # 2900 > 2850 charging threshold
     assert samples[1]["on_usb"] is False  # 1900 well below it
     assert samples[0]["accel"] == (-9, 1, -253)
+    assert "orientation" in samples[0]
+    assert "roll" in samples[0]["orientation"]
+    assert "pitch" in samples[0]["orientation"]
+
+
+def test_parses_start_sample_for_initial_usb_voltage_context():
+    log = (
+        "BOOT boot_num=1 reset_cause=1(PWRON_RESET) resume_stage=0\n"
+        "START_SAMPLE t=25 pot=2048 batt_raw=2900 batt_uv=2100000 accel=-9,1,-253\n"
+    )
+    events = parse_guided_log(log)
+    sample = [e for e in events if e["type"] == "START_SAMPLE"][0]
+
+    assert sample["battery_v"] == 2.1
+    assert sample["on_usb"] is True
 
 
 def test_timestamps_are_offset_to_a_single_global_timeline_across_boots():
