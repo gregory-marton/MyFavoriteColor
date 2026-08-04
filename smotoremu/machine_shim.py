@@ -36,6 +36,7 @@ class Board:
         self.pin_modes = {}
         self.pin_values = {pin: 1 for pin in BUTTON_PINS.values()}
         self.adc_values = {}
+        self.adc_noise_callbacks = {}
         self.pwm_values = {}
         self.pwm_callbacks = {}
         self._port_adc_stub = None
@@ -69,6 +70,10 @@ class Board:
         self.validate_pin(pin_id)
         self.adc_values[pin_id] = value
 
+    def set_adc_noise(self, pin_id, callback):
+        self.validate_pin(pin_id)
+        self.adc_noise_callbacks[pin_id] = callback
+
     def set_port_adc_stub(self, callback):
         self._port_adc_stub = callback
 
@@ -77,6 +82,8 @@ class Board:
         self.clock.sleep_us(self.ADC_SAMPLE_COST_US)
         if pin_id == PIN_SENSOR_PORT and self._port_adc_stub is not None:
             return self._port_adc_stub(self.pin_values.get(PIN_SENSOR_PORT, 0))
+        if pin_id in self.adc_noise_callbacks:
+            return self.adc_noise_callbacks[pin_id]()
         return self.adc_values.get(pin_id, 2048)
 
     def adc_read_uv(self, pin_id):

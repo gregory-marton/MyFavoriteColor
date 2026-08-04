@@ -90,6 +90,17 @@ def load_real_servo():
         _restore_module("machine", old_machine)
 
 
+def load_real_sensors():
+    old_machine = sys.modules.get("machine")
+    old_adxl345 = sys.modules.get("adxl345")
+    try:
+        _install_machine_module()
+        return load_real_module("sensors.py")
+    finally:
+        _restore_module("machine", old_machine)
+        _restore_module("adxl345", old_adxl345)
+
+
 def _restore_module(name, module):
     if module is None:
         sys.modules.pop(name, None)

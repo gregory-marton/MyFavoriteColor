@@ -444,3 +444,46 @@ Decisions:
   for the servo to settle without wall-clock sleeps.
 - Added `load_real_servo()` with temporary `machine` shim installation so tests
   exercise the repo's real servo driver without contaminating later imports.
+
+## 2026-08-04 -- T011 buttons, potentiometer, and battery
+
+Files touched:
+
+- `smotoremu/peripherals/inputs.py`
+- `smotoremu/machine_shim.py`
+- `smotoremu/device_env.py`
+- `tests/emulator/test_inputs.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+python3 -m pytest tests/emulator/test_inputs.py -v
+ImportError: cannot import name 'load_real_sensors' from 'smotoremu.device_env'
+```
+
+Green output:
+
+```text
+python3 -m pytest tests/emulator/test_inputs.py -v
+6 passed in 0.02s
+
+python3 -m pytest tests/ -q
+167 passed, 1 skipped in 0.38s
+```
+
+Decisions:
+
+- Added active-low `Buttons` with `press`, `release`, `click`, and `held`.
+- `click()` schedules release on the virtual scheduler; optional bounce support
+  is present but off by default for deterministic tests.
+- Added `Potentiometer` with raw and angle setters. `set_angle()` preserves the
+  inverted pot-to-angle mapping used by `myfavcolor.update_motor_with_pot()`.
+- Pot noise is per ADC read, clamped to 0-4095, and injectable via a seeded RNG
+  for deterministic tests.
+- Added board-level ADC noise callbacks so noisy peripherals do not have to
+  mutate stored raw values.
+- Added `Battery` state helpers using raw values unambiguously inside the real
+  `sensors.readbattery()` bands, while keeping `set_raw()` for edge cases.
+- Added `load_real_sensors()` so emulator tests can verify battery behavior
+  through the repo's real `sensors.SENSORS` implementation.
