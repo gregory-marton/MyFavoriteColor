@@ -6,6 +6,7 @@ import { renderArm } from "./arm.js";
 import { initInputs } from "./input.js";
 import { initTilt } from "./tilt.js";
 import { initWorldEditor } from "./world.js";
+import { initClockAndTrace } from "./clock_trace.js";
 
 const MAX_FRAMES = 200;
 
@@ -40,6 +41,7 @@ initInputs({
 });
 initTilt({ send });
 initWorldEditor({ send });
+initClockAndTrace({ send });
 
 els.viewMode.addEventListener("change", () => setViewMode(els.viewMode.value));
 els.copy.addEventListener("click", copyText);
@@ -88,6 +90,14 @@ function handleMessage(message) {
     pushFrame(message);
   } else if (message.type === "state") {
     updateState(message);
+  } else if (message.type === "log") {
+    if (window.__pushTraceLog) window.__pushTraceLog({ kind: "log", t: message.t, text: message.text });
+  } else if (message.type === "trace") {
+    if (Array.isArray(message.events)) {
+      message.events.forEach((ev) => {
+        if (window.__pushTraceLog) window.__pushTraceLog(ev);
+      });
+    }
   } else if (message.type === "error") {
     setStatus(`error: ${message.message}`);
   } else if (message.type === "exited" && message.error) {
@@ -102,6 +112,9 @@ function updateState(state) {
   }
   if (els.armCanvas) {
     renderArm(els.armCanvas, state);
+  }
+  if (state.clock_ms != null && window.__updateClockReadout) {
+    window.__updateClockReadout(state.clock_ms);
   }
 }
 

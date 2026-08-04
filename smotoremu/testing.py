@@ -17,6 +17,8 @@ PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def launch(sensor=None, world=None, clock="instant", seed=0, headed=False):
     world_obj = _load_world(world)
+    if headed and clock == "instant":
+        clock = "scaled"
     session = Session(seed=seed, clock_mode=clock, world=world_obj)
     facade = SmartMotor(session=session, headed=headed)
     if sensor is not None:

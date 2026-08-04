@@ -3,6 +3,42 @@
 Co-authored-by: GPT-5, Aug 2026
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
 
+## 2026-08-04 -- T033 Web UI: clock, trace, headed tests
+
+Files touched:
+
+- `web/clock_trace.js`
+- `web/index.html`
+- `web/app.js`
+- `smotoremu/testing.py`
+- `tests/emulator/test_headed.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_headed.py -v
+1 failed, 2 passed in 31.54s
+FAILED test_clock_and_trace_ui_elements_exist
+TimeoutError: Page.wait_for_selector: Timeout 30000ms exceeded waiting for locator("#clock-panel")
+```
+
+Green output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_headed.py -v
+3 passed in 1.45s
+
+.venv/bin/python -m pytest tests/ -q
+279 passed in 26.33s
+```
+
+Decisions:
+
+- Created `web/clock_trace.js` module providing speed control dropdown (`instant`, `0.1×`, `1.0×`, `5.0×`, `20.0×`), pause/resume toggle, virtual clock readout, and filterable trace event timeline + `print()` log stream.
+- Added `#clock-panel` and `#trace-panel` to `web/index.html` and added fidelity notice link in header pointing to `EMULATOR_DESIGN.md#4-fidelity-contract`.
+- Updated `smotoremu.testing.launch()` to default `clock="scaled"` when `headed=True`.
+
 ## 2026-08-04 -- T032 Web UI: world editor
 
 Files touched:

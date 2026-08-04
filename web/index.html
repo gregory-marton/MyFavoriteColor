@@ -9,6 +9,7 @@
 <body>
   <header>
     <h1>SmartMotor emulator</h1>
+    <a id="fidelity-notice" href="EMULATOR_DESIGN.md#4-fidelity-contract" target="_blank" rel="noopener">Fidelity Contract §4</a>
     <div id="connection-status" class="status disconnected">disconnected</div>
   </header>
 
@@ -100,6 +101,39 @@
           <input id="upload-world" type="file" accept=".json" style="display:none;">
         </label>
       </div>
+    <section id="clock-panel" class="panel clock">
+      <h2>Clock Controls</h2>
+      <div class="control-row">
+        <label>
+          Speed:
+          <select id="clock-speed">
+            <option value="instant">Instant</option>
+            <option value="0.1">0.1×</option>
+            <option value="1.0" selected>1.0×</option>
+            <option value="5.0">5.0×</option>
+            <option value="20.0">20.0×</option>
+          </select>
+        </label>
+        <button id="clock-pause" type="button">Pause</button>
+        <div id="clock-readout" class="readout">Clock: 0 ms</div>
+      </div>
+    </section>
+
+    <section id="trace-panel" class="panel trace">
+      <h2>Trace &amp; Logs</h2>
+      <div class="control-row">
+        <label>
+          Filter:
+          <select id="trace-filter">
+            <option value="all" selected>All Events</option>
+            <option value="print">print() Stream</option>
+            <option value="button">Button Events</option>
+            <option value="frame">Frame Events</option>
+            <option value="i2c">I2C Events</option>
+          </select>
+        </label>
+      </div>
+      <div id="trace-log-list" class="trace-list"></div>
     </section>
 
     <section class="history">
