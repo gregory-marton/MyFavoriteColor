@@ -4,6 +4,7 @@
 import { drawFrame } from "./oled.js";
 import { renderArm } from "./arm.js";
 import { initInputs } from "./input.js";
+import { initTilt } from "./tilt.js";
 
 const MAX_FRAMES = 200;
 
@@ -36,6 +37,7 @@ initInputs({
   send,
   getPot: () => (latestState ? latestState.pot : 2048),
 });
+initTilt({ send });
 
 els.viewMode.addEventListener("change", () => setViewMode(els.viewMode.value));
 els.copy.addEventListener("click", copyText);

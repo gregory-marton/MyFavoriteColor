@@ -3,6 +3,41 @@
 Co-authored-by: GPT-5, Aug 2026
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
 
+## 2026-08-04 -- T031 Web UI: accelerometer tilt widget
+
+Files touched:
+
+- `web/tilt.js`
+- `web/index.html`
+- `web/app.js`
+- `tests/emulator/test_web_tilt.py`
+- `EMULATOR_PROGRESS.md`
+
+Red output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_web_tilt.py -v
+1 failed in 30.98s
+FAILED test_tilt_widget_renders_and_emits_set_tilt
+TimeoutError: Page.wait_for_selector: Timeout 30000ms exceeded waiting for locator("#tilt-panel")
+```
+
+Green output:
+
+```text
+.venv/bin/python -m pytest tests/emulator/test_web_tilt.py -v
+1 passed in 0.89s
+
+.venv/bin/python -m pytest tests/ -q
+275 passed in 24.44s
+```
+
+Decisions:
+
+- Created `web/tilt.js` featuring a hand-rolled isometric 2D board projection (no three.js dependency).
+- Implemented trackball mouse drag to adjust roll and pitch, double-click to reset level, numeric readout, and 3D projected gravity vector arrow.
+- Added `#tilt-panel` to `web/index.html` and initialized tilt widget in `web/app.js` to emit `set_tilt` messages over WebSocket.
+
 ## 2026-08-04 -- T030 Web UI: keyboard and switches
 
 Files touched:
