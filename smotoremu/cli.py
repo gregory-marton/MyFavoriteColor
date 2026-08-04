@@ -127,6 +127,9 @@ class HardwareBridge:
         elif self.link is not None and hasattr(self.link, "write"):
             self.link.write(b'{"st":"e"}\n')
 
+    def heartbeat(self):
+        self.ping()
+
     def poll_hardware(self):
         if self.link is not None and hasattr(self.link, "read_state"):
             return self.link.read_state()
@@ -206,7 +209,13 @@ def bridge(port=None, host="127.0.0.1", web_port=8765):
         finally:
             pass
 
+    async def heartbeat_loop():
+        while True:
+            hb.heartbeat()
+            await asyncio.sleep(0.3)
+
     async def main_loop():
+        asyncio.create_task(heartbeat_loop())
         async with websockets.serve(handler, host, web_port, process_request=websocket_process_request):
             await asyncio.Future()
 

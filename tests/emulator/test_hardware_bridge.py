@@ -71,3 +71,20 @@ def test_hardware_bridge_session():
     messages = session.handle('{"v":1,"type":"press","button":"up"}')
     assert len(hb._ser.sent) > 0
     assert messages[0]["type"] == "state"
+
+
+def test_hardware_bridge_heartbeat():
+    class DummySer:
+        def __init__(self):
+            self.data = []
+        def write(self, b):
+            self.data.append(b)
+        def flush(self):
+            pass
+
+    hb = HardwareBridge()
+    hb._ser = DummySer()
+    hb.heartbeat()
+    assert len(hb._ser.data) == 1
+    hb.heartbeat()
+    assert len(hb._ser.data) == 2
