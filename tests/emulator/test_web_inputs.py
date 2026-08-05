@@ -1,6 +1,8 @@
 """Playwright and unit tests for Web UI keyboard shortcuts and controls (T030).
 
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
+Co-authored-by: GPT-5, Aug 2026
+Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 """
 
 import asyncio
@@ -69,6 +71,20 @@ def test_keyboard_shortcuts_and_buttons(browser_page, input_server):
     assert any(m.get("type") == "press" and m.get("button") == "down" for m in server.received)
 
 
+def test_physical_state_updates_pot_and_button_visuals(browser_page):
+    page = browser_page
+    page.reload()
+    page.wait_for_function(
+        "document.querySelector('#connection-status').textContent === 'connected'"
+    )
+    page.wait_for_function("document.querySelector('#pot-val').textContent === '1234'")
+
+    assert page.input_value("#pot-slider") == "1234"
+    assert "pressed" in page.get_attribute("#btn-up", "class")
+    assert "pressed" not in (page.get_attribute("#btn-down", "class") or "")
+    assert "pressed" in page.get_attribute("#btn-select", "class")
+
+
 class _InputServerFixture:
     def __init__(self):
         self.loop = asyncio.new_event_loop()
@@ -99,7 +115,8 @@ class _InputServerFixture:
 
         async def handler(websocket):
             await websocket.send(protocol.dumps(protocol.state_message(
-                angle=0.0, pot=2048, battery=4000, attached=None, clock_ms=0
+                angle=0.0, pot=1234, battery=4000, attached=None, clock_ms=0,
+                buttons={"up": True, "down": False, "select": True},
             )))
             async for raw in websocket:
                 msg = protocol.loads(raw)

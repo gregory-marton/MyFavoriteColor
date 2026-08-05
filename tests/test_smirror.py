@@ -1,6 +1,7 @@
 """Device-side live mirror telemetry tests.
 
 Co-authored-by: GPT-5, Aug 2026
+Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 """
 
 import base64
@@ -28,6 +29,15 @@ def test_emit_angle_reports_commanded_servo_angle():
     smirror.emit_angle(37.5)
 
     assert output.getvalue() == "@SMIRROR ANGLE 37.5\n"
+
+
+def test_emit_inputs_reports_physical_pot_and_active_low_buttons():
+    output = io.StringIO()
+    smirror.set_writer(output)
+
+    smirror.emit_inputs(1234, 0, 1, 0)
+
+    assert output.getvalue() == "@SMIRROR INPUT 1234 0 1 0\n"
 
 
 def test_install_hooks_display_and_servo_without_changing_their_results(monkeypatch):

@@ -1,5 +1,7 @@
 // Keyboard and control inputs for SmartMotor emulator.
 // Co-authored-by: Gemini 3.6 Flash, Aug 2026
+// Co-authored-by: GPT-5, Aug 2026
+// Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 
 export function initInputs({ send, getPot, setPot }) {
   let stickyMode = false;
@@ -93,6 +95,19 @@ export function initInputs({ send, getPot, setPot }) {
     });
   }
 
+  function updateState(state) {
+    if (state.pot != null) {
+      potValue = Number(state.pot);
+      if (els.pot) els.pot.value = String(potValue);
+      updatePotDisplay();
+    }
+    if (state.buttons) {
+      for (const name of ["up", "down", "select"]) {
+        setButtonVisual(name, Boolean(state.buttons[name]));
+      }
+    }
+  }
+
   function bindButton(el, name) {
     if (!el) return;
     el.addEventListener("mousedown", (e) => {
@@ -162,6 +177,8 @@ export function initInputs({ send, getPot, setPot }) {
     window.__last_sent = msg;
     send(msg);
   }
+
+  return { updateState };
 }
 
 function shouldIgnoreKeyboard(event) {

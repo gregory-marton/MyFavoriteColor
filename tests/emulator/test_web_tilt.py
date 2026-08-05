@@ -1,6 +1,8 @@
 """Playwright and unit tests for Web UI accelerometer tilt widget (T031).
 
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
+Co-authored-by: GPT-5, Aug 2026
+Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 """
 
 import asyncio
@@ -56,6 +58,14 @@ def test_tilt_widget_renders_and_emits_set_tilt(browser_page, tilt_server):
     assert any(m.get("type") == "set_tilt" and m.get("roll") == 0 and m.get("pitch") == 0 for m in server.received)
 
 
+def test_physical_orientation_updates_tilt_widget(browser_page):
+    browser_page.reload()
+    browser_page.wait_for_function(
+        "document.querySelector('#tilt-readout').textContent.includes('Roll: 25.0°')"
+    )
+    assert "Pitch: -15.0°" in browser_page.text_content("#tilt-readout")
+
+
 class _TiltServerFixture:
     def __init__(self):
         self.loop = asyncio.new_event_loop()
@@ -86,7 +96,8 @@ class _TiltServerFixture:
 
         async def handler(websocket):
             await websocket.send(protocol.dumps(protocol.state_message(
-                angle=0.0, pot=2048, battery=4000, attached=None, clock_ms=0
+                angle=0.0, pot=2048, battery=4000, attached=None, clock_ms=0,
+                roll=25.0, pitch=-15.0,
             )))
             async for raw in websocket:
                 msg = protocol.loads(raw)

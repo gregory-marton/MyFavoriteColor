@@ -1,5 +1,6 @@
 // Live SmartMotor emulator UI.
 // Co-authored-by: GPT-5, Aug 2026
+// Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 
 import { drawFrame } from "./oled.js";
 import { renderArm } from "./arm.js";
@@ -37,11 +38,11 @@ let latestState = null;
 let isRecording = false;
 
 connect();
-initInputs({
+const inputs = initInputs({
   send,
   getPot: () => (latestState ? latestState.pot : 2048),
 });
-initTilt({ send });
+const tilt = initTilt({ send });
 initWorldEditor({ send });
 initClockAndTrace({ send });
 
@@ -115,6 +116,8 @@ function handleMessage(message) {
 
 function updateState(state) {
   latestState = state;
+  if (inputs) inputs.updateState(state);
+  if (tilt) tilt.updateState(state);
   if (state.is_recording != null) {
     isRecording = Boolean(state.is_recording);
     if (els.record) {

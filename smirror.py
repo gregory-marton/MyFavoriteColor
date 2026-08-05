@@ -5,6 +5,7 @@ braces in the serial stream; the ``@SMIRROR`` prefix lets both protocols share
 USB CDC without the old parser mistaking mirror frames for commands.
 
 Co-authored-by: GPT-5, Aug 2026
+Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 """
 
 import sys
@@ -19,14 +20,16 @@ _writer = sys.stdout
 _frame_sequence = 0
 _installed = False
 _last_accel_ms = None
+_last_inputs_ms = None
 
 
 def set_writer(writer):
     """Set the telemetry sink; primarily useful for bounded desktop tests."""
-    global _writer, _frame_sequence, _last_accel_ms
+    global _writer, _frame_sequence, _last_accel_ms, _last_inputs_ms
     _writer = writer
     _frame_sequence = 0
     _last_accel_ms = None
+    _last_inputs_ms = None
 
 
 def emit_frame(buffer, width=128, height=64):
@@ -47,6 +50,17 @@ def emit_accel(x, y, z):
         return
     _last_accel_ms = now_ms
     _write("@SMIRROR ACCEL %s %s %s\n" % (x, y, z))
+
+
+def emit_inputs(pot, button_up, button_down, button_select):
+    global _last_inputs_ms
+    now_ms = _now_ms()
+    if _last_inputs_ms is not None and _ticks_diff(now_ms, _last_inputs_ms) < 100:
+        return
+    _last_inputs_ms = now_ms
+    _write("@SMIRROR INPUT %s %s %s %s\n" % (
+        pot, button_up, button_down, button_select,
+    ))
 
 
 def install(display_module=None, servo_module=None):

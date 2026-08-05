@@ -1,6 +1,7 @@
 """Versioned JSON protocol for SmartMotor emulator clients.
 
 Co-authored-by: GPT-5, Aug 2026
+Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 """
 
 import base64
@@ -74,7 +75,7 @@ def frame_message(seq, png, lines):
     }
 
 
-def state_message(*, angle, pot, battery, attached, clock_ms, commanded_angle=None, world=None, is_recording=None, button=None, roll=None, pitch=None):
+def state_message(*, angle, pot, battery, attached, clock_ms, commanded_angle=None, world=None, is_recording=None, button=None, buttons=None, roll=None, pitch=None):
     msg = {
         "v": PROTOCOL_VERSION,
         "type": "state",
@@ -92,6 +93,8 @@ def state_message(*, angle, pot, battery, attached, clock_ms, commanded_angle=No
         msg["is_recording"] = is_recording
     if button is not None:
         msg["button"] = button
+    if buttons is not None:
+        msg["buttons"] = dict(buttons)
     if roll is not None:
         msg["roll"] = roll
     if pitch is not None:

@@ -2,10 +2,13 @@
 
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
 Co-authored-by: GPT-5, Aug 2026
+Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 """
 
 import base64
 import sys
+import time
+import threading
 from types import SimpleNamespace
 
 import pytest
@@ -328,6 +331,56 @@ def test_mirror_parser_resynchronizes_after_interleaved_device_writes():
 
     assert state["roll"] == pytest.approx(0.0)
     assert state["pitch"] == pytest.approx(-30.0, abs=0.2)
+
+
+def test_hardware_serial_reads_are_shared_safely_across_browser_clients():
+    active_reads = 0
+    max_active_reads = 0
+
+    class MirrorSerial:
+        def write(self, data):
+            pass
+
+        def flush(self):
+            pass
+
+        def readline(self):
+            nonlocal active_reads, max_active_reads
+            active_reads += 1
+            max_active_reads = max(max_active_reads, active_reads)
+            time.sleep(0.03)
+            active_reads -= 1
+            return b"@SMIRROR ACCEL 0 0 256\n"
+
+    bridge = HardwareBridge()
+    bridge._ser = MirrorSerial()
+    threads = [threading.Thread(target=bridge.poll_hardware) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert max_active_reads == 1
+
+
+def test_hardware_mirror_inputs_include_pot_and_button_states():
+    class MirrorSerial:
+        def write(self, data):
+            pass
+
+        def flush(self):
+            pass
+
+        def readline(self):
+            return b"@SMIRROR INPUT 1234 0 1 0\n"
+
+    bridge = HardwareBridge()
+    bridge._ser = MirrorSerial()
+
+    state = bridge.poll_hardware()
+
+    assert state["pot"] == 1234
+    assert state["buttons"] == {"up": True, "down": False, "select": True}
 
 
 def _glyph(character):

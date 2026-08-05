@@ -1,4 +1,5 @@
 # Co-authored-by: GPT-5, Aug 2026
+# Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 
 from machine import Pin,I2C
 from machine import Pin, SoftI2C, PWM, ADC
@@ -88,7 +89,18 @@ class SENSORS:
                 self.adx.read()
             except Exception:
                 pass
-        return self.pot.read()
+        pot_value = self.pot.read()
+        try:
+            import smirror
+            smirror.emit_inputs(
+                pot_value,
+                Pin(10).value(),
+                Pin(8).value(),
+                Pin(9).value(),
+            )
+        except Exception:
+            pass
+        return pot_value
     
     def accel(self):
         self.x =self.adx.xValue

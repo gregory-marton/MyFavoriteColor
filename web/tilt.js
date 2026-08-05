@@ -1,5 +1,7 @@
 // 2D isometric accelerometer tilt widget for SmartMotor emulator.
 // Co-authored-by: Gemini 3.6 Flash, Aug 2026
+// Co-authored-by: GPT-5, Aug 2026
+// Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 
 export function initTilt({ send, canvasId, readoutId }) {
   const canvas = document.querySelector(canvasId || "#tilt-canvas");
@@ -47,6 +49,12 @@ export function initTilt({ send, canvasId, readoutId }) {
     const msg = { type: "set_tilt", roll: Math.round(roll * 10) / 10, pitch: Math.round(pitch * 10) / 10 };
     window.__last_sent = msg;
     send(msg);
+  }
+
+  function updateState(state) {
+    if (typeof state.roll === "number") roll = state.roll;
+    if (typeof state.pitch === "number") pitch = state.pitch;
+    render();
   }
 
   function render() {
@@ -119,4 +127,6 @@ export function initTilt({ send, canvasId, readoutId }) {
     const isoY = cy + (x2 + y2) * 0.35;
     return { x: isoX, y: isoY };
   }
+
+  return { updateState };
 }

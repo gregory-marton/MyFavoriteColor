@@ -2,6 +2,8 @@
 
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
 Co-authored-by: Claude Opus 4.6, Aug 2026
+Co-authored-by: GPT-5, Aug 2026
+Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 """
 
 import argparse
@@ -10,6 +12,7 @@ import json
 import os
 import shutil
 import sys
+import threading
 import time
 
 from smotoremu.vfs import VFS, FileTooLargeError
@@ -125,6 +128,7 @@ class HardwareBridge:
         self._mirror_frame = None
         self._mirror_frame_revision = 0
         self._state = {"angle": 0.0, "pot": 2048, "button": None}
+        self._poll_lock = threading.Lock()
         if self.link is None and self.port:
             try:
                 import serial
@@ -143,6 +147,10 @@ class HardwareBridge:
         self.ping()
 
     def poll_hardware(self):
+        with self._poll_lock:
+            return self._poll_hardware_unlocked()
+
+    def _poll_hardware_unlocked(self):
         if self.link is not None and hasattr(self.link, "read_state"):
             return self.link.read_state()
         if self._ser is not None:
@@ -229,6 +237,18 @@ class HardwareBridge:
             self._state["pitch"] = math.degrees(
                 math.atan2(-ax, math.sqrt(ay * ay + az * az))
             ) if (ax or ay or az) else 0.0
+        elif kind == "INPUT" and len(parts) >= 6:
+            pot = int(parts[2])
+            buttons = {
+                "up": int(parts[3]) == 0,
+                "down": int(parts[4]) == 0,
+                "select": int(parts[5]) == 0,
+            }
+            self._state["pot"] = pot
+            self._state["buttons"] = buttons
+            self._state["button"] = next(
+                (name for name, pressed in buttons.items() if pressed), None
+            )
 
     def send_command(self, msg):
         import json
@@ -329,6 +349,7 @@ class HardwareServerSession:
             world=None,
             is_recording=self.is_recording,
             button=hw.get("button"),
+            buttons=hw.get("buttons"),
             roll=hw.get("roll"),
             pitch=hw.get("pitch"),
         )

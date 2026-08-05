@@ -1,6 +1,7 @@
 """T012 ADXL345 accelerometer peripheral tests.
 
 Co-authored-by: GPT-5, Aug 2026
+Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 """
 
 import random
@@ -97,3 +98,4 @@ def test_activity_pot_reads_also_sample_accelerometer_for_mirror():
     sensors.readpot()
 
     assert output.getvalue().startswith("@SMIRROR ACCEL ")
+    assert "@SMIRROR INPUT " in output.getvalue()
