@@ -1,0 +1,31 @@
+#!/Users/gregorymarton/Documents/GitHub/MyFavoriteColor/.venv/bin/python3
+"""Diagnostic script to inspect raw serial bytes from physical SmartMotor.
+
+Co-authored-by: Gemini 3.6 Flash, Aug 2026
+"""
+
+import sys
+import time
+import serial
+from smotoremu.cli import find_serial_port
+
+port = find_serial_port(sys.argv[1] if len(sys.argv) > 1 else None)
+if not port:
+    print("❌ No serial port found")
+    sys.exit(1)
+
+print(f"🔍 Connecting to physical SmartMotor on {port}...")
+s = serial.Serial(port, 115200, timeout=1.0)
+s.write(b'{"st":"e"}\n')
+s.flush()
+time.sleep(0.5)
+
+print("📥 Reading lines from physical device:")
+for i in range(5):
+    line = s.readline().decode(errors="ignore").strip()
+    print(f"  Line {i+1}: {repr(line)}")
+    s.write(b'{"st":"e"}\n')
+    s.flush()
+    time.sleep(0.3)
+
+s.close()
