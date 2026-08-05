@@ -1,6 +1,66 @@
 # Emulator Progress
 
 Co-authored-by: GPT-5, Aug 2026
+Co-authored-by: GPT-5.6-Sol-high, Aug 2026
+
+## 2026-08-04 -- Continuous multi-client physical mirror
+
+Commit: `3a4c242` (`Keep physical mirror telemetry live`)
+
+The physical mirror previously delivered a useful initial snapshot, but browser
+clients competed to read the same serial stream and most controls never applied
+incoming physical state to their widgets. A second client, including the
+acceptance checker, could therefore make the browser appear frozen.
+
+Red output:
+
+```text
+AttributeError: module 'smirror' has no attribute 'emit_inputs'
+AssertionError: concurrent hardware serial reads overlapped
+AssertionError: mirror state contained no physical pot/button states
+TimeoutError: physical pot/button and orientation widgets did not update
+```
+
+Green output:
+
+```text
+.venv/bin/python -m pytest tests/test_smirror.py tests/emulator/test_adxl.py \
+  tests/emulator/test_hardware_bridge.py tests/emulator/test_protocol.py \
+  tests/emulator/test_web_inputs.py tests/emulator/test_web_tilt.py -q
+53 passed in 5.86s
+```
+
+Decisions and verified behavior:
+
+- Serialize access to the shared physical serial stream and retain the latest
+  parsed state, so all connected browser/checker sessions receive the same
+  ongoing mirror instead of dividing or corrupting telemetry records.
+- Sample and emit the physical potentiometer and all three active-low buttons
+  at 10 Hz from the existing activity loop.
+- Apply physical pot/button values to the controls panel and physical roll/pitch
+  values to the tilt widget on every state message.
+- Keep servo angle observational: it reports calls to `Servo.write_angle`; the
+  SmartMotor has no implemented mechanical arm-position feedback, so manually
+  moving the arm cannot currently change that value.
+- Redeployed `smirror.py` and `sensors.py` to the connected SmartMotor using the
+  reconnect watcher, then restarted the host bridge on `/dev/cu.usbmodem1101`.
+- An eight-second checker run alongside the browser received 26 changing
+  orientation samples, proving that a second client no longer starves the UI.
+- A subsequent ten-second full-control sample received 32 state samples:
+
+```text
+roll range: 120.3..147.9
+pitch range: -37.0..67.6
+pot range: 1339..4095
+arm angle range: 58.0..58.0
+button samples: 96
+buttons seen pressed: <none>
+PASS: live physical OLED and motion are both mirrored
+```
+
+The pot and accelerometer are confirmed continuously live. Button telemetry is
+continuously present but still needs a run during deliberate physical presses.
+The arm stayed at the device's commanded 58 degrees during this sample.
 
 ## 2026-08-04 -- Physical OLED, servo, and accelerometer mirror path
 

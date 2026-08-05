@@ -1,6 +1,7 @@
 """End-to-end diagnostic for a running physical SmartMotor mirror.
 
 Co-authored-by: GPT-5, Aug 2026
+Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 """
 
 import argparse
@@ -12,7 +13,7 @@ async def collect(url, duration):
     import websockets
 
     frames = []
-    orientations = []
+    states = []
     async with websockets.connect(url) as websocket:
         loop = asyncio.get_running_loop()
         deadline = loop.time() + duration
@@ -25,11 +26,32 @@ async def collect(url, duration):
             if message.get("type") == "frame" and message.get("png"):
                 frames.append(message)
             if message.get("type") == "state":
-                roll = message.get("roll")
-                pitch = message.get("pitch")
-                if roll is not None and pitch is not None:
-                    orientations.append((float(roll), float(pitch)))
-    return frames, orientations
+                states.append(message)
+    return frames, states
+
+
+def summarize_states(states):
+    orientations = []
+    pots = []
+    angles = []
+    buttons = []
+    for state in states:
+        roll = state.get("roll")
+        pitch = state.get("pitch")
+        if roll is not None and pitch is not None:
+            orientations.append((float(roll), float(pitch)))
+        if state.get("pot") is not None:
+            pots.append(int(state["pot"]))
+        if state.get("angle") is not None:
+            angles.append(float(state["angle"]))
+        for name, pressed in sorted(state.get("buttons", {}).items()):
+            buttons.append((name, bool(pressed)))
+    return {
+        "orientations": orientations,
+        "pots": pots,
+        "angles": angles,
+        "buttons": buttons,
+    }
 
 
 def main(argv=None):
@@ -38,7 +60,9 @@ def main(argv=None):
     parser.add_argument("--duration", type=float, default=5.0)
     args = parser.parse_args(argv)
 
-    frames, orientations = asyncio.run(collect(args.url, args.duration))
+    frames, states = asyncio.run(collect(args.url, args.duration))
+    summary = summarize_states(states)
+    orientations = summary["orientations"]
     print(f"real OLED frames: {len(frames)}")
     if frames:
         print("latest OLED text:", " | ".join(frames[-1].get("lines", [])) or "<graphics only>")
@@ -48,6 +72,21 @@ def main(argv=None):
         pitches = [sample[1] for sample in orientations]
         print(f"roll range: {min(rolls):.1f}..{max(rolls):.1f}")
         print(f"pitch range: {min(pitches):.1f}..{max(pitches):.1f}")
+
+    pots = summary["pots"]
+    print(f"pot samples: {len(pots)}")
+    if pots:
+        print(f"pot range: {min(pots)}..{max(pots)}")
+
+    angles = summary["angles"]
+    print(f"arm angle samples: {len(angles)}")
+    if angles:
+        print(f"arm angle range: {min(angles):.1f}..{max(angles):.1f}")
+
+    button_samples = summary["buttons"]
+    pressed = sorted({name for name, is_pressed in button_samples if is_pressed})
+    print(f"button samples: {len(button_samples)}")
+    print("buttons seen pressed:", ", ".join(pressed) if pressed else "<none>")
 
     moved = len({(round(roll, 1), round(pitch, 1)) for roll, pitch in orientations}) >= 2
     if not frames:
