@@ -1,5 +1,7 @@
 # MyFavoriteColor
 
+<!-- Co-authored-by: GPT-5, Aug 2026 -->
+
 This repository contains the MicroPython code deployed to the Smart Motor ESP32 for the Engineering with Artificial Intelligence activity.
 
 The current deployment includes both standalone activities at the same time:
@@ -89,6 +91,38 @@ python3 -m pytest tests/test_filesize.py -v
 ```
 
 If an upload through the CEEO RS232 web tool hangs or fails, reset the board before retrying. Earlier hardware testing showed that a failed serial upload can leave the board session in a bad state until reset.
+
+## Live Physical Mirror
+
+The emulator web UI can also mirror a connected physical SmartMotor. The
+physical firmware emits real OLED framebuffers, commanded servo angles, and
+accelerometer samples over a separate `@SMIRROR` line protocol; it does not
+pretend missing replies are live telemetry.
+
+For the first installation, arm the reconnect-aware uploader and then briefly
+disconnect, power-cycle, and reconnect the SmartMotor:
+
+```bash
+./bin/deploy_mirror_after_reconnect
+```
+
+Thereafter, start the bridge and open the UI:
+
+```bash
+./bin/smotor bridge
+open http://127.0.0.1:8765/
+```
+
+The bridge stays in the foreground. In another terminal, the acceptance check
+verifies both a real OLED frame and changing accelerometer orientation:
+
+```bash
+./bin/check_mirror --duration 6
+```
+
+If a normal upload can already interrupt the running activity, the narrower
+`./bin/deploy_mirror` command updates the same four mirror support files without
+wiping the rest of the device.
 
 ## What Still Requires Hardware
 

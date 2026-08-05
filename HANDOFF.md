@@ -1,10 +1,36 @@
 # Handoff Status — who does what next
 
+<!-- Co-authored-by: GPT-5, Aug 2026 -->
+
 Living document. Update as tasks land.
 Design docs: `EMULATOR_DESIGN.md`, `EMULATOR_TASKS.md`, `HOSTLINK_DESIGN.md`,
 `SENSOR_QA_DESIGN.md`, `DEVICE_HEALTH_DESIGN.md`.
 
 ## Current execution checkpoint — 2026-08-04
+
+### Physical mirror is now genuinely live
+
+Commit `cba2637` adds device-side `@SMIRROR` OLED, servo, and accelerometer
+telemetry and host-side framebuffer rendering. Commits `bd7fb33`, `7d0852e`,
+and `764e604` add reliable reconnect deployment and an end-to-end acceptance
+check.
+
+The reconnect-aware deployment succeeded on `/dev/cu.usbmodem1101`. With the
+user moving the board, `./bin/check_mirror --duration 6` reported:
+
+```text
+real OLED frames: 1
+orientation samples: 16
+roll range: 124.0..177.2
+pitch range: -12.8..9.7
+PASS: live physical OLED and motion are both mirrored
+```
+
+The bridge is run with `./bin/smotor bridge` and serves the UI at
+`http://127.0.0.1:8765/`. The previous bridge was not a mirror: a live serial
+diagnostic returned empty replies outside web-connect mode, while host tests
+accepted default battery/pot/angle values and a fabricated “Hardware Mode
+(CDC)” frame. Do not restore that fallback behavior.
 
 The emulator implementation is through T027 and is installed editable in the
 repo-local `.venv`. The latest committed baseline is:

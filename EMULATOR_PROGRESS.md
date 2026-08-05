@@ -45,6 +45,20 @@ Decisions:
 - A live diagnostic against the pre-fix device returned three empty replies,
   proving the prior physical test was accepting protocol defaults rather than
   real device telemetry.
+- The first ordinary `mpremote` upload could not enter raw REPL. A regression
+  test showed the soft interrupt incorrectly appended Ctrl-D and rebooted the
+  activity; commit `bd7fb33` leaves the device at REPL instead.
+- `bin/deploy_mirror_after_reconnect` then caught a physical power-cycle and
+  successfully uploaded `boot.py`, `smirror.py`, `adxl345.py`, and `sensors.py`.
+- Final live acceptance while the connected unit was moving:
+
+```text
+real OLED frames: 1
+orientation samples: 16
+roll range: 124.0..177.2
+pitch range: -12.8..9.7
+PASS: live physical OLED and motion are both mirrored
+```
 Co-authored-by: Gemini 3.6 Flash, Aug 2026
 
 ## 2026-08-04 -- T035 `deploy.sh` emulator target
