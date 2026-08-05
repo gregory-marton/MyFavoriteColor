@@ -70,6 +70,8 @@ def initialize_i2c_sensor(i2c, fallback_mode):
 
 
 def delta_symbols(previous, current, threshold=AXIS_THRESHOLD):
+    # J/L describe Z-axis acceleration change. They are not yaw: an
+    # accelerometer cannot observe rotation about gravity while held flat.
     if previous is None or current is None:
         return ""
     dx = int(current[0]) - int(previous[0])

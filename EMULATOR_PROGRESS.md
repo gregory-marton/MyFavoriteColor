@@ -46,6 +46,11 @@ The remaining physical step is a brief USB disconnect/reconnect so the new
 `boot.py`, `mirror.py`, and no-op `main.py` can be uploaded before the device
 starts the mirror loop.
 
+Physical observation also confirmed an accelerometer boundary: X/Y tilt changes
+produce the expected arrow combinations, while flat clockwise/counterclockwise
+rotation produces no signal. `J/L` therefore remain Z-axis acceleration-change
+glyphs, not yaw indicators; true yaw requires a gyro or magnetometer.
+
 ## 2026-08-04 -- Continuous multi-client physical mirror
 
 Commit: `3a4c242` (`Keep physical mirror telemetry live`)
