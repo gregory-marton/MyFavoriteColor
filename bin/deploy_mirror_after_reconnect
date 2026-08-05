@@ -1,0 +1,24 @@
+#!/bin/bash
+# Wait for one USB disconnect/reconnect, then upload before the activity loop.
+# Co-authored-by: GPT-5, Aug 2026
+
+set -euo pipefail
+
+MPREMOTE_BIN="${MPREMOTE_BIN:-.venv/bin/mpremote}"
+
+while compgen -G "/dev/cu.usbmodem*" >/dev/null; do
+    sleep 0.05
+done
+echo "SmartMotor disconnected; waiting for reconnect..."
+
+while ! compgen -G "/dev/cu.usbmodem*" >/dev/null; do
+    sleep 0.05
+done
+echo "SmartMotor reconnected; uploading mirror firmware now."
+
+for mirror_file in boot.py smirror.py adxl345.py sensors.py; do
+    "${MPREMOTE_BIN}" cp "${mirror_file}" :
+done
+
+"${MPREMOTE_BIN}" reset
+echo "Mirror firmware deployed."
