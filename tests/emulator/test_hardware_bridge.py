@@ -5,9 +5,11 @@ Co-authored-by: GPT-5, Aug 2026
 """
 
 import base64
+import sys
+from types import SimpleNamespace
 
 import pytest
-from smotoremu.cli import HardwareBridge, HardwareServerSession
+from smotoremu.cli import HardwareBridge, HardwareServerSession, reset_hardware
 from smotoremu._font_data import FONT_DATA
 
 
@@ -288,6 +290,24 @@ def test_hardware_mirror_accelerometer_updates_orientation():
 
     assert state["roll"] == pytest.approx(0.0)
     assert state["pitch"] == pytest.approx(-30.0, abs=0.2)
+
+
+def test_soft_interrupt_leaves_device_at_repl_instead_of_rebooting(monkeypatch):
+    writes = []
+
+    class SerialPort:
+        def write(self, data):
+            writes.append(data)
+
+        def close(self):
+            pass
+
+    serial_module = SimpleNamespace(Serial=lambda *args, **kwargs: SerialPort())
+    monkeypatch.setitem(sys.modules, "serial", serial_module)
+    monkeypatch.setattr("smotoremu.cli.time.sleep", lambda seconds: None)
+
+    assert reset_hardware(port="/dev/test-smartmotor", soft=True) == 0
+    assert writes == [b"\x03\x03"]
 
 
 def _glyph(character):

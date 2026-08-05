@@ -431,7 +431,7 @@ def reset_hardware(port=None, soft=False):
         if soft:
             print(f"⚡ Interrupting MicroPython on {serial_port} (soft)...")
             s = serial.Serial(serial_port, 115200, timeout=0.2)
-            s.write(b"\x03\x03\x04")
+            s.write(b"\x03\x03")
             time.sleep(0.3)
             s.close()
             print("✅ Interrupted (REPL).")

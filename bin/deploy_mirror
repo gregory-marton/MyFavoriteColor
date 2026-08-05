@@ -6,6 +6,8 @@ set -euo pipefail
 
 MPREMOTE_BIN="${MPREMOTE_BIN:-.venv/bin/mpremote}"
 
+./bin/smotor reset --soft
+
 for mirror_file in boot.py smirror.py adxl345.py sensors.py; do
     echo "Uploading ${mirror_file}"
     "${MPREMOTE_BIN}" cp "${mirror_file}" :
