@@ -12,6 +12,7 @@ import sys
 
 
 BUTTONS = (("up", "UP"), ("down", "DOWN"), ("select", "SLCT"))
+MIRROR_BUTTON_PINS = {"up": 8, "down": 10, "select": 9}
 AXIS_THRESHOLD = 80
 PORT_SPREAD_THRESHOLD = 2000
 
@@ -80,9 +81,9 @@ def delta_symbols(previous, current, threshold=AXIS_THRESHOLD):
     elif dx < -threshold:
         symbols.append("<")
     if dy > threshold:
-        symbols.append("^")
-    elif dy < -threshold:
         symbols.append("v")
+    elif dy < -threshold:
+        symbols.append("^")
     if dz > threshold:
         symbols.append("J")
     elif dz < -threshold:
@@ -190,9 +191,8 @@ def run(period_ms=250):
     sensor_is_attached, sensor_adc, low, high = _probe_sensor()
     i2c_sensor = None
     buttons = {
-        "up": Pin(10, Pin.IN, Pin.PULL_UP),
-        "down": Pin(8, Pin.IN, Pin.PULL_UP),
-        "select": Pin(9, Pin.IN, Pin.PULL_UP),
+        name: Pin(pin, Pin.IN, Pin.PULL_UP)
+        for name, pin in MIRROR_BUTTON_PINS.items()
     }
     usb = hasattr(sys, "stdin") and hasattr(sys, "stdout")
     mode, i2c_sensor = initialize_i2c_sensor(i2c, port_mode(low, high))

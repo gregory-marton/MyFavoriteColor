@@ -12,6 +12,10 @@ def test_pot_maps_to_servo_angle():
     assert mirror.pot_to_angle(4095) == 180
 
 
+def test_mirror_uses_observed_physical_button_labels():
+    assert mirror.MIRROR_BUTTON_PINS == {"up": 8, "down": 10, "select": 9}
+
+
 def test_sensor_presence_uses_the_sensor_port_probe():
     assert mirror.sensor_attached(50, 4090) is False
     assert mirror.sensor_attached(500, 500) is True
@@ -59,7 +63,7 @@ def test_failed_i2c_sensor_initialization_falls_back_to_analog_mode():
 
 
 def test_delta_symbols_show_three_accelerometer_axes():
-    assert mirror.delta_symbols((0, 0, 0), (100, -100, 100)) == ">vJ"
+    assert mirror.delta_symbols((0, 0, 0), (100, -100, 100)) == ">^J"
     assert mirror.delta_symbols((0, 0, 0), (10, 10, 10)) == ""
 
 
@@ -73,7 +77,7 @@ def test_screen_lines_show_power_usb_i2c_sensor_controls_and_motion():
         pot=2048,
         angle=90,
         buttons={"up": 0, "down": 1, "select": 1},
-        delta=">vJ",
+        delta=">^J",
     )
 
     assert lines == (
@@ -81,5 +85,5 @@ def test_screen_lines_show_power_usb_i2c_sensor_controls_and_motion():
         "MODE i2c SNS2.3k",
         "POT2.0k ANG90",
         "BTN UP",
-        "MOVE >vJ",
+        "MOVE >^J",
     )
