@@ -34,7 +34,8 @@ def short_number(value):
     value = float(value)
     magnitude = abs(value)
     if magnitude >= 1000:
-        return "%.1fk" % (value / 1000.0)
+        scaled = value / 1000.0
+        return ("%.0fk" if abs(scaled) >= 10 else "%.1fk") % scaled
     return "%.2g" % value
 
 

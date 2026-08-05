@@ -21,6 +21,7 @@ def test_sensor_presence_uses_the_sensor_port_probe():
 
 def test_device_numbers_are_two_significant_digits():
     assert mirror.short_number(2048) == "2.0k"
+    assert mirror.short_number(65535) == "66k"
     assert mirror.short_number(90) == "90"
     assert mirror.short_number(1.25) == "1.2"
 
