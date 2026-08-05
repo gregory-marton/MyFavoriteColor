@@ -1,0 +1,6 @@
+#!/bin/bash
+# Check a running physical mirror end to end.
+# Co-authored-by: GPT-5, Aug 2026
+
+set -euo pipefail
+exec .venv/bin/python -m smotoremu.mirror_check "$@"
