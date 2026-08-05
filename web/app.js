@@ -27,6 +27,8 @@ const els = {
   count: document.querySelector("#frame-count"),
   boot: document.querySelector("#boot"),
   record: document.querySelector("#record-btn"),
+  sensorAttached: document.querySelector("#sensor-attached"),
+  sensorReading: document.querySelector("#sensor-reading"),
 };
 
 let socket = null;
@@ -127,6 +129,18 @@ function updateState(state) {
   }
   if (els.armAngle) {
     els.armAngle.textContent = `${(state.angle || 0).toFixed(1)}°`;
+  }
+  if (els.sensorAttached) {
+    const mode = state.mode || state.attached || "unknown";
+    const usb = state.usb == null ? "?" : (state.usb ? "ON" : "OFF");
+    const sensor = state.sensor_attached == null ? "?" : (state.sensor_attached ? "YES" : "NO");
+    els.sensorAttached.textContent = `Mode: ${mode} | Sensor: ${sensor} | USB: ${usb}`;
+  }
+  if (els.sensorReading) {
+    const sensorValue = state.sensor_rgbw ? state.sensor_rgbw.join(",") : (state.sensor_value == null ? "--" : state.sensor_value);
+    const pot = state.pot == null ? "--" : state.pot;
+    const angle = state.angle == null ? "--" : Number(state.angle).toFixed(1);
+    els.sensorReading.textContent = `Sensor: ${sensorValue} | Pot: ${pot} | Angle: ${angle}°`;
   }
   if (els.armCanvas) {
     renderArm(els.armCanvas, state);

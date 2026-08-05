@@ -51,6 +51,17 @@ def summarize_states(states):
         "pots": pots,
         "angles": angles,
         "buttons": buttons,
+        "modes": [state["mode"] for state in states if state.get("mode")],
+        "sensor_values": [
+            int(state["sensor_value"])
+            for state in states
+            if state.get("sensor_value") is not None and int(state["sensor_value"]) >= 0
+        ],
+        "sensor_rgbw": [
+            list(state["sensor_rgbw"])
+            for state in states
+            if state.get("sensor_rgbw") is not None
+        ],
     }
 
 
@@ -87,6 +98,15 @@ def main(argv=None):
     pressed = sorted({name for name, is_pressed in button_samples if is_pressed})
     print(f"button samples: {len(button_samples)}")
     print("buttons seen pressed:", ", ".join(pressed) if pressed else "<none>")
+
+    modes = sorted(set(summary["modes"]))
+    print("sensor port modes:", ", ".join(modes) if modes else "<none>")
+    sensor_values = summary["sensor_values"]
+    print(f"sensor value samples: {len(sensor_values)}")
+    if sensor_values:
+        print(f"sensor value range: {min(sensor_values)}..{max(sensor_values)}")
+    if summary["sensor_rgbw"]:
+        print("latest sensor RGBW:", ", ".join(str(v) for v in summary["sensor_rgbw"][-1]))
 
     moved = len({(round(roll, 1), round(pitch, 1)) for roll, pitch in orientations}) >= 2
     if not frames:

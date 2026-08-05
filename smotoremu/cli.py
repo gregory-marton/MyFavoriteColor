@@ -127,7 +127,16 @@ class HardwareBridge:
         self._mirror_active = False
         self._mirror_frame = None
         self._mirror_frame_revision = 0
-        self._state = {"angle": 0.0, "pot": 2048, "button": None}
+        self._state = {
+            "angle": 0.0,
+            "pot": 2048,
+            "button": None,
+            "power": True,
+            "usb": False,
+            "mode": "alg",
+            "sensor_attached": False,
+            "sensor_value": None,
+        }
         self._poll_lock = threading.Lock()
         if self.link is None and self.port:
             try:
@@ -216,7 +225,7 @@ class HardwareBridge:
                 continue
 
     def _parse_mirror_segment(self, line):
-        parts = line.split(" ", 5)
+        parts = line.split() if line.startswith("@SMIRROR STATUS ") else line.split(" ", 5)
         kind = parts[1] if len(parts) > 1 else ""
         self._mirror_active = True
         if kind == "FRAME" and len(parts) == 6:
@@ -245,6 +254,40 @@ class HardwareBridge:
                 "select": int(parts[5]) == 0,
             }
             self._state["pot"] = pot
+            self._state["buttons"] = buttons
+            self._state["button"] = next(
+                (name for name, pressed in buttons.items() if pressed), None
+            )
+        elif kind == "STATUS":
+            fields = {}
+            for token in parts[2:]:
+                if "=" in token:
+                    key, value = token.split("=", 1)
+                    fields[key] = value
+            if "power" in fields:
+                self._state["power"] = fields["power"] == "1"
+            if "usb" in fields:
+                self._state["usb"] = fields["usb"] == "1"
+            if "mode" in fields:
+                self._state["mode"] = fields["mode"]
+            if "sensor" in fields:
+                self._state["sensor_attached"] = fields["sensor"] == "1"
+            if "sensor_value" in fields:
+                self._state["sensor_value"] = int(fields["sensor_value"])
+            if all(key in fields for key in ("sensor_r", "sensor_g", "sensor_b", "sensor_w")):
+                self._state["sensor_rgbw"] = [
+                    int(fields[key]) for key in ("sensor_r", "sensor_g", "sensor_b", "sensor_w")
+                ]
+            if "pot" in fields:
+                self._state["pot"] = int(fields["pot"])
+            if "angle" in fields:
+                self._state["angle"] = float(fields["angle"])
+            if "delta" in fields:
+                self._state["delta"] = fields["delta"]
+            buttons = {
+                name: fields.get(name, "1") == "0"
+                for name in ("up", "down", "select")
+            }
             self._state["buttons"] = buttons
             self._state["button"] = next(
                 (name for name, pressed in buttons.items() if pressed), None
@@ -352,6 +395,13 @@ class HardwareServerSession:
             buttons=hw.get("buttons"),
             roll=hw.get("roll"),
             pitch=hw.get("pitch"),
+            power=hw.get("power"),
+            usb=hw.get("usb"),
+            mode=hw.get("mode"),
+            sensor_attached=hw.get("sensor_attached"),
+            sensor_value=hw.get("sensor_value"),
+            sensor_rgbw=hw.get("sensor_rgbw"),
+            delta=hw.get("delta"),
         )
 
     def frame_message(self):

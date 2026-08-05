@@ -1,13 +1,11 @@
 # This file is executed on every boot (including wake-boot from deepsleep)
 # Co-authored-by: GPT-5, Aug 2026
-#import esp
-#esp.osdebug(None)
-#import webrepl
-#webrepl.start()
+# Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 
+# Mirror mode is deliberately the whole device activity. The deployed main.py
+# is a no-op, so Ctrl-C from mirror.run() leaves a usable REPL.
 try:
-    import smirror
-    smirror.install()
-except Exception:
-    # Mirror telemetry is observational and must never prevent normal boot.
-    pass
+    import mirror
+    mirror.run()
+except KeyboardInterrupt:
+    print("Mirror stopped; REPL ready")

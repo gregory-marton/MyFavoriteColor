@@ -75,7 +75,7 @@ def frame_message(seq, png, lines):
     }
 
 
-def state_message(*, angle, pot, battery, attached, clock_ms, commanded_angle=None, world=None, is_recording=None, button=None, buttons=None, roll=None, pitch=None):
+def state_message(*, angle, pot, battery, attached, clock_ms, commanded_angle=None, world=None, is_recording=None, button=None, buttons=None, roll=None, pitch=None, power=None, usb=None, mode=None, sensor_attached=None, sensor_value=None, sensor_rgbw=None, delta=None):
     msg = {
         "v": PROTOCOL_VERSION,
         "type": "state",
@@ -99,6 +99,20 @@ def state_message(*, angle, pot, battery, attached, clock_ms, commanded_angle=No
         msg["roll"] = roll
     if pitch is not None:
         msg["pitch"] = pitch
+    if power is not None:
+        msg["power"] = bool(power)
+    if usb is not None:
+        msg["usb"] = bool(usb)
+    if mode is not None:
+        msg["mode"] = mode
+    if sensor_attached is not None:
+        msg["sensor_attached"] = bool(sensor_attached)
+    if sensor_value is not None:
+        msg["sensor_value"] = sensor_value
+    if sensor_rgbw is not None:
+        msg["sensor_rgbw"] = list(sensor_rgbw)
+    if delta is not None:
+        msg["delta"] = delta
     return msg
 
 

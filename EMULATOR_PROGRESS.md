@@ -3,6 +3,49 @@
 Co-authored-by: GPT-5, Aug 2026
 Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 
+## 2026-08-05 -- Standalone minimal mirror firmware
+
+The physical mirror is now deliberately separated from every normal activity.
+Deployment installs `mirror.py`, a no-op device `main.py`, and only the small
+hardware drivers it needs. The regular activity cannot compete for the OLED,
+servo, buttons, ADC, I2C bus, or serial stream.
+
+Red output:
+
+```text
+ModuleNotFoundError: No module named 'mirror'
+AttributeError: mirror.port_mode / mirror.short_number / mirror.I2CSensor
+KeyError: status power, sensor_rgbw, and full sensor fields were not parsed
+```
+
+Green output:
+
+```text
+.venv/bin/python -m pytest tests/ -q
+316 passed, 1 skipped in 30.52s
+```
+
+Decisions:
+
+- `boot.py` runs only `mirror.run()`. Ctrl-C is caught as a clean return to the
+  REPL, and deployed `main.py` is intentionally empty so the normal dispatcher
+  cannot start afterward.
+- The mirror loop sleeps 250 ms every iteration to yield to MicroPython and
+  make reconnection practical.
+- The OLED reports power/USB state, `mode i2c` or `mode alg`, sensor summary,
+  pot and servo angle, active UP/DOWN/SLCT labels, and directional delta glyphs
+  (`v`, `^`, `<`, `>`, `J`, `L`) for accelerometer changes.
+- OLED numeric values use two significant digits. Serial telemetry and the
+  desktop mirror retain full pot, angle, analog ADC, and VEML6040 RGBW values.
+- The sensor-port mode is classified from the measured electrical spread; the
+  high-spread/floating position is `i2c`, and the low-spread position is `alg`.
+- Analog mode reports the GPIO 5 ADC reading. I2C mode performs a minimal
+  VEML6040 read at address `0x10` and reports raw `R,G,B,W` words.
+
+The remaining physical step is a brief USB disconnect/reconnect so the new
+`boot.py`, `mirror.py`, and no-op `main.py` can be uploaded before the device
+starts the mirror loop.
+
 ## 2026-08-04 -- Continuous multi-client physical mirror
 
 Commit: `3a4c242` (`Keep physical mirror telemetry live`)

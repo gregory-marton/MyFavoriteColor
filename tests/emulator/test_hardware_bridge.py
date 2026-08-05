@@ -383,6 +383,36 @@ def test_hardware_mirror_inputs_include_pot_and_button_states():
     assert state["buttons"] == {"up": True, "down": False, "select": True}
 
 
+def test_hardware_mirror_status_preserves_full_sensor_and_power_values():
+    class MirrorSerial:
+        def write(self, data):
+            pass
+
+        def flush(self):
+            pass
+
+        def readline(self):
+            return (
+                b"@SMIRROR STATUS power=1 usb=1 mode=i2c sensor=1 "
+                b"sensor_value=65535 sensor_r=4660 sensor_g=9029 "
+                b"sensor_b=13398 sensor_w=17767 pot=2048 angle=90 "
+                b"up=1 down=0 select=1 delta=^\n"
+            )
+
+    bridge = HardwareBridge()
+    bridge._ser = MirrorSerial()
+
+    state = bridge.poll_hardware()
+
+    assert state["power"] is True
+    assert state["usb"] is True
+    assert state["mode"] == "i2c"
+    assert state["sensor_attached"] is True
+    assert state["sensor_value"] == 65535
+    assert state["sensor_rgbw"] == [4660, 9029, 13398, 17767]
+    assert state["buttons"] == {"up": False, "down": True, "select": False}
+
+
 def _glyph(character):
     offset = (ord(character) - 32) * 8
     return FONT_DATA[offset : offset + 8]

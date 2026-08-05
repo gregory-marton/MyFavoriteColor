@@ -83,6 +83,8 @@ def test_physical_state_updates_pot_and_button_visuals(browser_page):
     assert "pressed" in page.get_attribute("#btn-up", "class")
     assert "pressed" not in (page.get_attribute("#btn-down", "class") or "")
     assert "pressed" in page.get_attribute("#btn-select", "class")
+    assert "Mode: i2c" in page.text_content("#sensor-attached")
+    assert "Sensor: 65535 | Pot: 1234 | Angle: 0.0°" in page.text_content("#sensor-reading")
 
 
 class _InputServerFixture:
@@ -117,6 +119,7 @@ class _InputServerFixture:
             await websocket.send(protocol.dumps(protocol.state_message(
                 angle=0.0, pot=1234, battery=4000, attached=None, clock_ms=0,
                 buttons={"up": True, "down": False, "select": True},
+                usb=True, mode="i2c", sensor_attached=True, sensor_value=65535,
             )))
             async for raw in websocket:
                 msg = protocol.loads(raw)
