@@ -44,6 +44,20 @@ def test_i2c_sensor_reads_full_rgbw_words():
     assert sensor.read_rgbw() == (0x1234, 0x2345, 0x3456, 0x4567)
 
 
+def test_failed_i2c_sensor_initialization_falls_back_to_analog_mode():
+    class BrokenI2C:
+        def scan(self):
+            return [0x10]
+
+        def writeto_mem(self, address, register, data):
+            raise OSError("not a VEML6040")
+
+    mode, sensor = mirror.initialize_i2c_sensor(BrokenI2C(), "i2c")
+
+    assert mode == "alg"
+    assert sensor is None
+
+
 def test_delta_symbols_show_three_accelerometer_axes():
     assert mirror.delta_symbols((0, 0, 0), (100, -100, 100)) == ">vJ"
     assert mirror.delta_symbols((0, 0, 0), (10, 10, 10)) == ""

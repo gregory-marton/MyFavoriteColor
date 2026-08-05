@@ -59,6 +59,15 @@ class I2CSensor:
         return tuple(values)
 
 
+def initialize_i2c_sensor(i2c, fallback_mode):
+    try:
+        if 0x10 not in i2c.scan():
+            return fallback_mode, None
+        return "i2c", I2CSensor(i2c)
+    except Exception:
+        return "alg", None
+
+
 def delta_symbols(previous, current, threshold=AXIS_THRESHOLD):
     if previous is None or current is None:
         return ""
@@ -186,13 +195,7 @@ def run(period_ms=250):
         "select": Pin(9, Pin.IN, Pin.PULL_UP),
     }
     usb = hasattr(sys, "stdin") and hasattr(sys, "stdout")
-    mode = port_mode(low, high)
-    try:
-        if 0x10 in i2c.scan():
-            mode = "i2c"
-            i2c_sensor = I2CSensor(i2c)
-    except Exception:
-        pass
+    mode, i2c_sensor = initialize_i2c_sensor(i2c, port_mode(low, high))
     sensor_is_attached = i2c_sensor is not None or sensor_is_attached
     previous_accel = None
     sequence = 0
