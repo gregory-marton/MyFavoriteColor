@@ -23,5 +23,7 @@ done
 
 "${MPREMOTE_BIN}" cp mirror_main.py :main.py
 
+"${MPREMOTE_BIN}" exec "import os; os.remove('smirror.py')"
+
 "${MPREMOTE_BIN}" reset
 echo "Mirror firmware deployed."
