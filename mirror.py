@@ -221,7 +221,7 @@ def run(period_ms=250):
 
         lines = screen_lines(
             True, usb, mode, sensor_is_attached, sensor_value,
-            pot, angle, button_values, delta, rgbw,
+            pot, angle, button_values, delta,
         )
         if display is not None:
             display.fill(0)
