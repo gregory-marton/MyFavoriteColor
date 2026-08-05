@@ -310,6 +310,26 @@ def test_soft_interrupt_leaves_device_at_repl_instead_of_rebooting(monkeypatch):
     assert writes == [b"\x03\x03"]
 
 
+def test_mirror_parser_resynchronizes_after_interleaved_device_writes():
+    class MirrorSerial:
+        def write(self, data):
+            pass
+
+        def flush(self):
+            pass
+
+        def readline(self):
+            return b"@SMIRROR ACCEL 1 2 -24@SMIRROR ACCEL 128 0 222\n"
+
+    bridge = HardwareBridge()
+    bridge._ser = MirrorSerial()
+
+    state = bridge.poll_hardware()
+
+    assert state["roll"] == pytest.approx(0.0)
+    assert state["pitch"] == pytest.approx(-30.0, abs=0.2)
+
+
 def _glyph(character):
     offset = (ord(character) - 32) * 8
     return FONT_DATA[offset : offset + 8]

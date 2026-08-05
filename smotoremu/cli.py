@@ -199,6 +199,15 @@ class HardwareBridge:
         return self._mirror_frame
 
     def _parse_mirror_line(self, line):
+        for payload in line.split("@SMIRROR ")[1:]:
+            try:
+                self._parse_mirror_segment("@SMIRROR " + payload)
+            except (TypeError, ValueError):
+                # Device callbacks can interleave writes. Discard only the
+                # damaged record and resynchronize at the next marker.
+                continue
+
+    def _parse_mirror_segment(self, line):
         parts = line.split(" ", 5)
         kind = parts[1] if len(parts) > 1 else ""
         self._mirror_active = True
