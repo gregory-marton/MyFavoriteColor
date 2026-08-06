@@ -17,6 +17,10 @@ while ! compgen -G "/dev/cu.usbmodem*" >/dev/null; do
 done
 echo "SmartMotor reconnected; uploading mirror firmware now."
 
+# boot.py may start the previous mirror immediately on reconnect. Use the
+# existing documented reset path to return it to REPL before raw-REPL copies.
+./bin/smotor reset --soft
+
 for mirror_file in boot.py mirror.py mirror_main.py adxl345.py ssd1306.py servo.py; do
     "${MPREMOTE_BIN}" cp "${mirror_file}" :
 done
