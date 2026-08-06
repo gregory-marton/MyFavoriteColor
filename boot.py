@@ -1,21 +1,5 @@
 # This file is executed on every boot (including wake-boot from deepsleep)
-# Co-authored-by: GPT-5, Aug 2026
-# Co-authored-by: GPT-5.6-Sol-high, Aug 2026
-
-# Always leave a short, interruptible escape window before importing hardware
-# drivers or starting an activity. Ctrl-C during this sleep returns to REPL.
-import time
-print("Boot pause: 2 seconds; press Ctrl-C for REPL")
-try:
-    time.sleep(2)
-except KeyboardInterrupt:
-    print("Boot stopped; REPL ready")
-    raise
-
-# Mirror mode is deliberately the whole device activity. The deployed main.py
-# is a no-op, so Ctrl-C from mirror.run() leaves a usable REPL.
-try:
-    import mirror
-    mirror.run()
-except KeyboardInterrupt:
-    print("Mirror stopped; REPL ready")
+#import esp
+#esp.osdebug(None)
+#import webrepl
+#webrepl.start()
