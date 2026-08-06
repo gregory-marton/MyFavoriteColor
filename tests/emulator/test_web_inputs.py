@@ -40,6 +40,7 @@ def browser_page(input_server):
         browser = p.chromium.launch()
         page = browser.new_page()
         page.goto(url)
+        page.click("#connect-btn")
         page.wait_for_function("document.querySelector('#connection-status').textContent === 'connected'")
         yield page
         browser.close()

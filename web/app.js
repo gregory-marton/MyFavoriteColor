@@ -13,6 +13,7 @@ const MAX_FRAMES = 200;
 
 const els = {
   status: document.querySelector("#connection-status"),
+  connect: document.querySelector("#connect-btn"),
   canvas: document.querySelector("#oled"),
   armCanvas: document.querySelector("#arm-canvas"),
   armAngle: document.querySelector("#arm-angle"),
@@ -32,14 +33,11 @@ const els = {
 };
 
 let socket = null;
-let reconnectTimer = null;
-let reconnectDelayMs = 250;
 let frames = [];
 let frameIndex = -1;
 let latestState = null;
 let isRecording = false;
 
-connect();
 const inputs = initInputs({
   send,
   getPot: () => (latestState ? latestState.pot : 2048),
@@ -49,6 +47,10 @@ initWorldEditor({ send });
 initClockAndTrace({ send });
 
 els.viewMode.addEventListener("change", () => setViewMode(els.viewMode.value));
+els.connect.addEventListener("click", () => {
+  if (socket && socket.readyState === WebSocket.OPEN) return;
+  connect();
+});
 els.copy.addEventListener("click", copyText);
 els.scrub.addEventListener("input", () => showFrame(parseInt(els.scrub.value, 10)));
 els.prev.addEventListener("click", () => stepFrame(-1));
@@ -67,25 +69,24 @@ document.addEventListener("keydown", (event) => {
 setViewMode(els.viewMode.value);
 
 function connect() {
-  clearTimeout(reconnectTimer);
   setStatus("connecting");
   socket = new WebSocket(webSocketUrl());
   socket.addEventListener("open", () => {
-    reconnectDelayMs = 250;
     setStatus("connected");
+    els.connect.textContent = "Connected";
+    els.connect.disabled = true;
   });
   socket.addEventListener("message", (event) => handleMessage(JSON.parse(event.data)));
-  socket.addEventListener("close", () => scheduleReconnect());
+  socket.addEventListener("close", () => {
+    setStatus("disconnected");
+    els.connect.textContent = "Connect";
+    els.connect.disabled = false;
+  });
   socket.addEventListener("error", () => {
     setStatus("disconnected");
-    socket.close();
+    els.connect.textContent = "Connect";
+    els.connect.disabled = false;
   });
-}
-
-function scheduleReconnect() {
-  setStatus(`disconnected; reconnecting in ${reconnectDelayMs} ms`);
-  reconnectTimer = setTimeout(connect, reconnectDelayMs);
-  reconnectDelayMs = Math.min(5000, reconnectDelayMs * 2);
 }
 
 function webSocketUrl() {
