@@ -63,8 +63,22 @@ def test_failed_i2c_sensor_initialization_falls_back_to_analog_mode():
 
 
 def test_delta_symbols_show_three_accelerometer_axes():
-    assert mirror.delta_symbols((0, 0, 0), (100, -100, 100)) == ">^J"
-    assert mirror.delta_symbols((0, 0, 0), (10, 10, 10)) == ""
+    assert mirror.delta_symbols((0, 0, 0), (100, -100, 100)) == "X^ Yv Z^"
+    assert mirror.delta_symbols((0, 0, 0), (0, 0, 0)) == "X  Y  Z "
+
+
+def test_delta_hysteresis_uses_1_1_percent_enter_and_0_9_percent_exit():
+    text, states = mirror.delta_display((0, 0, 0), (12, 0, 0))
+    assert text == "X^ Y  Z "
+    assert states[0] == "^"
+
+    text, states = mirror.delta_display((0, 0, 0), (10, 0, 0), states)
+    assert text == "X^ Y  Z "
+    assert states[0] == "^"
+
+    text, states = mirror.delta_display((0, 0, 0), (8, 0, 0), states)
+    assert text == "X~ Y  Z "
+    assert states[0] == "~"
 
 
 def test_screen_lines_show_power_usb_i2c_sensor_controls_and_motion():
@@ -77,7 +91,7 @@ def test_screen_lines_show_power_usb_i2c_sensor_controls_and_motion():
         pot=2048,
         angle=90,
         buttons={"up": 0, "down": 1, "select": 1},
-        delta=">^J",
+        delta="X^ Yv Z^",
     )
 
     assert lines == (
@@ -85,5 +99,5 @@ def test_screen_lines_show_power_usb_i2c_sensor_controls_and_motion():
         "MODE i2c SNS2.3k",
         "POT2.0k ANG90",
         "BTN UP",
-        "MOVE >^J",
+        "MOVE X^ Yv Z^",
     )

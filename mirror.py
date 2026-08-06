@@ -13,7 +13,12 @@ import sys
 
 BUTTONS = (("up", "UP"), ("down", "DOWN"), ("select", "SLCT"))
 MIRROR_BUTTON_PINS = {"up": 8, "down": 10, "select": 9}
-AXIS_THRESHOLD = 80
+# ADXL345 is configured for +/-2 g at 256 raw counts per g: 1024 counts
+# spans the full possible change. These are fixed presentation thresholds,
+# deliberately independent of a per-device noise calibration.
+AXIS_FULL_SCALE = 1024
+DELTA_ENTER = AXIS_FULL_SCALE * 0.011
+DELTA_EXIT = AXIS_FULL_SCALE * 0.009
 PORT_SPREAD_THRESHOLD = 2000
 
 
@@ -69,28 +74,33 @@ def initialize_i2c_sensor(i2c, fallback_mode):
         return "alg", None
 
 
-def delta_symbols(previous, current, threshold=AXIS_THRESHOLD):
-    # J/L describe Z-axis acceleration change. They are not yaw: an
-    # accelerometer cannot observe rotation about gravity while held flat.
+def delta_display(previous, current, previous_states=None):
+    """Return independent X/Y/Z delta glyphs and their hysteresis states."""
     if previous is None or current is None:
-        return ""
-    dx = int(current[0]) - int(previous[0])
-    dy = int(current[1]) - int(previous[1])
-    dz = int(current[2]) - int(previous[2])
-    symbols = []
-    if dx > threshold:
-        symbols.append(">")
-    elif dx < -threshold:
-        symbols.append("<")
-    if dy > threshold:
-        symbols.append("v")
-    elif dy < -threshold:
-        symbols.append("^")
-    if dz > threshold:
-        symbols.append("J")
-    elif dz < -threshold:
-        symbols.append("L")
-    return "".join(symbols)
+        return "X  Y  Z ", (" ", " ", " ")
+    if previous_states is None:
+        previous_states = (" ", " ", " ")
+    states = []
+    for old, new, prior in zip(previous, current, previous_states):
+        delta = int(new) - int(old)
+        if delta == 0:
+            state = " "
+        else:
+            direction = "^" if delta > 0 else "v"
+            magnitude = abs(delta)
+            if magnitude >= DELTA_ENTER:
+                state = direction
+            elif prior == direction and magnitude >= DELTA_EXIT:
+                state = direction
+            else:
+                state = "~"
+        states.append(state)
+    states = tuple(states)
+    return "X%s Y%s Z%s" % states, states
+
+
+def delta_symbols(previous, current):
+    return delta_display(previous, current)[0]
 
 
 def screen_lines(power, usb, port_mode, sensor_is_attached, sensor_value,
@@ -200,6 +210,7 @@ def run(period_ms=250):
     mode, i2c_sensor = initialize_i2c_sensor(i2c, port_mode(low, high))
     sensor_is_attached = i2c_sensor is not None or sensor_is_attached
     previous_accel = None
+    delta_states = (" ", " ", " ")
     sequence = 0
     _write("@SMIRROR READY 1\n")
 
@@ -219,7 +230,7 @@ def run(period_ms=250):
                 accel = accelerometer.read()
             except Exception:
                 accel = None
-        delta = delta_symbols(previous_accel, accel)
+        delta, delta_states = delta_display(previous_accel, accel, delta_states)
         if accel is not None:
             previous_accel = accel
             _write("@SMIRROR ACCEL %d %d %d\n" % accel)
