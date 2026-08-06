@@ -41,6 +41,12 @@
         <div id="arm-angle" class="readout">0.0°</div>
       </section>
 
+      <section id="sensor-panel" class="panel sensor">
+        <h2>Connected Sensor</h2>
+        <div id="sensor-attached" class="readout">Attached: Hardware (USB CDC)</div>
+        <div id="sensor-reading" class="readout">Reading: --</div>
+      </section>
+
       <section id="text-panel" class="panel">
         <h2>OLED text</h2>
         <pre id="screen-text"></pre>
@@ -73,7 +79,7 @@
     </section>
 
     <section id="tilt-panel" class="panel tilt">
-      <h2>Tilt &amp; Accelerometer</h2>
+      <h2>Gravity / Down Vector</h2>
       <canvas id="tilt-canvas" width="300" height="200"></canvas>
       <div id="tilt-readout" class="readout">Roll: 0.0° | Pitch: 0.0°</div>
     </section>

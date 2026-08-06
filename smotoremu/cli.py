@@ -136,6 +136,7 @@ class HardwareBridge:
             "mode": "alg",
             "sensor_attached": False,
             "sensor_value": None,
+            "accel": None,
         }
         self._poll_lock = threading.Lock()
         if self.link is None and self.port:
@@ -200,6 +201,7 @@ class HardwareBridge:
 
                     if "ax" in parsed and "ay" in parsed and "az" in parsed:
                         ax, ay, az = float(parsed["ax"]), float(parsed["ay"]), float(parsed["az"])
+                        res["accel"] = [ax, ay, az]
                         res["roll"] = math.degrees(math.atan2(ay, az)) if (ay or az) else 0.0
                         res["pitch"] = math.degrees(math.atan2(-ax, math.sqrt(ay*ay + az*az))) if (ax or ay or az) else 0.0
                     self._state.update(res)
@@ -246,6 +248,7 @@ class HardwareBridge:
             self._state["pitch"] = math.degrees(
                 math.atan2(-ax, math.sqrt(ay * ay + az * az))
             ) if (ax or ay or az) else 0.0
+            self._state["accel"] = [ax, ay, az]
         elif kind == "INPUT" and len(parts) >= 6:
             pot = int(parts[2])
             buttons = {
@@ -402,6 +405,7 @@ class HardwareServerSession:
             sensor_value=hw.get("sensor_value"),
             sensor_rgbw=hw.get("sensor_rgbw"),
             delta=hw.get("delta"),
+            accel=hw.get("accel"),
         )
 
     def frame_message(self):
