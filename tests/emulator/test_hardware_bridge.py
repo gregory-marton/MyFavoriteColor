@@ -310,7 +310,7 @@ def test_soft_interrupt_leaves_device_at_repl_instead_of_rebooting(monkeypatch):
     monkeypatch.setattr("smotoremu.cli.time.sleep", lambda seconds: None)
 
     assert reset_hardware(port="/dev/test-smartmotor", soft=True) == 0
-    assert writes == [b"\x03\x03"]
+    assert writes == [b"\x03" * 8]
 
 
 def test_mirror_parser_resynchronizes_after_interleaved_device_writes():
