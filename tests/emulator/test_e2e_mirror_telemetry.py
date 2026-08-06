@@ -56,12 +56,21 @@ def test_physical_smartmotor_mirror_telemetry(tmp_path):
     if not port:
         pytest.skip("No physical SmartMotor connected on USB serial")
 
+    # Skip if smotor bridge process is already running and holding serial port
+    import subprocess
+    try:
+        ps_out = subprocess.check_output(["ps", "-ef"]).decode()
+        if "smotor" in ps_out and "bridge" in ps_out:
+            pytest.skip("Bridge process is running and holding serial port")
+    except Exception:
+        pass
+
     state_file = tmp_path / "recording_state.json"
     rec_dir = tmp_path / "recordings"
 
     hb = HardwareBridge(port=port)
     if hb._ser is None:
-        pytest.skip(f"Could not open serial port {port} (busy or not connected)")
+        pytest.skip(f"Could not open serial port {port}")
 
     session = HardwareServerSession(hb, state_file=str(state_file), rec_dir=str(rec_dir))
 

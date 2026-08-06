@@ -109,13 +109,12 @@ def removeData(i):
         training_data.pop(i)
 
 def readSerial():
-    """
-    reads a single character over serial.
-
-    :return: returns the character which was read, otherwise returns None
-    """
     init_hardware()
-    return(sys.stdin.read(1) if serialPoll.poll(0) else None)
+    if serialPoll.poll(0):
+        line = sys.stdin.readline()
+        if line:
+            return line.strip()
+    return None
 
 # Handles explore mode of json dict 
 def explore(json_obj):
@@ -243,22 +242,24 @@ def onload():
     
     
 def handleJson(string):
-    json_obj = json.loads(string)
+    try:
+        json_obj = json.loads(string)
+    except Exception:
+        return
     # turn off play if on the Explore or Train page 
-    if(json_obj["st"] == "e" or json_obj["st"] == "t"):
+    if(json_obj.get("st") == "e" or json_obj.get("st") == "t"):
         global STATE
         STATE = 0
     # explore mode
-    if(json_obj["st"] == "e"):
+    if(json_obj.get("st") == "e"):
         explore(json_obj)
     # train mode 
-    elif(json_obj["st"] == "t"):
+    elif(json_obj.get("st") == "t"):
         train(json_obj)
     # play mode 
-    elif(json_obj["st"] == "p"):
+    elif(json_obj.get("st") == "p"):
         play(json_obj)
-        
-    elif(json_obj["st"] == "l"):
+    elif(json_obj.get("st") == "l"):
         onload()
 
 final_string = ''
@@ -315,36 +316,22 @@ def main(max_iterations=None):
         iterations += 1
 
         if run_manual == False:
-            message = readSerial()
-            if message == '{':
-                append = True
-
-            elif message == '}':
-                append = False
-                final_string += message
-                handleJson(final_string)
-                final_string = ""
-
-            if append:
-                if type(message) is str:
-                    final_string += message
-
-            if message == None and timer_begin == False:
-                starttime = time.time()
-                timer_begin = True
-            elif not message is None:
+            raw_line = readSerial()
+            if raw_line:
+                handleJson(raw_line)
                 if timer_begin:
                     display.fill(0)
                     display.text("Connected!", 25, 35, 1)
                     display.show()
                     timer_begin = False
-
-            if timer_begin == True and time.time() - starttime > 1:
+                starttime = time.time()
+            elif timer_begin == False and time.time() - starttime > 2.0:
                 display.fill(0)
                 display.text("Device", 30, 15, 1)
                 display.text("Not", 30, 35, 1)
                 display.text("Connected", 30, 55, 1)
                 display.show()
+                timer_begin = True
         else:
             display.fill(0)
             display.text("PLAY MODE", 30, 35, 1)

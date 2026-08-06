@@ -7,7 +7,7 @@ if [ "$PORT" = "emu" ]; then
     if [ ! -f "$PYTHON_BIN" ]; then
         PYTHON_BIN="python3"
     fi
-    esptool.py() {
+    esptool() {
         "$PYTHON_BIN" -m smotoremu.cli flash --vfs-dir "${SMOTOR_DIR:-$HOME/.smotor/default}"
     }
     mpremote() {
@@ -33,8 +33,12 @@ if [ ! -f "EngAI_MANIFEST.txt" ]; then
 fi
 
 if [ "FLASH" = "$1" ] || [ "1" = "$FLASH" ]; then
-    esptool.py --chip esp32c3 --port /dev/cu.usbmodem2101 erase-flash
-    esptool.py --chip esp32c3 --port /dev/cu.usbmodem2101 --baud 460800 write-flash -z 0x0 ESP32_GENERIC_C3-20250415-v1.25.0.bin
+    esptool --chip esp32c3 --port /dev/cu.usbmodem1101 erase-flash
+    esptool --chip esp32c3 --port /dev/cu.usbmodem1101 --baud 460800 write-flash -z 0x0 ESP32_GENERIC_C3-20250415-v1.25.0.bin
+fi
+
+if [ "$PORT" != "emu" ]; then
+    ./bin/smotor reset || true
 fi
 
 echo "🔌 Wiping existing files on the device..."
