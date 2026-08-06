@@ -514,7 +514,9 @@ def reset_hardware(port=None, soft=False):
             # A busy MicroPython loop can consume the first interrupt while
             # bytes are still queued. Send a short burst so the REPL gets a
             # reliable chance to stop the running program.
-            s.write(b"\x03" * 8)
+            for _ in range(8):
+                s.write(b"\x03")
+                time.sleep(0.05)
             time.sleep(0.3)
             s.close()
             print("✅ Interrupted (REPL).")
