@@ -95,8 +95,14 @@ def test_state_message_from_non_sample_event_is_none():
     assert _state_message_from_event({"type": "SCREEN", "t": 0}) is None
 
 
-def test_websocket_process_request_lets_replay_and_api_paths_through_or_serve_json():
+def test_websocket_process_request_lets_replay_and_api_paths_through_or_serve_json(tmp_path):
     assert websocket_process_request(None, SimpleNamespace(path="/replay?path=a/b")) is None
+
+    # Isolated from the real ./recordings -- a bench session may have
+    # genuinely populated it, which must not make this test's expectations
+    # depend on what's sitting in the repo checkout at test time.
+    from smotoremu import server as server_module
+    server_module.RECORDINGS_ROOT = str(tmp_path)
 
     response = websocket_process_request(None, SimpleNamespace(path="/api/recordings"))
     assert response.status_code == 200
