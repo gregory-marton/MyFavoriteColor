@@ -127,6 +127,21 @@
       </div>
     </section>
 
+    <section id="recordings-panel" class="panel recordings">
+      <h2>Recordings Replay</h2>
+      <div class="control-row">
+        <label>
+          Recording:
+          <select id="replay-select">
+            <option value="">-- choose a recording --</option>
+          </select>
+        </label>
+        <button id="replay-btn" type="button">▶ Replay</button>
+        <button id="replay-refresh-btn" type="button">↻ Refresh list</button>
+        <span id="replay-status" class="readout"></span>
+      </div>
+    </section>
+
     <section id="trace-panel" class="panel trace">
       <h2>Trace &amp; Logs</h2>
       <div class="control-row">
@@ -138,6 +153,7 @@
             <option value="button">Button Events</option>
             <option value="frame">Frame Events</option>
             <option value="i2c">I2C Events</option>
+            <option value="FULL_SAMPLE">Sensor Samples (replay)</option>
           </select>
         </label>
       </div>

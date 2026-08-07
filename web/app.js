@@ -30,9 +30,14 @@ const els = {
   record: document.querySelector("#record-btn"),
   sensorAttached: document.querySelector("#sensor-attached"),
   sensorReading: document.querySelector("#sensor-reading"),
+  replaySelect: document.querySelector("#replay-select"),
+  replayBtn: document.querySelector("#replay-btn"),
+  replayRefreshBtn: document.querySelector("#replay-refresh-btn"),
+  replayStatus: document.querySelector("#replay-status"),
 };
 
 let socket = null;
+let replaySocket = null;
 let frames = [];
 let frameIndex = -1;
 let latestState = null;
@@ -67,6 +72,51 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "]") stepFrame(1);
 });
 setViewMode(els.viewMode.value);
+
+if (els.replaySelect) {
+  loadRecordingsList();
+  if (els.replayRefreshBtn) els.replayRefreshBtn.addEventListener("click", loadRecordingsList);
+  if (els.replayBtn) els.replayBtn.addEventListener("click", startReplay);
+}
+
+function loadRecordingsList() {
+  fetch("/api/recordings")
+    .then((response) => response.json())
+    .then((paths) => {
+      const previous = els.replaySelect.value;
+      els.replaySelect.innerHTML = '<option value="">-- choose a recording --</option>';
+      paths.forEach((path) => {
+        const option = document.createElement("option");
+        option.value = path;
+        option.textContent = path;
+        els.replaySelect.appendChild(option);
+      });
+      els.replaySelect.value = previous;
+    })
+    .catch(() => {
+      if (els.replayStatus) els.replayStatus.textContent = "could not list recordings";
+    });
+}
+
+function startReplay() {
+  const path = els.replaySelect.value;
+  if (!path) return;
+  if (replaySocket) replaySocket.close();
+
+  const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+  replaySocket = new WebSocket(`${scheme}//${window.location.host}/replay?path=${encodeURIComponent(path)}`);
+  if (els.replayStatus) els.replayStatus.textContent = `replaying ${path}...`;
+  if (window.__pushTraceLog) {
+    window.__pushTraceLog({ kind: "log", t: 0, text: `-- replaying ${path} --` });
+  }
+  replaySocket.addEventListener("message", (event) => handleMessage(JSON.parse(event.data)));
+  replaySocket.addEventListener("close", () => {
+    if (els.replayStatus) els.replayStatus.textContent = `done: ${path}`;
+  });
+  replaySocket.addEventListener("error", () => {
+    if (els.replayStatus) els.replayStatus.textContent = `replay error: ${path}`;
+  });
+}
 
 function connect() {
   setStatus("connecting");
@@ -107,14 +157,41 @@ function handleMessage(message) {
   } else if (message.type === "trace") {
     if (Array.isArray(message.events)) {
       message.events.forEach((ev) => {
-        if (window.__pushTraceLog) window.__pushTraceLog(ev);
+        if (window.__pushTraceLog) {
+          window.__pushTraceLog({ ...ev, kind: ev.type, text: formatTraceEvent(ev) });
+        }
       });
     }
   } else if (message.type === "error") {
     setStatus(`error: ${message.message}`);
+    if (els.replayStatus && message.code === "not_found") els.replayStatus.textContent = message.message;
   } else if (message.type === "exited" && message.error) {
     setStatus(`exited: ${message.error}`);
   }
+}
+
+// Readable one-liners for the trace panel -- this is what makes a
+// recording's sample-to-sample jitter visible while replaying: every
+// FULL_SAMPLE/SUSTAIN_SAMPLE tick scrolls by as a line of real numbers, not
+// a JSON blob you'd have to parse by eye.
+function formatTraceEvent(ev) {
+  const t = ev.t != null ? `t=${ev.t}ms ` : "";
+  if (ev.type === "FULL_SAMPLE" || ev.type === "SUSTAIN_SAMPLE" || ev.type === "START_SAMPLE") {
+    const accel = ev.accel ? ev.accel.join(",") : "--";
+    const battery = ev.battery_v != null ? `${ev.battery_v.toFixed(3)}V` : `${ev.batt_raw}`;
+    const parts = [`${t}pot=${ev.pot}`, `batt=${battery}`, `accel=${accel}`];
+    if (ev.type === "FULL_SAMPLE") {
+      parts.push(`angle=${ev.angle}`, `sensor=${ev.sensor_value}`, `port=${ev.port_mode}`);
+    }
+    return parts.join(" ");
+  }
+  if (ev.type === "SCREEN") return `${t}SCREEN ${(ev.lines || []).join(" | ")}`;
+  if (ev.type === "SERVO") return `${t}SERVO angle=${ev.angle}`;
+  if (ev.type === "BOOT") return `${t}BOOT #${ev.boot_num} (${ev.reset_cause_name})`;
+  if (ev.type === "REP" || ev.type === "STAGE_DONE" || ev.type === "TIMEOUT") {
+    return `${t}${ev.type} stage=${ev.stage}`;
+  }
+  return `${t}${ev.type || "event"} ${JSON.stringify(ev)}`;
 }
 
 function updateState(state) {
