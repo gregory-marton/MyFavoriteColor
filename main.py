@@ -13,10 +13,24 @@ def btn_up():
 def btn_select():
     return not switch_select.value()
 
+def healthcheck_pending():
+    """A healthcheck_state.txt marker means either a run is mid-sequence,
+    waiting out a deliberate reboot (healthcheck.py's OFFON stage), or
+    healthcheck_host.py remote-started one -- either way, boot straight
+    back into it regardless of what buttons are held (hands are often busy
+    plugging in USB right when this matters)."""
+    try:
+        open("healthcheck_state.txt").close()
+        return True
+    except OSError:
+        return False
+
 def choose_activity(devices):
-    if btn_down() and btn_up() and btn_select():
-        return "mirror"
-    elif btn_down() and btn_select():
+    if healthcheck_pending():
+        return "healthcheck"
+    elif btn_down() and btn_up() and btn_select():
+        return "healthcheck"
+    elif btn_down() and btn_up():
         return "webconnect"
     elif 0x10 in devices:
         return "myfavcolor"
@@ -37,9 +51,9 @@ def main():
     elif activity == "webconnect":
         import webconnect
         webconnect.main()
-    elif activity == "mirror":
-        import mirror
-        mirror.main()
+    elif activity == "healthcheck":
+        import healthcheck
+        healthcheck.main()
     else:
         pass
 

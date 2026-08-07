@@ -2,8 +2,11 @@ adxl345.py
 boot.py
 data.py
 files.py
+healthcheck.py
+healthcheck_logic.py
 icons.py
 main.py
+mirror.py
 myfavcolor.py
 prefs.py
 sensors.py
