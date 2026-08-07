@@ -51,14 +51,13 @@ import servo
 import mirror
 
 from healthcheck_logic import (
+    BUTTON_NAMES,
     compute_battery_verdict,
     compute_white_balance_milli,
     detect_button_press,
     evaluate_accel_motion,
-    evaluate_button_prompt,
     format_full_sample_line,
     percentile,
-    summarize_scalar_samples,
 )
 
 LOG_PATH = "healthcheck_log.txt"
@@ -72,27 +71,46 @@ STAGES = [
     "SUSTAIN",
     "OFFON",
 ]
+# Only SELECT/UP/DOWN still count discrete reps automatically -- they're
+# the raw hardware ground-truth check. POT/FLIP/LIGHT_* switched to
+# run_confirm_stage (human says "done"/"can't"), since automatic threshold
+# detection proved unreliable on the bench; "at least 3x" for those is now
+# an instruction in the prompt text, not an enforced count.
 TARGET_REPS = {
-    "POT": 3, "SELECT": 3, "UP": 3, "DOWN": 3, "FLIP": 3,
-    "ACCEL_FLAT1": 1, "ACCEL_FIG8": 1, "ACCEL_FLAT2": 1,
-    "LIGHT_DARK": 1, "LIGHT_BRIGHT": 1, "COLOR_WHITE": 1,
+    "SELECT": 3, "UP": 3, "DOWN": 3,
     "OFFON": 1,
 }
 STAGE_TIMEOUT_MS = {
-    "DISCONNECT_PROMPT": 60000,
-    "POT": 60000, "SELECT": 30000, "UP": 30000, "DOWN": 30000, "FLIP": 30000,
-    "ACCEL_FLAT1": 12000, "ACCEL_FIG8": 25000, "ACCEL_FLAT2": 12000,
-    "LIGHT_DARK": 10000, "LIGHT_BRIGHT": 10000, "COLOR_WHITE": 12000,
+    # Bumped well past what a relaxed human actually needs, per bench
+    # feedback: these were tight enough to feel like pressure, not a safety
+    # backstop. A broken control still gets caught -- it just isn't rushed.
+    "DISCONNECT_PROMPT": 180000,
+    "POT": 180000, "SELECT": 90000, "UP": 90000, "DOWN": 90000, "FLIP": 180000,
+    "ACCEL_FLAT1": 20000, "ACCEL_FIG8": 40000, "ACCEL_FLAT2": 20000,
+    "LIGHT_DARK": 60000, "LIGHT_BRIGHT": 60000, "COLOR_WHITE": 60000,
     "SUSTAIN": 90000,
     "OFFON": 60000,
 }
 
-POT_LOW_THRESH = 300
-POT_HIGH_THRESH = 3800
-PORT_SPREAD_THRESHOLD = 2000
-SKIP_WINDOW_MS = 2500  # how long a LIGHT/COLOR_WHITE stage listens for a skip press
+# button_pins is built as (up, down, select) everywhere in this file, but
+# which physical pin is "up" vs "down" disagrees across this codebase itself
+# (main.py/standalone.py/myfavcolor.py use one mapping, webconnect.py/
+# smcheck/this file use the other) -- so it is NOT settled which is
+# correct, and hardcoding a "fix" here would just be a third guess. These
+# are the raw pin numbers in the same order as button_pins, logged
+# alongside every observed press (see run_button_stage) rather than trusted
+# blindly, so there's real per-unit ground truth to calibrate from later
+# instead of another assumption.
+BUTTON_PIN_NUMBERS = (10, 8, 9)  # matches (up, down, select)
+
 FULL_SAMPLE_PERIOD_MS = 500
-VERDICT_DISPLAY_MS = 4000  # bounded -- see show_verdict_and_finish()
+VERDICT_DISPLAY_MS = 20000  # bounded -- see show_verdict_and_finish()
+# The verdict/telemetry screen alternates, but not evenly: mostly telemetry,
+# the verdict as a brief periodic reminder (~10% of the time), per bench
+# feedback that a 50/50 flip felt like it showed the verdict "half the
+# time."
+VERDICT_DWELL_MS = 1500
+TELEMETRY_DWELL_MS = 13500
 VEML6040_ADDR = 0x10
 VEML6040_R = 0x08
 VEML6040_G = 0x09
@@ -149,9 +167,15 @@ class Display:
         self.log = log
 
     def show(self, *lines):
+        # 12px/row is the normal, readable spacing (fits 5 lines in the
+        # 64px-tall display, used everywhere else in this file); tighten
+        # only when more lines than that are actually passed, so a 6-line
+        # screen (e.g. the live readout with an elapsed-time row) still
+        # fits instead of running off the bottom.
+        row_height = min(12, 64 // max(1, len(lines)))
         self.d.fill(0)
         for row, text in enumerate(lines):
-            self.d.text(text, 4, 8 + row * 12, 1)
+            self.d.text(text, 4, 8 + row * row_height, 1)
         self.d.show()
         if self.log is not None:
             _log(self.log, "SCREEN t=%d lines=%s" % (time.ticks_ms(), "|".join(lines)))
@@ -202,13 +226,20 @@ def shake_head(s):
 def run_disconnect_prompt(display, battery, log):
     """Returns calibrated V_rest (microvolts) once disconnect is confirmed,
     or None on timeout. No continuous sweeper yet -- shake_head uses the
-    servo directly, a momentary gesture, not sustained load."""
+    servo directly, a momentary gesture, not sustained load.
+
+    There's no software way to read the physical battery-power switch (~)
+    -- it isn't wired to a readable pin anywhere in this codebase, so this
+    can only remind, not detect. Worth saying up front: unplugging USB
+    while that switch is off cuts power entirely, which is confusing on
+    the bench (looks like the board died, not like "please turn on
+    battery power first")."""
     from servo import Servo
     s = Servo(Pin(2))
     t0 = time.ticks_ms()
     while time.ticks_diff(time.ticks_ms(), t0) < STAGE_TIMEOUT_MS["DISCONNECT_PROMPT"]:
         if is_probably_on_usb(battery):
-            display.show("still on USB --", "unplug it now")
+            display.show("power switch ON?", "still on USB --", "then unplug")
             shake_head(s)
         else:
             display.show("thanks! continuing", "in a moment...")
@@ -223,39 +254,61 @@ def run_disconnect_prompt(display, battery, log):
     return None
 
 
-def run_pot_stage(display, pot, log, sweeper):
-    label = "POT"
-    reached_low = reached_high = False
-    reps = 0
+def run_confirm_stage(display, label, button_pins, log, sweeper, sample_fn, format_lines_fn, timeout_ms):
+    """Shows a live sensor readout and waits for the human to say so,
+    rather than an automatic threshold trying to guess when a control was
+    exercised enough -- the i2c-toggle's spread-threshold auto-detection
+    proved unreliable on the bench (it could register reps from noise
+    before anyone touched the switch). SELECT means "I'm done doing that";
+    either UP or DOWN means "I can't seem to do it" -- deliberately not
+    distinguished from each other, since which pin means which isn't
+    settled (see BUTTON_PIN_NUMBERS)."""
+    prev = tuple(pin.value() for pin in button_pins)
     t0 = time.ticks_ms()
-    last_shown_v = None
-    while reps < TARGET_REPS[label]:
+    last_sample = time.ticks_ms() - 200
+    while time.ticks_diff(time.ticks_ms(), t0) < timeout_ms:
         sweeper.step()
-        if time.ticks_diff(time.ticks_ms(), t0) > STAGE_TIMEOUT_MS[label]:
-            _log(log, "TIMEOUT stage=%s reps=%d" % (label, reps))
+        now = time.ticks_ms()
+        if time.ticks_diff(now, last_sample) >= 200:
+            try:
+                value = sample_fn()
+                display.show(*format_lines_fn(value))
+                _log(log, "LIVE_VALUE stage=%s t=%d value=%s" % (label, now, value))
+            except Exception as e:
+                _log(log, "ERROR stage=%s: %s" % (label, e))
+            last_sample = now
+        values = tuple(pin.value() for pin in button_pins)
+        observed = detect_button_press(prev, values)
+        prev = values
+        if observed == "SELECT":
+            _log(log, "STAGE_DONE stage=%s reason=user_confirmed_done" % label)
+            return True
+        if observed in ("UP", "DOWN"):
+            _log(log, "SKIP stage=%s reason=user_cant_do_it button=%s" % (label, observed))
             return False
-        try:
-            v = pot.read()
-            if v <= POT_LOW_THRESH:
-                reached_low = True
-            if v >= POT_HIGH_THRESH:
-                reached_high = True
-            if reached_low and reached_high:
-                reps += 1
-                reached_low = reached_high = False
-                _log(log, "REP stage=%s rep=%d" % (label, reps))
-            if last_shown_v is None or abs(v - last_shown_v) > 20:
-                display.show("%s x%d  v=%d" % (label, TARGET_REPS[label] - reps, v), "sweep fully",
-                             "lo:%s hi:%s" % (reached_low, reached_high))
-                last_shown_v = v
-        except Exception as e:
-            _log(log, "ERROR stage=%s: %s" % (label, e))
         time.sleep_ms(20)
-    _log(log, "STAGE_DONE stage=%s" % label)
-    return True
+    _log(log, "TIMEOUT stage=%s" % label)
+    return False
 
 
-def run_button_stage(display, label, pins, log, sweeper):
+def run_pot_stage(display, pot, button_pins, log, sweeper):
+    label = "POT"
+    return run_confirm_stage(
+        display, label, button_pins, log, sweeper,
+        sample_fn=pot.read,
+        format_lines_fn=lambda v: ("POT v=%d" % v, "sweep fully >=3x", "SELECT=done UP/DN=can't"),
+        timeout_ms=STAGE_TIMEOUT_MS[label],
+    )
+
+
+def run_button_stage(display, label, pins, log, sweeper, pin_numbers=BUTTON_PIN_NUMBERS):
+    """Counts any button edge as a rep, regardless of which physical button
+    it turns out to be -- see BUTTON_PIN_NUMBERS' note on why this file
+    can't declare a "correct" up/down mapping. Logs both the software name
+    and the raw pin for whatever fired, so a human is asked to press the
+    physically-labeled button and the log becomes the ground truth for a
+    future calibration pass, instead of the code insisting on a guess and
+    penalizing a "wrong" answer that might not be wrong at all."""
     expected = label
     prev = tuple(pin.value() for pin in pins)
     reps = 0
@@ -269,47 +322,34 @@ def run_button_stage(display, label, pins, log, sweeper):
         values = tuple(pin.value() for pin in pins)
         observed = detect_button_press(prev, values)
         if observed is not None:
-            event = evaluate_button_prompt(expected, observed)
             reps += 1
-            if event["status"] == "match":
-                _log(log, "REP stage=%s rep=%d observed=%s" % (label, reps, observed))
-                display.show("%s x%d" % (label, TARGET_REPS[label] - reps), "press %s" % expected)
-            else:
-                _log(log, "BUTTON_MISMATCH stage=%s rep=%d expected=%s observed=%s" % (
-                    label, reps, expected, observed
-                ))
-                display.show("expected %s" % expected, "saw %s" % observed, "%s x%d" % (label, TARGET_REPS[label] - reps))
-                time.sleep_ms(500)
+            observed_pin = pin_numbers[BUTTON_NAMES.index(observed)]
+            _log(log, "REP stage=%s rep=%d expected=%s observed_name=%s observed_pin=%d" % (
+                label, reps, expected, observed, observed_pin
+            ))
+            display.show("%s x%d" % (label, TARGET_REPS[label] - reps), "press %s" % expected)
         prev = values
         time.sleep_ms(20)
     _log(log, "STAGE_DONE stage=%s" % label)
     return True
 
 
-def run_flip_stage(display, log, sweeper):
+def _flip_state():
+    low, high = _probe_port_levels()
+    return {"low": low, "high": high, "mode": mirror.port_mode(low, high)}
+
+
+def run_flip_stage(display, button_pins, log, sweeper):
     label = "FLIP"
-    reps = 0
-    prev_state = None
-    display.show("%s x%d" % (label, TARGET_REPS[label] - reps), "toggle the", "analog/i2c switch")
-    t0 = time.ticks_ms()
-    while reps < TARGET_REPS[label]:
-        sweeper.step()
-        if time.ticks_diff(time.ticks_ms(), t0) > STAGE_TIMEOUT_MS[label]:
-            _log(log, "TIMEOUT stage=%s reps=%d" % (label, reps))
-            return False
-        try:
-            low, high = _probe_port_levels()
-            state = (high - low) > PORT_SPREAD_THRESHOLD
-            if prev_state is not None and state != prev_state:
-                reps += 1
-                _log(log, "REP stage=%s rep=%d" % (label, reps))
-                display.show("%s x%d" % (label, TARGET_REPS[label] - reps), "toggle the", "analog/i2c switch")
-            prev_state = state
-        except Exception as e:
-            _log(log, "ERROR stage=%s: %s" % (label, e))
-        time.sleep_ms(150)
-    _log(log, "STAGE_DONE stage=%s" % label)
-    return True
+    return run_confirm_stage(
+        display, label, button_pins, log, sweeper,
+        sample_fn=_flip_state,
+        format_lines_fn=lambda s: (
+            "FLIP mode=%s" % s["mode"], "lo=%d hi=%d" % (s["low"], s["high"]),
+            "toggle it >=3x", "SELECT=done UP/DN=can't",
+        ),
+        timeout_ms=STAGE_TIMEOUT_MS[label],
+    )
 
 
 def _probe_port_levels():
@@ -377,53 +417,20 @@ def run_accel_stage(display, accel, log, sweeper, label):
     return result["status"] == "pass"
 
 
-def _wait_for_skip(display, log, label, pins, skip_names, prompt_lines):
-    """Watches for a press on any of skip_names for SKIP_WINDOW_MS. Returns
-    True if skipped (already logged), False if the window elapsed clean."""
-    display.show(*prompt_lines)
-    prev = tuple(pin.value() for pin in pins)
-    t0 = time.ticks_ms()
-    while time.ticks_diff(time.ticks_ms(), t0) < SKIP_WINDOW_MS:
-        values = tuple(pin.value() for pin in pins)
-        observed = detect_button_press(prev, values)
-        if observed in skip_names:
-            _log(log, "SKIP stage=%s reason=user_skip button=%s" % (label, observed))
-            return True
-        prev = values
-        time.sleep_ms(20)
-    return False
-
-
-def run_light_stage(display, log, sweeper, label, prompt, button_pins):
-    if _wait_for_skip(display, log, label, button_pins, ("UP", "DOWN"),
-                       (label, prompt, "UP/DOWN to skip")):
-        time.sleep_ms(300)
-        return False
-
+def run_light_stage(display, button_pins, log, sweeper, label, prompt):
+    """Live raw ADC readout; SELECT confirms it looks right, UP/DOWN says
+    "no light sensor here / can't tell" -- same confirm pattern as POT and
+    FLIP, replacing the old fixed-duration sample-then-summarize approach
+    (which gave no way to bail early on a unit with no light sensor beyond
+    a short, easy-to-miss skip window)."""
     light = ADC(Pin(5))
     light.atten(ADC.ATTN_11DB)
-    display.show(label, prompt, "hold still")
-    samples = []
-    t0 = time.ticks_ms()
-    last_sample = time.ticks_ms() - 200
-    while time.ticks_diff(time.ticks_ms(), t0) < STAGE_TIMEOUT_MS[label]:
-        sweeper.step()
-        now = time.ticks_ms()
-        if time.ticks_diff(now, last_sample) >= 200:
-            try:
-                value = light.read()
-                samples.append(value)
-                _log(log, "LIGHT_SAMPLE stage=%s t=%d raw=%d" % (label, now, value))
-            except Exception as e:
-                _log(log, "ERROR stage=%s: %s" % (label, e))
-            last_sample = now
-        time.sleep_ms(20)
-    summary = summarize_scalar_samples(samples)
-    _log(log, "LIGHT_SUMMARY stage=%s n=%d min=%s max=%s mean=%s" % (
-        label, summary["n_samples"], summary["min"], summary["max"], summary["mean"]
-    ))
-    _log(log, "STAGE_DONE stage=%s" % label)
-    return True
+    return run_confirm_stage(
+        display, label, button_pins, log, sweeper,
+        sample_fn=light.read,
+        format_lines_fn=lambda v: (label, "raw=%d" % v, prompt, "SELECT=done UP/DN=can't"),
+        timeout_ms=STAGE_TIMEOUT_MS[label],
+    )
 
 
 def _read_word_le(i2c, addr, reg):
@@ -439,7 +446,7 @@ def run_color_white_stage(display, i2c, log, sweeper, button_pins):
         time.sleep_ms(1000)
         return False
 
-    display.show(label, "point at white", "SELECT=lock UP=skip")
+    display.show(label, "point at white", "SELECT=lock", "UP/DN=can't")
     prev = tuple(pin.value() for pin in button_pins)
     t0 = time.ticks_ms()
     locked = False
@@ -448,8 +455,8 @@ def run_color_white_stage(display, i2c, log, sweeper, button_pins):
         values = tuple(pin.value() for pin in button_pins)
         observed = detect_button_press(prev, values)
         prev = values
-        if observed == "UP":
-            _log(log, "SKIP stage=%s reason=user_skip button=UP" % label)
+        if observed in ("UP", "DOWN"):
+            _log(log, "SKIP stage=%s reason=user_cant_do_it button=%s" % (label, observed))
             return False
         if observed == "SELECT":
             locked = True
@@ -591,7 +598,8 @@ def show_verdict_and_finish(display, pot, battery, accel, i2c, i2c_sensor, butto
                 delta, delta_states = mirror.delta_display(previous_accel, state["accel"], delta_states)
                 if state["accel"] is not None:
                     previous_accel = state["accel"]
-                if time.ticks_diff(now, last_screen_flip) >= 2000:
+                dwell = VERDICT_DWELL_MS if showing_verdict else TELEMETRY_DWELL_MS
+                if time.ticks_diff(now, last_screen_flip) >= dwell:
                     showing_verdict = not showing_verdict
                     last_screen_flip = now
                 if showing_verdict:
@@ -599,10 +607,15 @@ def show_verdict_and_finish(display, pot, battery, accel, i2c, i2c_sensor, butto
                 else:
                     buttons = {"up": state["buttons"][0], "down": state["buttons"][1], "select": state["buttons"][2]}
                     lines = mirror.screen_lines(
-                        True, False, state["port_mode"], state["sensor_attached"],
+                        state["batt_uv"] / 1e6, False, state["port_mode"], state["sensor_attached"],
                         state["sensor_value"] if state["sensor_value"] is not None else -1,
                         state["pot"], state["angle"], buttons, delta,
                     )
+                    elapsed_s = time.ticks_diff(now, t0) // 1000
+                    # No RTC/wall clock on this board -- this is elapsed
+                    # time in *this* run, not a real time-of-day, labeled
+                    # as such rather than pretending otherwise.
+                    lines = lines + ("rec %02d:%02d" % (elapsed_s // 60, elapsed_s % 60),)
                     display.show(*lines)
             except Exception as e:
                 _log(log, "ERROR stage=VERDICT: %s" % e)
@@ -681,17 +694,17 @@ def main():
                 rest_uv = run_disconnect_prompt(display, battery, log)
                 sweeper = ServoSweeper(servo.Servo(Pin(2)), log=log)
             elif stage == "POT":
-                run_pot_stage(display, pot, log, sweeper)
+                run_pot_stage(display, pot, button_pins, log, sweeper)
             elif stage in ("SELECT", "UP", "DOWN"):
                 run_button_stage(display, stage, button_pins, log, sweeper)
             elif stage == "FLIP":
-                run_flip_stage(display, log, sweeper)
+                run_flip_stage(display, button_pins, log, sweeper)
             elif stage in ("ACCEL_FLAT1", "ACCEL_FIG8", "ACCEL_FLAT2"):
                 run_accel_stage(display, accel, log, sweeper, stage)
             elif stage == "LIGHT_DARK":
-                run_light_stage(display, log, sweeper, stage, "cover light", button_pins)
+                run_light_stage(display, button_pins, log, sweeper, stage, "cover light")
             elif stage == "LIGHT_BRIGHT":
-                run_light_stage(display, log, sweeper, stage, "point at light", button_pins)
+                run_light_stage(display, button_pins, log, sweeper, stage, "point at light")
             elif stage == "COLOR_WHITE":
                 run_color_white_stage(display, i2c, log, sweeper, button_pins)
             elif stage == "SUSTAIN":
