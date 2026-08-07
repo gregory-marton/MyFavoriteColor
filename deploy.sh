@@ -40,8 +40,22 @@ if [ ! -f "EngAI_MANIFEST.txt" ]; then
     exit 1
 fi
 
-FLASH_PORT="${PORT:-/dev/cu.usbmodem1101}"
 if [ "FLASH" = "$1" ] || [ "1" = "$FLASH" ]; then
+    FLASH_PORT="$PORT"
+    if [ -z "$FLASH_PORT" ]; then
+        # Discovered, not assumed -- a board's actual port number (e.g.
+        # /dev/cu.usbmodem101) depends on enumeration order/OS and isn't
+        # fixed; the earlier hardcoded /dev/cu.usbmodem1101 default was
+        # already wrong for the board on the bench today. Same candidate
+        # pattern as healthcheck_host.py's filter_candidate_ports().
+        FLASH_PORT=$(command mpremote connect list 2>/dev/null \
+            | awk '{print $1}' | grep -E 'usbmodem|usbserial|wchusbserial|ttyACM|ttyUSB' | head -1)
+    fi
+    if [ -z "$FLASH_PORT" ]; then
+        echo "❌ Error: no SmartMotor-looking serial port found. Set PORT=/dev/cu.usbmodemXXXX explicitly." >&2
+        exit 1
+    fi
+    echo "⚡ Flashing $FLASH_PORT"
     esptool --chip esp32c3 --port "$FLASH_PORT" erase-flash
     esptool --chip esp32c3 --port "$FLASH_PORT" --baud 460800 write-flash -z 0x0 ESP32_GENERIC_C3-20250415-v1.25.0.bin
 fi
