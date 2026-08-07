@@ -55,6 +55,20 @@ LOG_FILENAME = "healthcheck_log.txt"
 # index reaches once healthcheck.py's OFFON stage writes its marker.
 NUM_STAGES = 14
 
+# How long to let a just-reset board's native USB re-enumerate before the
+# next port scan. Confirmed on the bench: without this, a poll landing
+# during that brief disappear/reappear blip reads the port as freshly
+# "newly appeared" again and re-triggers handle_new_port -- interrupting
+# and resetting a device that was making genuine progress, sometimes more
+# than once in a row.
+RESET_SETTLE_S = 2.0
+
+
+def prompt_for_notes():
+    # Bare input() shows no prompt text at all -- confirmed on the bench to
+    # look indistinguishable from hung.
+    return input("notes for this recording (Enter to skip): ")
+
 STAGE_ORDER = (
     "DISCONNECT_PROMPT",
     "POT", "SELECT", "UP", "DOWN", "FLIP",
@@ -241,7 +255,7 @@ def render_summary(summary):
 # ---------------------------------------------------------------------------
 
 def handle_new_port(mpremote, port, recordings_root=DEFAULT_RECORDINGS_ROOT,
-                     notes_fn=input, auto_start=True, deploy_first=False, verbose=print):
+                     notes_fn=prompt_for_notes, auto_start=True, deploy_first=False, verbose=print):
     marker_text = mpremote.read_file(port, STATE_FILENAME)
     log_text_probe = mpremote.read_file(port, LOG_FILENAME)
     action = decide_action(marker_text, log_exists=log_text_probe is not None)
@@ -260,11 +274,13 @@ def handle_new_port(mpremote, port, recordings_root=DEFAULT_RECORDINGS_ROOT,
         else:
             mpremote.write_file(port, STATE_FILENAME, "0|None|None")
             mpremote.reset(port)
+        time.sleep(RESET_SETTLE_S)
         verbose(f"{port}: remote-started a fresh healthcheck run")
         return {"action": "start", "port": port}
 
     if action == "resume":
         mpremote.reset(port)
+        time.sleep(RESET_SETTLE_S)
         verbose(f"{port}: unit was mid-run (marker={marker_text!r}) -- reset to resume from where it left off")
         return {"action": "resume", "port": port}
 
@@ -316,6 +332,7 @@ def handle_new_port(mpremote, port, recordings_root=DEFAULT_RECORDINGS_ROOT,
     mpremote.remove_file(port, LOG_FILENAME)
     mpremote.remove_file(port, STATE_FILENAME)
     mpremote.reset_with_message(port, ("retrieved!", "ready to reboot"))
+    time.sleep(RESET_SETTLE_S)
 
     verbose(f"{port}: cleared {LOG_FILENAME} and {STATE_FILENAME}, rebooting to normal operation")
     verbose(f"{port}: saved to {run_dir}")
@@ -429,7 +446,7 @@ class MPRemote:
 # ---------------------------------------------------------------------------
 
 def watch(mpremote, recordings_root=DEFAULT_RECORDINGS_ROOT, poll_interval_s=3.0,
-          auto_start=True, deploy_first=False, notes_fn=input, max_iterations=None, verbose=print):
+          auto_start=True, deploy_first=False, notes_fn=prompt_for_notes, max_iterations=None, verbose=print):
     known = set()
     iterations = 0
     while max_iterations is None or iterations < max_iterations:
@@ -448,7 +465,7 @@ def watch(mpremote, recordings_root=DEFAULT_RECORDINGS_ROOT, poll_interval_s=3.0
 
 
 def run_once(mpremote, recordings_root=DEFAULT_RECORDINGS_ROOT, poll_interval_s=3.0,
-             auto_start=True, deploy_first=False, notes_fn=input, max_wait_s=1800,
+             auto_start=True, deploy_first=False, notes_fn=prompt_for_notes, max_wait_s=1800,
              verbose=print):
     """Acts on whatever's connected, then -- unlike watch() -- keeps
     polling rather than exiting, until every unit it started or resumed

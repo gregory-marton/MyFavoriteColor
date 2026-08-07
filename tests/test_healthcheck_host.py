@@ -8,7 +8,17 @@ Co-authored-by: Claude Sonnet 5, Aug 2026
 import json
 import os
 
+import pytest
+
 import healthcheck_host as hh
+
+
+@pytest.fixture(autouse=True)
+def _no_real_sleeps(monkeypatch):
+    # handle_new_port() sleeps RESET_SETTLE_S after every reset action (real
+    # USB re-enumeration settle time on real hardware) -- not something any
+    # test here should actually wait through.
+    monkeypatch.setattr(hh.time, "sleep", lambda seconds: None)
 
 
 def test_parse_port_list_extracts_device_paths():
@@ -533,3 +543,28 @@ def test_run_once_gives_up_after_max_wait_and_reports_pending(tmp_path, monkeypa
     )
 
     assert result["pending"] == ["/dev/cu.usbmodem101"]
+
+
+def test_prompt_for_notes_shows_visible_prompt_text(monkeypatch):
+    # Regression: bare input() with no prompt looked indistinguishable from
+    # hung on the bench.
+    seen = {}
+
+    def fake_input(prompt=""):
+        seen["prompt"] = prompt
+        return ""
+
+    monkeypatch.setattr("builtins.input", fake_input)
+    hh.prompt_for_notes()
+
+    assert "notes" in seen["prompt"].lower()
+
+
+def test_handle_new_port_settles_after_each_reset_action(tmp_path, monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(hh.time, "sleep", lambda seconds: sleeps.append(seconds))
+
+    mp = FakeMPRemote(ports=["/dev/cu.usbmodem101"])
+    hh.handle_new_port(mp, "/dev/cu.usbmodem101", recordings_root=str(tmp_path), notes_fn=lambda: "")
+
+    assert hh.RESET_SETTLE_S in sleeps
