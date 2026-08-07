@@ -11,7 +11,7 @@ Co-authored-by: GPT-5.6-Sol-high, Aug 2026
 import sys
 
 
-BUTTONS = (("up", "UP"), ("down", "DOWN"), ("select", "SLCT"))
+BUTTONS = (("up", "UP"), ("down", "DN"), ("select", "SCT"))
 MIRROR_BUTTON_PINS = {"up": 8, "down": 10, "select": 9}
 # ADXL345 is configured for +/-2 g at 256 raw counts per g: 1024 counts
 # spans the full possible change. These are fixed presentation thresholds,
@@ -32,7 +32,9 @@ def sensor_attached(low_value, high_value):
 
 
 def port_mode(low_value, high_value):
-    return "i2c" if int(high_value) - int(low_value) > PORT_SPREAD_THRESHOLD else "alg"
+    # Both 4 chars, so the MODE field on screen doesn't shift width when it
+    # flips between the two.
+    return "i2c " if int(high_value) - int(low_value) > PORT_SPREAD_THRESHOLD else "anlg"
 
 
 def short_number(value):
@@ -69,9 +71,9 @@ def initialize_i2c_sensor(i2c, fallback_mode):
     try:
         if 0x10 not in i2c.scan():
             return fallback_mode, None
-        return "i2c", I2CSensor(i2c)
+        return "i2c ", I2CSensor(i2c)
     except Exception:
-        return "alg", None
+        return "anlg", None
 
 
 def delta_display(previous, current, previous_states=None):
@@ -103,15 +105,27 @@ def delta_symbols(previous, current):
     return delta_display(previous, current)[0]
 
 
-def screen_lines(power, usb, port_mode, sensor_is_attached, sensor_value,
+def screen_lines(battery_v, usb, port_mode, sensor_is_attached, sensor_value,
                  pot, angle, buttons, delta):
     sensor_text = short_number(sensor_value) if sensor_is_attached else "--"
-    active = [label for name, label in BUTTONS if int(buttons.get(name, 1)) == 0]
-    button_text = "+".join(active) if active else "-"
+    # Always shows all three, not just the pressed ones -- a steady "UP-
+    # DN- SCT-" is itself useful information (confirms the line is live),
+    # where a bare "-" reads the same whether nothing's pressed or nothing's
+    # being read at all.
+    button_text = " ".join(
+        "%s%s" % (label, "+" if int(buttons.get(name, 1)) == 0 else "-")
+        for name, label in BUTTONS
+    )
+    battery_text = "%sV" % short_number(battery_v) if battery_v is not None else "?V"
+    # Fixed-width so the line doesn't reflow as the values change: pot
+    # (0..4095) collapsed to its leading two significant digits (00..41),
+    # angle (0..180) zero-padded to three digits.
+    pot_text = "%02d" % int(round(pot / 100.0))
+    angle_text = "%03d" % int(round(angle))
     return (
-        "PWR %s USB %s" % ("ON" if power else "OFF", "ON" if usb else "OFF"),
+        "%s USB%s" % (battery_text, "+" if usb else "x"),
         "MODE %s SNS%s" % (port_mode, sensor_text),
-        "POT%s ANG%s" % (short_number(pot), short_number(angle)),
+        "POT %s ANG%s" % (pot_text, angle_text),
         "BTN %s" % button_text,
         "MOVE %s" % (delta or "-"),
     )
@@ -199,6 +213,11 @@ def run(period_ms=250):
         pot_adc.atten(ADC.ATTN_11DB)
     except Exception:
         pass
+    battery_adc = ADC(Pin(4))
+    try:
+        battery_adc.atten(ADC.ATTN_11DB)
+    except Exception:
+        pass
     motor = servo.Servo(Pin(2))
     sensor_is_attached, sensor_adc, low, high = _probe_sensor()
     i2c_sensor = None
@@ -235,8 +254,12 @@ def run(period_ms=250):
             previous_accel = accel
             _write("@SMIRROR ACCEL %d %d %d\n" % accel)
 
+        try:
+            battery_v = battery_adc.read_uv() / 1e6
+        except Exception:
+            battery_v = None
         lines = screen_lines(
-            True, usb, mode, sensor_is_attached, sensor_value,
+            battery_v, usb, mode, sensor_is_attached, sensor_value,
             pot, angle, button_values, delta,
         )
         if display is not None:
