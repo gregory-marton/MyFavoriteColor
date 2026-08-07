@@ -22,9 +22,11 @@ retrieval itself) is "newly-appeared" again the next time it's seen.
     ./healthcheck_host.py watch --no-auto-start # only retrieve/resume; never
                                                  # start a unit that wasn't
                                                  # hand-saluted
-    ./healthcheck_host.py once                  # act on whatever's connected right
-                                                 # now, then exit -- no polling loop,
-                                                 # e.g. for a script/cron invocation
+    ./healthcheck_host.py once                  # act on whatever's connected, wait
+                                                 # for each started/resumed unit to
+                                                 # actually finish and be retrieved
+                                                 # (up to --max-wait, default 30 min),
+                                                 # then exit -- bounded, not open-ended
 
 Co-authored-by: Claude Sonnet 5, Aug 2026
 """
@@ -445,6 +447,45 @@ def watch(mpremote, recordings_root=DEFAULT_RECORDINGS_ROOT, poll_interval_s=3.0
             time.sleep(poll_interval_s)
 
 
+def run_once(mpremote, recordings_root=DEFAULT_RECORDINGS_ROOT, poll_interval_s=3.0,
+             auto_start=True, deploy_first=False, notes_fn=input, max_wait_s=1800,
+             verbose=print):
+    """Acts on whatever's connected, then -- unlike watch() -- keeps
+    polling rather than exiting, until every unit it started or resumed
+    has been retrieved, or max_wait_s runs out. A fresh start needs the
+    unit to physically go away (unplug, per DISCONNECT_PROMPT) and come
+    back minutes later with a finished recording; a single scan can't wait
+    for that, and running forever like watch() does isn't "once" either.
+    Bounded to units seen this run, not open-ended like watch()."""
+    known = set()
+    pending = set()  # ports started/resumed this run, not yet retrieved
+    t0 = time.time()
+
+    while True:
+        current = filter_candidate_ports(mpremote.list_ports())
+        for port in classify_new_ports(known, current):
+            try:
+                result = handle_new_port(mpremote, port, recordings_root=recordings_root,
+                                          notes_fn=notes_fn, auto_start=auto_start,
+                                          deploy_first=deploy_first, verbose=verbose)
+            except Exception as exc:
+                verbose(f"{port}: error handling newly-appeared port: {exc}")
+                continue
+            if result["action"] in ("start", "resume"):
+                pending.add(port)
+            elif result["action"] == "retrieve":
+                pending.discard(port)
+            # "skipped_start" -- nothing started, nothing to wait for
+        known = set(current)
+
+        if not pending:
+            return {"pending": []}
+        if time.time() - t0 > max_wait_s:
+            verbose(f"gave up after {max_wait_s}s -- still waiting on: {sorted(pending)}")
+            return {"pending": sorted(pending)}
+        time.sleep(poll_interval_s)
+
+
 def _add_watch_args(parser):
     parser.add_argument("--recordings", default=DEFAULT_RECORDINGS_ROOT)
     parser.add_argument("--auto-start", action="store_true", default=True)
@@ -462,7 +503,12 @@ def main(argv=None):
     watch_p.add_argument("--poll-interval", type=float, default=3.0)
     _add_watch_args(watch_p)
 
-    once_p = sub.add_parser("once", help="Act on whatever's currently connected, then exit -- no polling loop")
+    once_p = sub.add_parser(
+        "once", help="Act on connected units, wait for each to finish, then exit -- no open-ended loop"
+    )
+    once_p.add_argument("--poll-interval", type=float, default=3.0)
+    once_p.add_argument("--max-wait", type=float, default=1800,
+                         help="seconds to wait for started/resumed units to finish before giving up (default 1800)")
     _add_watch_args(once_p)
 
     args = ap.parse_args(argv)
@@ -472,9 +518,12 @@ def main(argv=None):
               auto_start=args.auto_start, deploy_first=args.deploy_first)
     elif args.command == "once":
         print(f"checking currently-connected SmartMotors -- recordings -> {args.recordings}")
-        watch(MPRemote(), recordings_root=args.recordings, poll_interval_s=0,
-              auto_start=args.auto_start, deploy_first=args.deploy_first, max_iterations=1)
-        print("done")
+        result = run_once(MPRemote(), recordings_root=args.recordings, poll_interval_s=args.poll_interval,
+                           auto_start=args.auto_start, deploy_first=args.deploy_first, max_wait_s=args.max_wait)
+        if result["pending"]:
+            print(f"done -- still waiting on: {result['pending']}")
+        else:
+            print("done -- all units finished")
     return 0
 
 

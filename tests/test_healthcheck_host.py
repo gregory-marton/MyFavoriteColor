@@ -24,7 +24,7 @@ def test_parse_port_list_ignores_blank_lines():
 
 
 def test_classify_new_ports_finds_only_unseen_ports():
-    newly = hh.classify_new_ports(known={"/dev/a"}, current=["/dev/a", "/dev/b"])
+    newly = hh.classify_new_ports(known={"/dev/cu.usbmodem101"}, current=["/dev/cu.usbmodem101", "/dev/b"])
     assert newly == ["/dev/b"]
 
 
@@ -33,7 +33,7 @@ def test_classify_new_ports_forgets_disconnected_ports():
     # cycle) must be treated as newly-appeared again -- exercised via the
     # host loop's own known-set bookkeeping, not this pure function, but the
     # function itself must not need "history" beyond the current snapshot.
-    newly = hh.classify_new_ports(known={"/dev/a", "/dev/gone"}, current=["/dev/a"])
+    newly = hh.classify_new_ports(known={"/dev/cu.usbmodem101", "/dev/gone"}, current=["/dev/cu.usbmodem101"])
     assert newly == []
 
 
@@ -169,22 +169,22 @@ class FakeMPRemote:
 
 
 def test_handle_new_port_starts_a_fresh_unit(tmp_path):
-    mp = FakeMPRemote(ports=["/dev/a"])
-    result = hh.handle_new_port(mp, "/dev/a", recordings_root=str(tmp_path), notes_fn=lambda: "")
+    mp = FakeMPRemote(ports=["/dev/cu.usbmodem101"])
+    result = hh.handle_new_port(mp, "/dev/cu.usbmodem101", recordings_root=str(tmp_path), notes_fn=lambda: "")
 
     assert result["action"] == "start"
-    assert mp.files["/dev/a"]["healthcheck_state.txt"] == "0|None|None"
-    assert mp.resets == ["/dev/a"]
+    assert mp.files["/dev/cu.usbmodem101"]["healthcheck_state.txt"] == "0|None|None"
+    assert mp.resets == ["/dev/cu.usbmodem101"]
 
 
 def test_handle_new_port_resumes_a_mid_run_unit(tmp_path):
-    mp = FakeMPRemote(ports=["/dev/a"], files={"/dev/a": {"healthcheck_state.txt": "3|None|None"}})
-    result = hh.handle_new_port(mp, "/dev/a", recordings_root=str(tmp_path), notes_fn=lambda: "")
+    mp = FakeMPRemote(ports=["/dev/cu.usbmodem101"], files={"/dev/cu.usbmodem101": {"healthcheck_state.txt": "3|None|None"}})
+    result = hh.handle_new_port(mp, "/dev/cu.usbmodem101", recordings_root=str(tmp_path), notes_fn=lambda: "")
 
     assert result["action"] == "resume"
-    assert mp.resets == ["/dev/a"]
+    assert mp.resets == ["/dev/cu.usbmodem101"]
     # untouched -- healthcheck.py's own resume logic reads this on next boot
-    assert mp.files["/dev/a"]["healthcheck_state.txt"] == "3|None|None"
+    assert mp.files["/dev/cu.usbmodem101"]["healthcheck_state.txt"] == "3|None|None"
 
 
 def test_handle_new_port_retrieves_and_stores_a_completed_run(tmp_path):
@@ -195,18 +195,18 @@ def test_handle_new_port_retrieves_and_stores_a_completed_run(tmp_path):
         "WAITING_FOR_REBOOT stage=OFFON\n"
     )
     mp = FakeMPRemote(
-        ports=["/dev/a"],
-        files={"/dev/a": {"healthcheck_state.txt": marker, "healthcheck_log.txt": log_text}},
+        ports=["/dev/cu.usbmodem101"],
+        files={"/dev/cu.usbmodem101": {"healthcheck_state.txt": marker, "healthcheck_log.txt": log_text}},
     )
     result = hh.handle_new_port(
-        mp, "/dev/a", recordings_root=str(tmp_path), notes_fn=lambda: "battery ran hot"
+        mp, "/dev/cu.usbmodem101", recordings_root=str(tmp_path), notes_fn=lambda: "battery ran hot"
     )
 
     assert result["action"] == "retrieve"
     # cleared from the device and rebooted back to normal
-    assert "healthcheck_state.txt" not in mp.files["/dev/a"]
-    assert "healthcheck_log.txt" not in mp.files["/dev/a"]
-    assert mp.resets == ["/dev/a"]
+    assert "healthcheck_state.txt" not in mp.files["/dev/cu.usbmodem101"]
+    assert "healthcheck_log.txt" not in mp.files["/dev/cu.usbmodem101"]
+    assert mp.resets == ["/dev/cu.usbmodem101"]
 
     run_dir = os.path.join(str(tmp_path), "deadbeef0001", result["run_id"])
     assert os.path.isfile(os.path.join(run_dir, "healthcheck_log.txt"))
@@ -252,12 +252,12 @@ def test_handle_new_port_retrieves_a_field_completed_run_with_no_marker(tmp_path
         "'provisional': True}\n"
         "SEQUENCE_COMPLETE\n"
     )
-    mp = FakeMPRemote(ports=["/dev/a"], files={"/dev/a": {"healthcheck_log.txt": log_text}})
+    mp = FakeMPRemote(ports=["/dev/cu.usbmodem101"], files={"/dev/cu.usbmodem101": {"healthcheck_log.txt": log_text}})
 
-    result = hh.handle_new_port(mp, "/dev/a", recordings_root=str(tmp_path), notes_fn=lambda: "")
+    result = hh.handle_new_port(mp, "/dev/cu.usbmodem101", recordings_root=str(tmp_path), notes_fn=lambda: "")
 
     assert result["action"] == "retrieve"
-    assert "healthcheck_log.txt" not in mp.files["/dev/a"]
+    assert "healthcheck_log.txt" not in mp.files["/dev/cu.usbmodem101"]
 
     run_dir = os.path.join(str(tmp_path), "deadbeef0001", result["run_id"])
     with open(os.path.join(run_dir, "meta.json")) as f:
@@ -274,7 +274,7 @@ def test_mpremote_write_file_snippet_closes_the_handle_before_reset():
     mp = hh.MPRemote()
     mp._run = lambda args, port=None, timeout=None: calls.append(args)
 
-    mp.write_file("/dev/a", "healthcheck_state.txt", "0|None|None")
+    mp.write_file("/dev/cu.usbmodem101", "healthcheck_state.txt", "0|None|None")
 
     snippet = calls[0][1]
     assert ".close()" in snippet
@@ -315,15 +315,15 @@ def test_handle_new_port_shows_ready_to_reboot_on_the_device_after_clearing(tmp_
     marker = "%d|2079000|1900000" % hh.NUM_STAGES
     log_text = "BOOT boot_num=1 reset_cause=1(PWRON_RESET) resume_stage=0\nWAITING_FOR_REBOOT stage=OFFON\n"
     mp = FakeMPRemote(
-        ports=["/dev/a"],
-        files={"/dev/a": {"healthcheck_state.txt": marker, "healthcheck_log.txt": log_text}},
+        ports=["/dev/cu.usbmodem101"],
+        files={"/dev/cu.usbmodem101": {"healthcheck_state.txt": marker, "healthcheck_log.txt": log_text}},
     )
-    hh.handle_new_port(mp, "/dev/a", recordings_root=str(tmp_path), notes_fn=lambda: "")
+    hh.handle_new_port(mp, "/dev/cu.usbmodem101", recordings_root=str(tmp_path), notes_fn=lambda: "")
 
     reset_calls = [c for c in mp.calls if c[0] == "reset_with_message"]
     assert len(reset_calls) == 1
     _, port, lines = reset_calls[0]
-    assert port == "/dev/a"
+    assert port == "/dev/cu.usbmodem101"
     assert any("ready to reboot" in line for line in lines)
 
 
@@ -332,7 +332,7 @@ def test_mpremote_reset_with_message_snippet_shows_lines_and_resets():
     mp = hh.MPRemote()
     mp._run = lambda args, port=None, timeout=None: calls.append(args)
 
-    mp.reset_with_message("/dev/a", ("retrieved!", "ready to reboot"))
+    mp.reset_with_message("/dev/cu.usbmodem101", ("retrieved!", "ready to reboot"))
 
     snippet = calls[0][1]
     assert "retrieved!" in snippet
@@ -341,22 +341,22 @@ def test_mpremote_reset_with_message_snippet_shows_lines_and_resets():
 
 
 def test_handle_new_port_deploys_before_starting_when_deploy_first(tmp_path):
-    mp = FakeMPRemote(ports=["/dev/a"])
+    mp = FakeMPRemote(ports=["/dev/cu.usbmodem101"])
     result = hh.handle_new_port(
-        mp, "/dev/a", recordings_root=str(tmp_path), notes_fn=lambda: "", deploy_first=True
+        mp, "/dev/cu.usbmodem101", recordings_root=str(tmp_path), notes_fn=lambda: "", deploy_first=True
     )
 
     assert result["action"] == "start"
-    assert ("deploy_and_start", "/dev/a") in mp.calls
-    assert mp.files["/dev/a"]["healthcheck_state.txt"] == "0|None|None"
+    assert ("deploy_and_start", "/dev/cu.usbmodem101") in mp.calls
+    assert mp.files["/dev/cu.usbmodem101"]["healthcheck_state.txt"] == "0|None|None"
     # deploy_and_start already resets as part of deploy.sh healthcheck --
     # no separate write_file/reset call on top of it
-    assert ("write_file", "/dev/a", hh.STATE_FILENAME, "0|None|None") not in mp.calls
+    assert ("write_file", "/dev/cu.usbmodem101", hh.STATE_FILENAME, "0|None|None") not in mp.calls
 
 
 def test_handle_new_port_skips_deploy_when_marker_already_present(tmp_path):
-    mp = FakeMPRemote(ports=["/dev/a"], files={"/dev/a": {"healthcheck_state.txt": "3|None|None"}})
-    hh.handle_new_port(mp, "/dev/a", recordings_root=str(tmp_path), notes_fn=lambda: "", deploy_first=True)
+    mp = FakeMPRemote(ports=["/dev/cu.usbmodem101"], files={"/dev/cu.usbmodem101": {"healthcheck_state.txt": "3|None|None"}})
+    hh.handle_new_port(mp, "/dev/cu.usbmodem101", recordings_root=str(tmp_path), notes_fn=lambda: "", deploy_first=True)
 
     assert not any(c[0] == "deploy_and_start" for c in mp.calls)
 
@@ -408,7 +408,7 @@ def test_mpremote_read_file_uses_cp_not_exec_print(tmp_path):
         return Result()
 
     mp._run = fake_run
-    content = mp.read_file("/dev/a", "healthcheck_log.txt")
+    content = mp.read_file("/dev/cu.usbmodem101", "healthcheck_log.txt")
 
     assert calls[0] == ["cp", ":healthcheck_log.txt", calls[0][2]]
     assert "BOOT boot_num=1" in content
@@ -423,7 +423,7 @@ def test_mpremote_read_file_returns_none_when_cp_fails():
         return Result()
 
     mp._run = fake_run
-    assert mp.read_file("/dev/a", "nonexistent.txt") is None
+    assert mp.read_file("/dev/cu.usbmodem101", "nonexistent.txt") is None
 
 
 def test_mpremote_reset_with_message_tolerates_the_expected_timeout():
@@ -440,23 +440,23 @@ def test_mpremote_reset_with_message_tolerates_the_expected_timeout():
         raise subprocess_module.TimeoutExpired(cmd=args, timeout=timeout)
 
     mp._run = fake_run
-    mp.reset_with_message("/dev/a", ("retrieved!", "ready to reboot"))  # must not raise
+    mp.reset_with_message("/dev/cu.usbmodem101", ("retrieved!", "ready to reboot"))  # must not raise
 
 
-def test_cli_once_calls_watch_with_a_single_iteration_and_no_poll_delay(monkeypatch, tmp_path):
+def test_cli_once_calls_run_once_with_max_wait(monkeypatch, tmp_path):
     calls = []
 
-    def fake_watch(mpremote, **kwargs):
+    def fake_run_once(mpremote, **kwargs):
         calls.append(kwargs)
+        return {"pending": []}
 
-    monkeypatch.setattr(hh, "watch", fake_watch)
+    monkeypatch.setattr(hh, "run_once", fake_run_once)
     monkeypatch.setattr(hh, "MPRemote", lambda: object())
 
-    hh.main(["once", "--recordings", str(tmp_path)])
+    hh.main(["once", "--recordings", str(tmp_path), "--max-wait", "60"])
 
     assert len(calls) == 1
-    assert calls[0]["max_iterations"] == 1
-    assert calls[0]["poll_interval_s"] == 0
+    assert calls[0]["max_wait_s"] == 60.0
     assert calls[0]["recordings_root"] == str(tmp_path)
 
 
@@ -474,3 +474,62 @@ def test_cli_watch_calls_watch_with_no_iteration_cap(monkeypatch, tmp_path):
     assert len(calls) == 1
     assert "max_iterations" not in calls[0]
     assert calls[0]["poll_interval_s"] == 5.0
+
+
+class ScriptedMPRemote(FakeMPRemote):
+    """FakeMPRemote whose list_ports() replays a scripted sequence of port
+    snapshots (one per call, holding at the last entry) -- for simulating a
+    unit that disconnects (unplug, per DISCONNECT_PROMPT) and later
+    reappears with a finished recording, which run_once has to poll across."""
+
+    def __init__(self, port_sequence, file_patches=None, **kwargs):
+        super().__init__(ports=port_sequence[0] if port_sequence else [], **kwargs)
+        self._sequence = port_sequence
+        self._patches = file_patches or {}  # call index (0-based) -> {port: {filename: content}}
+        self._call_index = 0
+
+    def list_ports(self):
+        idx = min(self._call_index, len(self._sequence) - 1)
+        if idx in self._patches:
+            for port, files in self._patches[idx].items():
+                self.files.setdefault(port, {}).update(files)
+        self._call_index += 1
+        self.calls.append(("list_ports",))
+        return list(self._sequence[idx])
+
+
+def test_run_once_waits_across_a_disconnect_and_retrieves_on_reappear(tmp_path, monkeypatch):
+    monkeypatch.setattr(hh.time, "sleep", lambda s: None)
+    marker_done = "%d|2079000|1900000" % hh.NUM_STAGES
+    log_text = "BOOT boot_num=1 reset_cause=1(PWRON_RESET) resume_stage=0\nWAITING_FOR_REBOOT stage=OFFON\n"
+
+    mp = ScriptedMPRemote(
+        port_sequence=[["/dev/cu.usbmodem101"], [], ["/dev/cu.usbmodem101"]],  # connected, unplugged, back
+        file_patches={2: {"/dev/cu.usbmodem101": {"healthcheck_state.txt": marker_done, "healthcheck_log.txt": log_text}}},
+    )
+
+    result = hh.run_once(mp, recordings_root=str(tmp_path), notes_fn=lambda: "", poll_interval_s=0)
+
+    assert result["pending"] == []
+    assert any(c[0] == "write_file" for c in mp.calls)  # the initial remote-start
+    assert os.path.isdir(os.path.join(str(tmp_path), "deadbeef0001"))  # actually retrieved
+
+
+def test_run_once_returns_immediately_when_nothing_is_connected(tmp_path):
+    mp = ScriptedMPRemote(port_sequence=[[]])
+    result = hh.run_once(mp, recordings_root=str(tmp_path), notes_fn=lambda: "", poll_interval_s=0)
+
+    assert result["pending"] == []
+
+
+def test_run_once_gives_up_after_max_wait_and_reports_pending(tmp_path, monkeypatch):
+    monkeypatch.setattr(hh.time, "sleep", lambda s: None)
+    # Never reaches the OFFON sentinel -- simulates a unit that just never
+    # comes back within this run.
+    mp = ScriptedMPRemote(port_sequence=[["/dev/cu.usbmodem101"], []])
+
+    result = hh.run_once(
+        mp, recordings_root=str(tmp_path), notes_fn=lambda: "", poll_interval_s=0, max_wait_s=0
+    )
+
+    assert result["pending"] == ["/dev/cu.usbmodem101"]
