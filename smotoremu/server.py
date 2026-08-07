@@ -5,6 +5,7 @@ Co-authored-by: GPT-5, Aug 2026
 
 import argparse
 import asyncio
+import json
 import mimetypes
 import os
 
@@ -15,6 +16,7 @@ from smotoremu.world import World
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_ROOT = os.path.join(REPO_ROOT, "web")
+RECORDINGS_ROOT = os.path.join(REPO_ROOT, "recordings")
 
 
 class ServerSession:
@@ -100,32 +102,143 @@ class ServerSession:
         self.seq = 0
 
 
+def list_recordings(root=None):
+    """Relative paths of every retrievable healthcheck log under
+    ./recordings, newest first -- what the web UI's recordings browser
+    populates from. healthcheck_host.py is what actually fills this
+    directory; this just reads it back."""
+    root = root or RECORDINGS_ROOT
+    if not os.path.isdir(root):
+        return []
+    found = []
+    for dirpath, _dirs, files in os.walk(root):
+        for name in files:
+            if name == "healthcheck_log.txt":
+                full = os.path.join(dirpath, name)
+                found.append(os.path.relpath(full, root))
+    return sorted(found, reverse=True)
+
+
+def _safe_join(root, relative):
+    """Same traversal guard as static_response, rooted at `root` instead of
+    WEB_ROOT."""
+    root_abs = os.path.abspath(root)
+    candidate = os.path.abspath(os.path.join(root_abs, relative))
+    if not candidate.startswith(root_abs + os.sep):
+        return None
+    return candidate
+
+
+def load_recording_events(rel_path, root=None):
+    """Parse a retrieved healthcheck_log.txt into the same typed, screen-
+    rendered event list smotoremu/trace.py already produces for the old
+    trace-render tests -- reused here, not reimplemented."""
+    from smotoremu.trace import parse_guided_log, render_screens
+
+    root = root or RECORDINGS_ROOT
+    candidate = _safe_join(root, rel_path)
+    if candidate is None or not os.path.isfile(candidate):
+        raise FileNotFoundError(rel_path)
+    with open(candidate) as f:
+        text = f.read()
+    return render_screens(parse_guided_log(text))
+
+
+def _state_message_from_event(event):
+    """A subset of FULL_SAMPLE/SUSTAIN_SAMPLE/START_SAMPLE's fields, reusing
+    protocol.state_message so the replay path updates the same header
+    readout ("Sensor: ... | Pot: ... | Angle: ...") the live path does."""
+    event_type = event.get("type")
+    if event_type not in ("FULL_SAMPLE", "SUSTAIN_SAMPLE", "START_SAMPLE"):
+        return None
+    kwargs = dict(
+        angle=event.get("angle", 0),
+        pot=event.get("pot", 0),
+        battery=event.get("batt_raw", 0),
+        attached=event.get("port_mode"),
+        clock_ms=event.get("t", 0),
+        usb=event.get("on_usb"),
+    )
+    if event_type == "FULL_SAMPLE":
+        kwargs["mode"] = event.get("port_mode")
+        kwargs["sensor_attached"] = event.get("sensor_attached")
+        kwargs["sensor_value"] = event.get("sensor_value")
+    if event.get("accel") is not None:
+        kwargs["accel"] = event["accel"]
+    return protocol.state_message(**kwargs)
+
+
+async def _replay_handler(websocket, rel_path, speed=15.0):
+    """Streams a stored recording's parsed events back at a scaled pace,
+    over its own /replay connection -- deliberately separate from
+    ServerSession's live hardware model, since replay has no board to
+    drive. The client already handles `type: "trace"` and `type: "state"`
+    generically (see web/app.js's handleMessage), so no protocol addition
+    was needed beyond parsing FULL_SAMPLE (smotoremu/trace.py)."""
+    try:
+        events = load_recording_events(rel_path)
+    except FileNotFoundError:
+        await websocket.send(protocol.dumps(protocol.error_message(
+            "not_found", f"no recording at {rel_path!r}"
+        )))
+        return
+
+    prev_t = 0
+    for event in events:
+        t = event.get("t", prev_t)
+        dt_ms = max(0, t - prev_t)
+        prev_t = t
+        if dt_ms:
+            # capped so one long gap (e.g. across the OFFON reboot) doesn't
+            # stall the replay for real minutes
+            await asyncio.sleep(min(dt_ms, 3000) / 1000.0 / speed)
+        await websocket.send(protocol.dumps(protocol.trace_message([event])))
+        state = _state_message_from_event(event)
+        if state is not None:
+            await websocket.send(protocol.dumps(state))
+    await websocket.send(protocol.dumps(protocol.exited_message(None)))
+
+
+async def _connection_handler(websocket):
+    """One /ws (live session) or /replay (recorded playback) connection.
+    Module-level so tests can drive it directly via websockets.serve without
+    going through serve()'s own event loop / port-8765 default."""
+    request_path = websocket.request.path
+    if request_path.startswith("/replay"):
+        from urllib.parse import parse_qs, urlsplit
+
+        query = parse_qs(urlsplit(request_path).query)
+        rel_path = (query.get("path") or [""])[0]
+        speed = float((query.get("speed") or ["15"])[0])
+        await _replay_handler(websocket, rel_path, speed=speed)
+        return
+
+    session = ServerSession()
+    coalescer = protocol.UpdateCoalescer()
+    try:
+        await websocket.send(protocol.dumps(session.state_message()))
+        await websocket.send(protocol.dumps(session.frame_message()))
+        async for raw in websocket:
+            for message in session.handle(raw):
+                for outbound in coalescer.push(message, now_ms=session.sm.session.clock.now_ms()):
+                    await websocket.send(protocol.dumps(outbound))
+            for outbound in coalescer.push(session.frame_message(), now_ms=session.sm.session.clock.now_ms()):
+                await websocket.send(protocol.dumps(outbound))
+            for outbound in coalescer.drain(now_ms=session.sm.session.clock.now_ms()):
+                await websocket.send(protocol.dumps(outbound))
+            if session.sm.session.exited or session.sm.session.error is not None:
+                await websocket.send(protocol.dumps(protocol.exited_message(session.sm.session.error)))
+    finally:
+        session.close()
+
+
 async def serve(host="127.0.0.1", port=8765):
     try:
         import websockets
     except ImportError as exc:
         raise RuntimeError("websockets is required for smotoremu.server") from exc
 
-    async def handler(websocket):
-        session = ServerSession()
-        coalescer = protocol.UpdateCoalescer()
-        try:
-            await websocket.send(protocol.dumps(session.state_message()))
-            await websocket.send(protocol.dumps(session.frame_message()))
-            async for raw in websocket:
-                for message in session.handle(raw):
-                    for outbound in coalescer.push(message, now_ms=session.sm.session.clock.now_ms()):
-                        await websocket.send(protocol.dumps(outbound))
-                for outbound in coalescer.push(session.frame_message(), now_ms=session.sm.session.clock.now_ms()):
-                    await websocket.send(protocol.dumps(outbound))
-                for outbound in coalescer.drain(now_ms=session.sm.session.clock.now_ms()):
-                    await websocket.send(protocol.dumps(outbound))
-                if session.sm.session.exited or session.sm.session.error is not None:
-                    await websocket.send(protocol.dumps(protocol.exited_message(session.sm.session.error)))
-        finally:
-            session.close()
-
-    async with websockets.serve(handler, host, port, process_request=websocket_process_request):
+    async with websockets.serve(_connection_handler, host, port, process_request=websocket_process_request):
         await asyncio.Future()
 
 
@@ -147,12 +260,17 @@ def static_response(path):
 
 
 def websocket_process_request(connection, request):
-    if request.path == "/ws":
+    path = request.path.split("?", 1)[0]
+    if path == "/ws" or path.startswith("/replay"):
         return None
     from websockets.datastructures import Headers
     from websockets.http11 import Response
 
-    status, headers, body = static_response(request.path)
+    if path == "/api/recordings":
+        body = json.dumps(list_recordings()).encode("utf-8")
+        return Response(200, "OK", Headers([("Content-Type", "application/json")]), body)
+
+    status, headers, body = static_response(path)
     reason = "OK" if status == 200 else "Not Found"
     return Response(status, reason, Headers(headers), body)
 
