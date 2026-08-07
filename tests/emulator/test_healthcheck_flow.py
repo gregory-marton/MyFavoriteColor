@@ -50,6 +50,10 @@ def test_fresh_run_defers_servo_sweep_until_disconnect_confirmed(tmp_path, monke
     )
     monkeypatch.syspath_prepend(str(tmp_path))
     session = Session()
+    # Board.usb_connected defaults to True; is_usb_connected() reads that
+    # (via the emulated SOF-frame register) instead of the old battery-ADC
+    # proxy, so this test must flip it explicitly to reach DISCONNECT_PROMPT.
+    session.board.usb_connected = False
 
     session.boot("healthcheck_fresh_program")
     session.run_until_idle(timeout_ms=15000)
@@ -81,12 +85,12 @@ def test_fresh_run_defers_servo_sweep_until_disconnect_confirmed(tmp_path, monke
 
 
 def healthcheck_module_stages_index(tmp_path, stage_name):
-    """Reads healthcheck.py's own STAGES list back out (text scan, not an
-    import -- it needs real hardware shims to import) so this test doesn't
+    """Reads healthcheck_logic.py's own STAGES list back out (text scan, not
+    an import -- it needs real hardware shims to import) so this test doesn't
     hardcode a second copy of the stage order that could silently drift
     from the source of truth."""
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    with open(os.path.join(repo_root, "healthcheck.py")) as f:
+    with open(os.path.join(repo_root, "healthcheck_logic.py")) as f:
         text = f.read()
     start = text.index("STAGES = [") + len("STAGES = [")
     end = text.index("\n]", start)

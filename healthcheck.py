@@ -25,6 +25,7 @@ Co-authored-by: GPT-5, Aug 2026
 Co-authored-by: Claude Sonnet 5, Aug 2026
 """
 
+import collections
 import time
 import machine
 from machine import Pin, ADC, SoftI2C
@@ -56,9 +57,7 @@ TARGET_REPS = {
     "OFFON": 1,
 }
 STAGE_TIMEOUT_MS = {
-    # Bumped well past what a relaxed human actually needs, per bench
-    # feedback: these were tight enough to feel like pressure, not a safety
-    # backstop. A broken control still gets caught -- it just isn't rushed.
+    # Generous, not rushed -- a broken control still gets caught, it's just not timed out on.
     "SCREEN_CHECK": 60000,
     "DISCONNECT_PROMPT": 180000,
     "ENSURE_ANALOG": 60000,
@@ -72,23 +71,17 @@ STAGE_TIMEOUT_MS = {
     "OFFON": 60000,
 }
 
-# button_pins is built as (up, down, select) everywhere in this file, but
-# which physical pin is "up" vs "down" disagrees across this codebase itself
-# (main.py/standalone.py/myfavcolor.py use one mapping, webconnect.py/
-# smcheck/this file use the other) -- so it is NOT settled which is
-# correct, and hardcoding a "fix" here would just be a third guess. These
-# are the raw pin numbers in the same order as button_pins, logged
-# alongside every observed press (see run_button_stage) rather than trusted
-# blindly, so there's real per-unit ground truth to calibrate from later
-# instead of another assumption.
-BUTTON_PIN_NUMBERS = (10, 8, 9)  # matches (up, down, select)
+# Which physical pin is "up" vs "down" disagrees across this codebase
+# itself (main.py/standalone.py/myfavcolor.py use one mapping,
+# webconnect.py/smcheck/this file use the other) -- not settled, so this
+# isn't a "fix", just the raw pin per button, logged with every observed
+# press for a future calibration pass.
+ButtonPins = collections.namedtuple("ButtonPins", ("UP", "DN", "SL"))
+BUTTON_PIN_NUMBERS = ButtonPins(10, 8, 9)
 
 FULL_SAMPLE_PERIOD_MS = 500
-# The verdict/telemetry screen (run_wait_retrieval, indefinite) alternates,
-# but not evenly: mostly telemetry,
-# the verdict as a brief periodic reminder (~10% of the time), per bench
-# feedback that a 50/50 flip felt like it showed the verdict "half the
-# time."
+# run_wait_retrieval's screen alternates verdict/telemetry, weighted mostly
+# telemetry (~10% verdict) per bench feedback that 50/50 felt too verdict-heavy.
 VERDICT_DWELL_MS = 1500
 TELEMETRY_DWELL_MS = 13500
 VEML6040_ADDR = 0x10
@@ -97,21 +90,16 @@ VEML6040_G = 0x09
 VEML6040_B = 0x0A
 VEML6040_W = 0x0B
 
-# LIGHT stage: adaptive light<->dark<->light sweep detection, since a fixed
-# absolute brightness threshold can't work across different rooms/ambient
-# light. A "low" or "high" extreme is any reading within this margin of the
-# lowest/highest value seen so far this stage; a rep counts once both have
-# been visited since the last rep, provided the observed range is wide
-# enough that it looks like a real sweep rather than sensor noise.
+# LIGHT stage: adaptive light<->dark<->light detection -- a "low"/"high"
+# extreme is within this margin of the min/max seen so far this stage
+# (no fixed absolute threshold, since ambient light varies bench to bench).
 LIGHT_MARGIN_MIN = 50
 LIGHT_MARGIN_FRAC = 0.15
 LIGHT_MIN_USEFUL_SPAN = 200
 LIGHT_TARGET_REPS = 3
 
-# SCREEN_CHECK: same three patterns smcheck/checks/oled.py's D-OLED uses
-# (border-crosshair caught a real display defect on unit-3 that a bus scan
-# missed entirely -- see DEVICE_HEALTH_DESIGN.md sec 6.5), reused here as an
-# on-device SELECT=good/UP-DOWN=problem stage instead of a host-driven one.
+# Same three patterns as smcheck/checks/oled.py's D-OLED (border-crosshair
+# caught a real display defect on unit-3 a bus scan missed entirely).
 SCREEN_CHECK_PATTERNS = ("full-white", "full-dark", "border-crosshair")
 
 
@@ -152,11 +140,8 @@ class Display:
         self.log = log
 
     def show(self, *lines):
-        # 12px/row is the normal, readable spacing (fits 5 lines in the
-        # 64px-tall display, used everywhere else in this file); tighten
-        # only when more lines than that are actually passed, so a 6-line
-        # screen (e.g. the live readout with an elapsed-time row) still
-        # fits instead of running off the bottom.
+        # 12px/row is normal (5 lines fit); tighten only past that so a
+        # 6-line screen still fits instead of running off the bottom.
         row_height = min(12, 64 // max(1, len(lines)))
         self.d.fill(0)
         for row, text in enumerate(lines):
@@ -167,9 +152,8 @@ class Display:
 
 
 class ServoSweeper:
-    """Sweeps back and forth continuously once started -- a visible
-    "device is alive and ready" signal, and sustained battery-under-load
-    data for the rest of the run rather than just a momentary check."""
+    """Sweeps back and forth continuously once started -- visible "device
+    alive" signal + sustained battery-under-load data."""
 
     def __init__(self, s, log=None, period_ms=1000):
         self.s = s
@@ -192,9 +176,6 @@ class ServoSweeper:
 
 
 def _draw_screen_pattern(display, name):
-    """Same three patterns as smcheck/checks/oled.py's D-OLED (reused, not
-    reinvented) -- border-crosshair exercises geometry/alignment, the two
-    fills exercise every pixel at both extremes."""
     d = display.d
     if name == "full-white":
         d.fill(1)
@@ -213,11 +194,8 @@ def _draw_screen_pattern(display, name):
 
 
 def run_screen_check_stage(display, button_pins, log):
-    """Runs before DISCONNECT_PROMPT/the continuous sweeper even exist --
-    no servo motion needed, just waiting for a button per pattern. SELECT
-    means it looks right; either UP or DOWN means there's a problem, logged
-    for the record rather than failing the whole run outright (a cracked
-    screen doesn't mean the battery/sensors aren't worth checking too)."""
+    """Before DISCONNECT_PROMPT/the sweeper exist -- no servo motion here.
+    SELECT=looks right, UP/DOWN=problem (logged, not fatal)."""
     label = "SCREEN_CHECK"
     prev = tuple(pin.value() for pin in button_pins)
     for name in SCREEN_CHECK_PATTERNS:
@@ -246,12 +224,19 @@ def run_screen_check_stage(display, button_pins, log):
     return True
 
 
-def is_probably_on_usb(battery):
-    # No dedicated VBUS-sense pin on this board, so this is a proxy, not a
-    # direct measurement: the battery ADC reads distinctly higher whenever
-    # USB is actively delivering charge current (see sensors.readbattery()'s
-    # 'charging' bucket, and DEVICE_HEALTH_DESIGN.md section 1).
-    return battery.read() > 2850
+# ESP32-C3 USB Serial/JTAG SOF frame number register.
+_USB_SOF_REG = 0x60043024
+
+def is_usb_connected():
+    """Direct USB detection via the SOF (Start of Frame) register.
+    The USB host sends a SOF packet every 1 ms while connected; reading
+    the frame counter twice 5 ms apart and comparing tells us whether a
+    host is actively present.  No battery-voltage proxy, no charge-state
+    ambiguity."""
+    a = machine.mem32[_USB_SOF_REG] & 0x7FF
+    time.sleep_ms(5)
+    b = machine.mem32[_USB_SOF_REG] & 0x7FF
+    return a != b
 
 
 def shake_head(s):
@@ -264,39 +249,23 @@ def shake_head(s):
 
 
 def run_disconnect_prompt(display, battery, log):
-    """Returns calibrated V_rest (microvolts) either way. No continuous
-    sweeper yet -- shake_head uses the servo directly, a momentary gesture,
-    not sustained load.
+    """Returns calibrated V_rest either way. No continuous sweeper yet --
+    shake_head is a momentary gesture, not sustained load.
 
-    There's no software way to read the physical battery-power switch (~)
-    -- it isn't wired to a readable pin anywhere in this codebase, so this
-    can only remind, not detect. Worth saying up front: unplugging USB
-    while that switch is off cuts power entirely, which is confusing on
-    the bench (looks like the board died, not like "please turn on
-    battery power first").
-
-    is_probably_on_usb() is a proxy (raw battery ADC > 2850), not a real
-    USB-presence sensor, and a genuinely healthy, well-charged battery can
-    read above that threshold even when truly unplugged -- indistinguishable
-    from "still on USB" by voltage alone. That used to mean a false timeout
-    here made rest_uv permanently None and the whole run's verdict silently
-    became "insufficient data" even when SUSTAIN got perfectly good loaded
-    data. The rest reading itself isn't actually blocked by that failure
-    mode -- only the *confirmation* is -- so a timeout now still takes and
-    returns the reading, just logged (and later reported) as unconfirmed
-    rather than thrown away."""
+    No software way to read the physical battery-power switch (~) -- can
+    only remind, not detect. Disconnect itself uses is_usb_connected()."""
     from servo import Servo
     s = Servo(Pin(2))
     t0 = time.ticks_ms()
     while time.ticks_diff(time.ticks_ms(), t0) < STAGE_TIMEOUT_MS["DISCONNECT_PROMPT"]:
-        if is_probably_on_usb(battery):
+        if is_usb_connected():
             display.show("power switch ON?", "still on USB --", "then unplug")
             shake_head(s)
         else:
             display.show("thanks! continuing", "in a moment...")
             time.sleep_ms(1500)
             # confirm it's not just a momentary dip
-            if not is_probably_on_usb(battery):
+            if not is_usb_connected():
                 rest_uv = battery.read_uv()
                 _log(log, "REST_SAMPLE t=%d batt_uv=%d confirmed=1" % (time.ticks_ms(), rest_uv))
                 _log(log, "STAGE_DONE stage=DISCONNECT_PROMPT")
@@ -309,20 +278,11 @@ def run_disconnect_prompt(display, battery, log):
 
 def run_confirm_stage(display, label, button_pins, log, sweeper, sample_fn, format_lines_fn, timeout_ms,
                        finish_check_fn=None, not_ready_lines_fn=None):
-    """Shows a live sensor readout and waits for the human to say so,
-    rather than an automatic threshold trying to guess when a control was
-    exercised enough -- the i2c-toggle's spread-threshold auto-detection
-    proved unreliable on the bench (it could register reps from noise
-    before anyone touched the switch). SELECT means "I'm done doing that";
-    either UP or DOWN means "I can't seem to do it" -- deliberately not
-    distinguished from each other, since which pin means which isn't
-    settled (see BUTTON_PIN_NUMBERS).
-
-    finish_check_fn(last_value), if given, can veto a SELECT: e.g. FLIP
-    wants the toggle left in i2c mode afterward, not just "toggled a few
-    times" -- SELECT only actually finishes the stage once that's true,
-    otherwise not_ready_lines_fn(last_value) explains what's still needed
-    and the wait continues."""
+    """Live sensor readout; human confirms via SELECT="done"/UP-DOWN="can't"
+    rather than an auto-threshold (the i2c toggle's proved unreliable on
+    the bench). finish_check_fn(last_value), if given, can veto a SELECT
+    (e.g. FLIP must actually end in i2c mode); not_ready_lines_fn explains
+    what's still needed and the wait continues."""
     prev = tuple(pin.value() for pin in button_pins)
     t0 = time.ticks_ms()
     last_sample = time.ticks_ms() - 200
@@ -369,10 +329,8 @@ def run_pot_stage(display, pot, button_pins, log, sweeper):
 
 
 def run_servo_check_stage(display, button_pins, log, sweeper):
-    """A human sanity check on the continuous sweep that's been running
-    since DISCONNECT_PROMPT -- servo wear/binding can show up as a
-    shortened or stuck range that's obvious to look at but not something
-    the code can verify (open-loop, no position feedback)."""
+    """Human check on the sweep -- wear/binding is obvious to look at but
+    not verifiable in code (open-loop, no position feedback)."""
     label = "SERVO_CHECK"
     display.show(label, "servo doing", "full 180s?", "SELECT=yes UP/DN=no")
     prev = tuple(pin.value() for pin in button_pins)
@@ -395,17 +353,11 @@ def run_servo_check_stage(display, button_pins, log, sweeper):
 
 
 def run_button_stage(display, label, pins, log, sweeper=None, pin_numbers=BUTTON_PIN_NUMBERS):
-    """Counts any button edge as a rep, regardless of which physical button
-    it turns out to be -- see BUTTON_PIN_NUMBERS' note on why this file
-    can't declare a "correct" up/down mapping. Logs both the software name
-    and the raw pin for whatever fired, so a human is asked to press the
-    physically-labeled button and the log becomes the ground truth for a
-    future calibration pass, instead of the code insisting on a guess and
-    penalizing a "wrong" answer that might not be wrong at all.
-
-    sweeper is optional: SELECT/UP/DOWN now run first, before
-    DISCONNECT_PROMPT has confirmed disconnect and started the continuous
-    sweep -- there's deliberately no servo motion yet at that point."""
+    """Counts any button edge as a rep regardless of which physical button
+    fired (see BUTTON_PIN_NUMBERS -- no settled "correct" mapping); logs
+    both the name and raw pin as ground truth for a future calibration
+    pass. sweeper is optional: SELECT/UP/DOWN run before DISCONNECT_PROMPT
+    starts the continuous sweep."""
     expected = label
     prev = tuple(pin.value() for pin in pins)
     reps = 0
@@ -438,11 +390,8 @@ def _flip_state():
 
 
 def run_ensure_analog_stage(display, log, sweeper):
-    """Confirms the analog/i2c switch is in analog mode before anything
-    else runs -- LIGHT (later) needs it, and FLIP's "end in i2c mode"
-    requirement is only well-defined starting from a known state. There's
-    no way to set the switch in software, only read it, so this waits for
-    the human to physically set it rather than assuming."""
+    """Confirms the switch starts in analog mode -- LIGHT needs it, and
+    FLIP's "end in i2c" is only well-defined from a known start."""
     label = "ENSURE_ANALOG"
     t0 = time.ticks_ms()
     while time.ticks_diff(time.ticks_ms(), t0) < STAGE_TIMEOUT_MS[label]:
@@ -458,10 +407,8 @@ def run_ensure_analog_stage(display, log, sweeper):
 
 
 def run_flip_stage(display, button_pins, log, sweeper):
-    """Ends specifically in i2c mode, not just "toggled a few times" --
-    REBOOT_FOR_SENSOR_SWAP (next) needs the switch already in i2c position
-    for the color sensor, per the intended flow: toggle repeatedly, land on
-    i2c, then swap the physical sensor while the board's off."""
+    """Ends specifically in i2c mode -- REBOOT_FOR_SENSOR_SWAP (next) needs
+    it there to swap in the color sensor while the board's off."""
     label = "FLIP"
     return run_confirm_stage(
         display, label, button_pins, log, sweeper,
@@ -544,19 +491,9 @@ def run_accel_stage(display, accel, log, sweeper, label):
 
 
 def run_light_stage(display, button_pins, log, sweeper):
-    """Wave the sensor light<->dark<->light (or dark<->light<->dark --
-    order doesn't matter) at least 3x, auto-counted -- replaces the old
-    two static "hold in the dark" / "hold in the light" confirm-only
-    stages, which weren't clear about what motion was actually wanted.
-
-    Detection is adaptive (see LIGHT_MARGIN_* / LIGHT_MIN_USEFUL_SPAN):
-    tracks the min/max seen so far this stage rather than a fixed absolute
-    brightness threshold, since ambient light varies bench to bench. SELECT
-    still ends it early ("that's enough / good enough"), UP/DOWN says "no
-    light sensor / can't do it" -- same escape hatch as the other confirm
-    stages, layered on top of the automatic counting rather than replacing
-    it, since unlike the i2c toggle this auto-detection has no history of
-    being unreliable."""
+    """Wave the sensor light<->dark<->light >=3x, auto-counted via the
+    adaptive min/max in LIGHT_MARGIN_*/LIGHT_MIN_USEFUL_SPAN. SELECT still
+    ends it early, UP/DOWN skips (no sensor/can't do it)."""
     label = "LIGHT"
     light = ADC(Pin(5))
     light.atten(ADC.ATTN_11DB)
@@ -675,9 +612,8 @@ def run_color_white_stage(display, i2c, log, sweeper, button_pins):
 
 
 def _sample_full_state(pot, battery, accel, i2c, i2c_sensor, button_pins, sweeper):
-    """Every control/sensor/servo/voltage reading, one tick. Shared by
-    SUSTAIN and WAIT_RETRIEVAL -- the main source of replay/distribution
-    data (DEVICE_HEALTH_DESIGN.md sec 6)."""
+    """Every control/sensor/servo/voltage reading, one tick -- the main
+    replay/distribution data source (DEVICE_HEALTH_DESIGN.md sec 6)."""
     pot_v = pot.read()
     batt_raw = battery.read()
     batt_uv = battery.read_uv()
@@ -735,17 +671,12 @@ def run_sustain_stage(display, pot, battery, accel, i2c, i2c_sensor, button_pins
 
 
 def run_wait_retrieval(display, pot, battery, accel, i2c, i2c_sensor, button_pins, log, sweeper, verdict):
-    """Shows the battery verdict, alternating with a live mirror-style
-    readout, and loops indefinitely -- ends only when mpremote interrupts
-    the script during retrieval (healthcheck_host.py), or the board loses
-    power (a manual power-cycle). Deliberately NOT self-terminating: an
-    earlier version called machine.reset() after a bounded window to
-    return to normal operation on its own, which turned out to be the
-    wrong call -- confirmed on the bench as an unrequested, unexplained
-    reboot, not the intended behavior. The recording (healthcheck_log.txt)
-    and the marker both stay untouched until an actual retrieval clears
-    them, so a manual power-cycle just resumes this same screen again on
-    the next boot."""
+    """Verdict + live readout, looping indefinitely -- ends only via
+    retrieval (mpremote interrupting it) or losing power. Deliberately not
+    self-terminating (a bounded/self-resetting earlier version was an
+    unrequested reboot, confirmed on the bench). Log + marker stay
+    untouched until an actual retrieval clears them, so a manual
+    power-cycle just resumes this same screen next boot."""
     if verdict.get("verdict") == "insufficient data":
         verdict_lines = ("BATTERY", "insufficient data", "see", LOG_PATH)
     else:
@@ -849,12 +780,8 @@ def main():
             i2c_sensor = mirror.I2CSensor(i2c)
 
         if stage_idx > 0 and STAGES[stage_idx - 1] == "OFFON":
-            # resuming after the deliberate power cycle -- nothing left to
-            # detect. Show the verdict + live readout and wait -- this call
-            # doesn't return on its own; only a retrieval (mpremote
-            # interrupting it) or losing power ends it. See
-            # run_wait_retrieval()'s docstring for why this isn't
-            # self-terminating.
+            # After the deliberate power cycle: verdict + wait indefinitely
+            # (see run_wait_retrieval()'s docstring).
             _log(log, "REP stage=OFFON rep=1 (confirmed by this reboot)")
             _log(log, "STAGE_DONE stage=OFFON")
             verdict = compute_battery_verdict(rest_uv, [loaded_p10_uv] if loaded_p10_uv is not None else [])
@@ -864,11 +791,8 @@ def main():
             return
 
         sweeper = None
-        # Resuming mid-sequence past DISCONNECT_PROMPT (e.g. after
-        # REBOOT_FOR_SENSOR_SWAP) means that stage -- the only place the
-        # continuous sweeper normally gets created -- won't run again this
-        # boot. Recreate it up front so whatever stage we resume into
-        # doesn't call .step() on None.
+        # Resuming past DISCONNECT_PROMPT (e.g. after REBOOT_FOR_SENSOR_SWAP)
+        # means it won't re-run this boot, so recreate the sweeper up front.
         if stage_idx > STAGES.index("DISCONNECT_PROMPT"):
             sweeper = ServoSweeper(servo.Servo(Pin(2)), log=log)
         loaded_uv = []
@@ -897,13 +821,9 @@ def main():
             elif stage == "FLIP":
                 run_flip_stage(display, button_pins, log, sweeper)
             elif stage == "REBOOT_FOR_SENSOR_SWAP":
-                # a second, mid-sequence reboot -- distinct from the final
-                # OFFON one. FLIP just left the toggle in i2c mode; this is
-                # the window to physically swap the light sensor for the
-                # color sensor before COLOR_WHITE runs. Same persist-and-
-                # return mechanism as OFFON, but the *next* boot just
-                # continues the normal stage loop (only the STAGES[-1]=="OFFON"
-                # check in the resume branch above is special-cased).
+                # Second, mid-sequence reboot: window to swap light->color
+                # sensor while off. Next boot just continues the normal
+                # loop (only OFFON gets special resume handling).
                 display.show("power OFF now,", "swap light->color", "sensor, power ON")
                 stage_idx += 1
                 _write_state(stage_idx, rest_uv, percentile(loaded_uv, 0.10) if loaded_uv else None)
