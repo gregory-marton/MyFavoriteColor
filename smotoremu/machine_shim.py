@@ -267,3 +267,21 @@ def reset():
 
 def const(x):
     return x
+
+
+# Reset-cause constants, values matching MicroPython's esp32 port
+# (machine.PWRON_RESET / HARD_RESET / WDT_RESET / DEEPSLEEP_RESET /
+# SOFT_RESET) -- this board's real firmware target. The emulator does not
+# yet model distinct reset causes (no brownout/watchdog simulation), so
+# reset_cause() always reports a fresh power-on; device code that reads it
+# (e.g. healthcheck.py's boot log) still gets a valid, named constant rather
+# than an AttributeError.
+PWRON_RESET = 1
+HARD_RESET = 2
+WDT_RESET = 3
+DEEPSLEEP_RESET = 4
+SOFT_RESET = 5
+
+
+def reset_cause():
+    return PWRON_RESET
