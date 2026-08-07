@@ -29,3 +29,28 @@ def test_deploy_sh_with_port_emu(tmp_path):
         manifest_files = sorted([line.strip() for line in h if line.strip()])
 
     assert files == manifest_files
+    assert "healthcheck_state.txt" not in files  # plain deploy doesn't start anything
+
+
+def test_deploy_sh_healthcheck_mode_writes_the_start_marker(tmp_path):
+    """./deploy.sh healthcheck -- skips the hand-timed three-finger salute
+    by writing the same marker healthcheck_host.py uses to remote-start a
+    unit (main.py's healthcheck_pending() check)."""
+    vfs_dir = tmp_path / "vfs"
+    vfs_dir.mkdir()
+
+    env = dict(os.environ)
+    env["PORT"] = "emu"
+    env["SMOTOR_DIR"] = str(vfs_dir)
+
+    script_path = os.path.join(REPO_ROOT, "deploy.sh")
+    result = subprocess.run(
+        ["bash", script_path, "healthcheck"], cwd=REPO_ROOT, env=env, capture_output=True, text=True
+    )
+    assert result.returncode == 0
+
+    content = cli.read_vfs_file("healthcheck_state.txt", str(vfs_dir))
+    stage_idx, rest_uv, loaded_p10_uv = content.split("|")
+    assert stage_idx == "0"
+    assert rest_uv == "None"
+    assert loaded_p10_uv == "None"

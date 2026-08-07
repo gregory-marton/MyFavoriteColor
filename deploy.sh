@@ -60,3 +60,21 @@ done < EngAI_MANIFEST.txt
 
 mpremote reset
 echo "✅ Deployment complete!"
+
+# Optional: skip the hand-timed three-finger salute entirely. Writes the
+# same healthcheck_state.txt marker healthcheck_host.py uses to remote-start
+# a unit (see main.py's healthcheck_pending() check) -- boots straight into
+# healthcheck.py on the next reset instead of requiring UP+DOWN+SELECT held
+# through a script-driven power cycle, which is awkward to time by hand.
+# Usage: ./deploy.sh healthcheck        (deploy, then start healthcheck)
+#        FLASH=1 ./deploy.sh healthcheck (full erase+reflash first, if a
+#                                         plain deploy isn't landing cleanly)
+if [ "healthcheck" = "$1" ] || [ "1" = "$HEALTHCHECK" ]; then
+    marker_tmp="$(mktemp)"
+    printf '0|None|None' > "$marker_tmp"
+    echo "🩺 Writing healthcheck_state.txt -- device will boot into healthcheck.py"
+    mpremote cp "$marker_tmp" :healthcheck_state.txt
+    rm -f "$marker_tmp"
+    mpremote reset
+    echo "✅ Healthcheck started!"
+fi
