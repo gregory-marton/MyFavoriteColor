@@ -4,40 +4,22 @@ Graduated from spikes/S7_guided/guided_test_device.py. The OLED walks you
 through exercising every control and logs what it sees, so a fleet of
 devices can be triaged without a bench full of equipment.
 
-Reachable two ways, both through the same marker file (HEALTHCHECK_STATE_PATH):
-  - the three-finger salute (UP+DOWN+SELECT) at boot, handled by main.py.
-  - healthcheck_host.py remote-starting a unit that wasn't hand-saluted, by
-    writing the marker file itself and resetting the board.
+Reachable two ways, both through the same marker file (STATE_PATH): the
+three-finger salute (UP+DOWN+SELECT) at boot (main.py), or
+healthcheck_host.py remote-starting a unit by writing the marker and
+resetting the board.
 
-Sequence: ask you to unplug USB/power first (nothing below is useful data
-while USB is dominating the rail); once confirmed off power, start the servo
-sweeping continuously for the rest of the run -- both a visible "still
-running" signal and sustained-load battery data; then ask you to exercise
-the pot, each button, and the analog/i2c toggle at least 3x each, swivel the
-board for the accelerometer, and (skippable, since not every unit has one)
-read a light sensor or lock a color-sensor white balance; then a 90s
-passive/loaded logging window; then a deliberate power cycle.
+Two deliberate reboots: REBOOT_FOR_SENSOR_SWAP (mid-sequence, to swap the
+light sensor for the color sensor) and OFFON (final, D-RST + battery sag
+check). Each persists progress to STATE_PATH and returns; the next boot
+resumes. After OFFON, run_wait_retrieval() shows the verdict + a live
+readout indefinitely -- ends only via retrieval (healthcheck_host.py) or
+losing power, never self-resets (an earlier bounded/self-resetting version
+was confirmed on the bench as an unwanted, unexplained reboot).
 
-The OFF/ON stage is inherently different: a power cycle stops this script
-entirely, so there's nothing to detect in the moment. Progress -- and the
-battery numbers needed for a verdict -- are persisted to
-HEALTHCHECK_STATE_PATH before that stage begins; the *next* boot recognizes
-it was waiting for a cycle, computes the verdict, and shows it (alongside a
-live mirror-style readout) indefinitely -- see run_wait_retrieval(). It
-ends only when healthcheck_host.py retrieves the recording (interrupting
-the script, same as any mpremote connection does) or the board loses
-power. Nothing self-terminates this wait; an earlier version did, via a
-self-triggered machine.reset() after a bounded window, and that turned out
-to be wrong -- confirmed on the bench as an unrequested reboot no one
-asked for.
-
-------------------------------------------------------------------------------
-SAFETY NOTE
-
-Each control-exercise stage has a timeout (STAGE_TIMEOUT_MS) so a broken
-button/pot/toggle can't hang the sequence forever -- it logs "TIMEOUT" for
-that stage and moves on. run_wait_retrieval() is the deliberate exception:
-see its docstring for why.
+Every control-exercise stage has a timeout (STAGE_TIMEOUT_MS) so a broken
+control can't hang the sequence forever. run_wait_retrieval() is the
+deliberate exception -- see its docstring.
 
 Co-authored-by: GPT-5, Aug 2026
 Co-authored-by: Claude Sonnet 5, Aug 2026
@@ -52,6 +34,7 @@ import mirror
 
 from healthcheck_logic import (
     BUTTON_NAMES,
+    STAGES,
     compute_battery_verdict,
     compute_white_balance_milli,
     detect_button_press,
@@ -63,26 +46,6 @@ from healthcheck_logic import (
 LOG_PATH = "healthcheck_log.txt"
 STATE_PATH = "healthcheck_state.txt"
 
-STAGES = [
-    # SELECT/UP/DOWN first, ground-truth-verified with no dependency on
-    # anything else: every confirm-based stage after this (including
-    # SCREEN_CHECK, immediately next) relies on SELECT to say "good"/"done"
-    # and UP or DOWN to say "problem"/"can't" -- verifying that mechanism
-    # before ever relying on it, not after.
-    "SELECT", "UP", "DOWN",
-    "SCREEN_CHECK",
-    "DISCONNECT_PROMPT",
-    "ENSURE_ANALOG",
-    "POT",
-    "SERVO_CHECK",
-    "ACCEL_FLAT1", "ACCEL_FIG8", "ACCEL_FLAT2",
-    "LIGHT",
-    "FLIP",
-    "REBOOT_FOR_SENSOR_SWAP",
-    "COLOR_WHITE",
-    "SUSTAIN",
-    "OFFON",
-]
 # Only SELECT/UP/DOWN still count discrete reps automatically -- they're
 # the raw hardware ground-truth check. POT/FLIP/LIGHT switched to
 # human-confirmed stages (SELECT="done"/UP-DOWN="can't"), since automatic

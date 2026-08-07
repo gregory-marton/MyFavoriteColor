@@ -11,6 +11,31 @@ Co-authored-by: Claude Sonnet 5, Aug 2026
 BUTTON_NAMES = ("UP", "DOWN", "SELECT")
 EXPECTED_1G_LSB = 256
 
+# Single source of truth for the stage sequence -- shared by healthcheck.py
+# (drives on-device execution) and healthcheck_host.py (drives its
+# retrieved-log summary, and NUM_STAGES = len(STAGES) for the resume/
+# retrieve sentinel). Living in this hardware-free module, not either of
+# those two, is what keeps them from silently drifting out of sync with
+# each other -- both just import the same list instead of each maintaining
+# their own copy.
+STAGES = [
+    # SELECT/UP/DOWN first: every confirm-based stage after this (including
+    # SCREEN_CHECK, next) depends on those buttons working.
+    "SELECT", "UP", "DOWN",
+    "SCREEN_CHECK",
+    "DISCONNECT_PROMPT",
+    "ENSURE_ANALOG",
+    "POT",
+    "SERVO_CHECK",
+    "ACCEL_FLAT1", "ACCEL_FIG8", "ACCEL_FLAT2",
+    "LIGHT",
+    "FLIP",
+    "REBOOT_FOR_SENSOR_SWAP",
+    "COLOR_WHITE",
+    "SUSTAIN",
+    "OFFON",
+]
+
 # Assumed resistor divider between the cell and the battery ADC pin.
 # GUESS: needs bench data (DEVICE_HEALTH_DESIGN.md B001) -- inferred from
 # 2.084 V at the pin on a known-good, fully-charged unit (2.084 * 2 = 4.17 V,
