@@ -383,7 +383,7 @@ def run_accel_stage(display, accel, log, sweeper, label):
     if mode == "flat":
         display.show(label, "set board flat", "and leave still")
     else:
-        display.show(label, "gentle figure-8", "then keep going")
+        display.show(label, "gentle figure-8", "then set on table")
 
     samples = []
     t0 = time.ticks_ms()
