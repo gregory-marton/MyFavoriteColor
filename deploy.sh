@@ -24,6 +24,14 @@ if [ "$PORT" = "emu" ]; then
             echo "🚀 Emulated device reset complete."
         fi
     }
+elif [ -n "$PORT" ]; then
+    # Real hardware, explicit port -- needed once more than one SmartMotor
+    # might be connected at once (healthcheck_host.py's --deploy option
+    # targets one port at a time out of a whole class set; mpremote's bare
+    # auto-detect would pick an arbitrary one).
+    mpremote() {
+        command mpremote connect "$PORT" "$@"
+    }
 fi
 
 # Ensure the manifest exists before proceeding
@@ -32,13 +40,18 @@ if [ ! -f "EngAI_MANIFEST.txt" ]; then
     exit 1
 fi
 
+FLASH_PORT="${PORT:-/dev/cu.usbmodem1101}"
 if [ "FLASH" = "$1" ] || [ "1" = "$FLASH" ]; then
-    esptool --chip esp32c3 --port /dev/cu.usbmodem1101 erase-flash
-    esptool --chip esp32c3 --port /dev/cu.usbmodem1101 --baud 460800 write-flash -z 0x0 ESP32_GENERIC_C3-20250415-v1.25.0.bin
+    esptool --chip esp32c3 --port "$FLASH_PORT" erase-flash
+    esptool --chip esp32c3 --port "$FLASH_PORT" --baud 460800 write-flash -z 0x0 ESP32_GENERIC_C3-20250415-v1.25.0.bin
 fi
 
 if [ "$PORT" != "emu" ]; then
-    ./bin/smotor reset || true
+    if [ -n "$PORT" ]; then
+        ./bin/smotor reset --port "$PORT" || true
+    else
+        ./bin/smotor reset || true
+    fi
 fi
 
 echo "🔌 Wiping existing files on the device..."

@@ -40,6 +40,7 @@ from smcheck.device import get_identity
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MPREMOTE = os.path.join(HERE, ".venv", "bin", "mpremote")
+DEPLOY_SH = os.path.join(HERE, "deploy.sh")
 DEFAULT_RECORDINGS_ROOT = os.path.join(HERE, "recordings")
 
 STATE_FILENAME = "healthcheck_state.txt"
@@ -235,7 +236,7 @@ def render_summary(summary):
 # ---------------------------------------------------------------------------
 
 def handle_new_port(mpremote, port, recordings_root=DEFAULT_RECORDINGS_ROOT,
-                     notes_fn=input, auto_start=True, verbose=print):
+                     notes_fn=input, auto_start=True, deploy_first=False, verbose=print):
     marker_text = mpremote.read_file(port, STATE_FILENAME)
     log_text_probe = mpremote.read_file(port, LOG_FILENAME)
     action = decide_action(marker_text, log_exists=log_text_probe is not None)
@@ -244,8 +245,16 @@ def handle_new_port(mpremote, port, recordings_root=DEFAULT_RECORDINGS_ROOT,
         if not auto_start:
             verbose(f"{port}: fresh unit, no marker -- not starting (auto_start=False)")
             return {"action": "skipped_start", "port": port}
-        mpremote.write_file(port, STATE_FILENAME, "0|None|None")
-        mpremote.reset(port)
+        if deploy_first:
+            # deploy.sh healthcheck already does upload + marker-write +
+            # reset in one pass -- covers a unit that doesn't have
+            # healthcheck.py on it yet at all, not just one that does but
+            # wasn't hand-saluted.
+            verbose(f"{port}: deploying then starting healthcheck")
+            mpremote.deploy_and_start(port)
+        else:
+            mpremote.write_file(port, STATE_FILENAME, "0|None|None")
+            mpremote.reset(port)
         verbose(f"{port}: remote-started a fresh healthcheck run")
         return {"action": "start", "port": port}
 
@@ -283,6 +292,14 @@ def handle_new_port(mpremote, port, recordings_root=DEFAULT_RECORDINGS_ROOT,
     with open(os.path.join(run_dir, LOG_FILENAME), "w") as f:
         f.write(log_text)
 
+    # Confirm the pull succeeded *before* asking for notes -- notes_fn()
+    # (interactively, input()) blocks, and with nothing printed first there
+    # was no way to tell retrieval had actually happened versus the process
+    # just sitting there.
+    verbose(f"{port}: pulled {len(log_text)} bytes -> {os.path.join(run_dir, LOG_FILENAME)}")
+    verbose(render_summary(summarize_log(log_text)))
+    verbose(f"{port}: battery verdict: {verdict}")
+
     notes = notes_fn()
     meta = build_recording_meta(
         identity, notes, verdict, timestamp,
@@ -293,11 +310,10 @@ def handle_new_port(mpremote, port, recordings_root=DEFAULT_RECORDINGS_ROOT,
 
     mpremote.remove_file(port, LOG_FILENAME)
     mpremote.remove_file(port, STATE_FILENAME)
-    mpremote.reset(port)
+    mpremote.reset_with_message(port, ("retrieved!", "ready to reboot"))
 
-    verbose(f"{port}: retrieved run for uid={uid} -> {run_dir}")
-    verbose(render_summary(summarize_log(log_text)))
-    verbose(f"battery verdict: {verdict}")
+    verbose(f"{port}: cleared {LOG_FILENAME} and {STATE_FILENAME}, rebooting to normal operation")
+    verbose(f"{port}: saved to {run_dir}")
 
     return {"action": "retrieve", "port": port, "uid": uid, "run_id": run_id, "run_dir": run_dir}
 
@@ -356,13 +372,44 @@ class MPRemote:
     def reset(self, port):
         self._run(["reset"], port=port)
 
+    def deploy_and_start(self, port, timeout=120):
+        """Runs `deploy.sh healthcheck` targeted at this port -- uploads
+        EngAI_MANIFEST.txt's files and writes the start marker in one pass,
+        for a unit that doesn't have healthcheck.py (or anything else) on
+        it yet, not just one that does but wasn't hand-saluted."""
+        env = dict(os.environ)
+        env["PORT"] = port
+        subprocess.run(["bash", DEPLOY_SH, "healthcheck"], cwd=HERE, env=env,
+                        capture_output=True, text=True, timeout=timeout)
+
+    def reset_with_message(self, port, lines):
+        """Shows `lines` on the OLED for a moment before resetting -- so
+        clearing a retrieved recording leaves a visible "ready to reboot"
+        moment on the device instead of the screen just going dark
+        mid-whatever it happened to be showing."""
+        line_stmts = "\n".join(
+            "d.text(%r, 4, %d, 1)" % (line[:16], 8 + i * 12) for i, line in enumerate(lines)
+        )
+        snippet = (
+            "from machine import Pin, SoftI2C\n"
+            "import ssd1306, time, machine\n"
+            "i2c = SoftI2C(scl=Pin(7), sda=Pin(6))\n"
+            "d = ssd1306.SSD1306_I2C(128, 64, i2c)\n"
+            "d.fill(0)\n"
+            f"{line_stmts}\n"
+            "d.show()\n"
+            "time.sleep_ms(1500)\n"
+            "machine.reset()\n"
+        )
+        self._run(["exec", snippet], port=port)
+
 
 # ---------------------------------------------------------------------------
 # Watch loop.
 # ---------------------------------------------------------------------------
 
 def watch(mpremote, recordings_root=DEFAULT_RECORDINGS_ROOT, poll_interval_s=3.0,
-          auto_start=True, notes_fn=input, max_iterations=None, verbose=print):
+          auto_start=True, deploy_first=False, notes_fn=input, max_iterations=None, verbose=print):
     known = set()
     iterations = 0
     while max_iterations is None or iterations < max_iterations:
@@ -371,7 +418,8 @@ def watch(mpremote, recordings_root=DEFAULT_RECORDINGS_ROOT, poll_interval_s=3.0
         for port in classify_new_ports(known, current):
             try:
                 handle_new_port(mpremote, port, recordings_root=recordings_root,
-                                 notes_fn=notes_fn, auto_start=auto_start, verbose=verbose)
+                                 notes_fn=notes_fn, auto_start=auto_start,
+                                 deploy_first=deploy_first, verbose=verbose)
             except Exception as exc:
                 verbose(f"{port}: error handling newly-appeared port: {exc}")
         known = set(current)
@@ -388,12 +436,15 @@ def main(argv=None):
     watch_p.add_argument("--poll-interval", type=float, default=3.0)
     watch_p.add_argument("--auto-start", action="store_true", default=True)
     watch_p.add_argument("--no-auto-start", dest="auto_start", action="store_false")
+    watch_p.add_argument("--deploy", dest="deploy_first", action="store_true",
+                          help="deploy.sh healthcheck a fresh unit first, instead of assuming "
+                               "healthcheck.py is already on it")
 
     args = ap.parse_args(argv)
     if args.command == "watch":
         print(f"watching for SmartMotors -- recordings -> {args.recordings}")
         watch(MPRemote(), recordings_root=args.recordings, poll_interval_s=args.poll_interval,
-              auto_start=args.auto_start)
+              auto_start=args.auto_start, deploy_first=args.deploy_first)
     return 0
 
 

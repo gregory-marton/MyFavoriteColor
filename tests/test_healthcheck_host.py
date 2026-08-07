@@ -153,9 +153,19 @@ class FakeMPRemote:
         self.calls.append(("reset", port))
         self.resets.append(port)
 
+    def reset_with_message(self, port, lines):
+        self.calls.append(("reset_with_message", port, lines))
+        self.resets.append(port)
+
     def get_identity(self, port):
         self.calls.append(("get_identity", port))
         return {"uid": "deadbeef0001", "implementation": "", "freq": ""}
+
+    def deploy_and_start(self, port):
+        self.calls.append(("deploy_and_start", port))
+        # deploy.sh healthcheck's real effect: manifest files land (not
+        # modeled here) and the marker gets written.
+        self.files.setdefault(port, {})["healthcheck_state.txt"] = "0|None|None"
 
 
 def test_handle_new_port_starts_a_fresh_unit(tmp_path):
@@ -299,3 +309,81 @@ def test_watch_never_probes_a_filtered_out_port(tmp_path):
              notes_fn=lambda: "", max_iterations=1, verbose=lambda *a: None)
 
     assert ("read_file", "/dev/cu.Bluetooth-Incoming-Port", hh.STATE_FILENAME) not in mp.calls
+
+
+def test_handle_new_port_shows_ready_to_reboot_on_the_device_after_clearing(tmp_path):
+    marker = "%d|2079000|1900000" % hh.NUM_STAGES
+    log_text = "BOOT boot_num=1 reset_cause=1(PWRON_RESET) resume_stage=0\nWAITING_FOR_REBOOT stage=OFFON\n"
+    mp = FakeMPRemote(
+        ports=["/dev/a"],
+        files={"/dev/a": {"healthcheck_state.txt": marker, "healthcheck_log.txt": log_text}},
+    )
+    hh.handle_new_port(mp, "/dev/a", recordings_root=str(tmp_path), notes_fn=lambda: "")
+
+    reset_calls = [c for c in mp.calls if c[0] == "reset_with_message"]
+    assert len(reset_calls) == 1
+    _, port, lines = reset_calls[0]
+    assert port == "/dev/a"
+    assert any("ready to reboot" in line for line in lines)
+
+
+def test_mpremote_reset_with_message_snippet_shows_lines_and_resets():
+    calls = []
+    mp = hh.MPRemote()
+    mp._run = lambda args, port=None, timeout=None: calls.append(args)
+
+    mp.reset_with_message("/dev/a", ("retrieved!", "ready to reboot"))
+
+    snippet = calls[0][1]
+    assert "retrieved!" in snippet
+    assert "ready to reboot" in snippet
+    assert "machine.reset()" in snippet
+
+
+def test_handle_new_port_deploys_before_starting_when_deploy_first(tmp_path):
+    mp = FakeMPRemote(ports=["/dev/a"])
+    result = hh.handle_new_port(
+        mp, "/dev/a", recordings_root=str(tmp_path), notes_fn=lambda: "", deploy_first=True
+    )
+
+    assert result["action"] == "start"
+    assert ("deploy_and_start", "/dev/a") in mp.calls
+    assert mp.files["/dev/a"]["healthcheck_state.txt"] == "0|None|None"
+    # deploy_and_start already resets as part of deploy.sh healthcheck --
+    # no separate write_file/reset call on top of it
+    assert ("write_file", "/dev/a", hh.STATE_FILENAME, "0|None|None") not in mp.calls
+
+
+def test_handle_new_port_skips_deploy_when_marker_already_present(tmp_path):
+    mp = FakeMPRemote(ports=["/dev/a"], files={"/dev/a": {"healthcheck_state.txt": "3|None|None"}})
+    hh.handle_new_port(mp, "/dev/a", recordings_root=str(tmp_path), notes_fn=lambda: "", deploy_first=True)
+
+    assert not any(c[0] == "deploy_and_start" for c in mp.calls)
+
+
+def test_mpremote_deploy_and_start_runs_deploy_sh_with_port_env():
+    calls = []
+    mp = hh.MPRemote()
+    mp._subprocess_run = None  # not used; deploy_and_start calls subprocess.run directly
+
+    import subprocess as subprocess_module
+    original_run = subprocess_module.run
+
+    def fake_run(args, cwd=None, env=None, capture_output=None, text=None, timeout=None):
+        calls.append((args, env.get("PORT") if env else None))
+
+        class Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+        return Result()
+
+    subprocess_module.run = fake_run
+    try:
+        mp.deploy_and_start("/dev/cu.usbmodem1101")
+    finally:
+        subprocess_module.run = original_run
+
+    args, port_env = calls[0]
+    assert args == ["bash", hh.DEPLOY_SH, "healthcheck"]
+    assert port_env == "/dev/cu.usbmodem1101"
