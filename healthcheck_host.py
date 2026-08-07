@@ -53,7 +53,7 @@ LOG_FILENAME = "healthcheck_log.txt"
 
 # Must match len(healthcheck.STAGES) -- the sentinel a fresh run's stage
 # index reaches once healthcheck.py's OFFON stage writes its marker.
-NUM_STAGES = 14
+NUM_STAGES = 17
 
 # How long to let a just-reset board's native USB re-enumerate before the
 # next port scan. Confirmed on the bench: without this, a poll landing
@@ -70,10 +70,17 @@ def prompt_for_notes():
     return input("notes for this recording (Enter to skip): ")
 
 STAGE_ORDER = (
+    "SELECT", "UP", "DOWN",
+    "SCREEN_CHECK",
     "DISCONNECT_PROMPT",
-    "POT", "SELECT", "UP", "DOWN", "FLIP",
+    "ENSURE_ANALOG",
+    "POT",
+    "SERVO_CHECK",
     "ACCEL_FLAT1", "ACCEL_FIG8", "ACCEL_FLAT2",
-    "LIGHT_DARK", "LIGHT_BRIGHT", "COLOR_WHITE",
+    "LIGHT",
+    "FLIP",
+    "REBOOT_FOR_SENSOR_SWAP",
+    "COLOR_WHITE",
     "SUSTAIN",
     "OFFON",
 )
