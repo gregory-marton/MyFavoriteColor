@@ -6,9 +6,7 @@ from machine import Pin, SoftI2C, PWM, ADC
 import adxl345
 import time
 
-i2c = SoftI2C(scl = Pin(7), sda = Pin(6))
-
-
+i2c = SoftI2C(scl = Pin(7), sda = Pin(6), freq=400000)
 
 class SENSORS:
     def __init__(self,connection=i2c):
@@ -84,28 +82,11 @@ class SENSORS:
 
     
     def readpot(self):
-        if self.adx is not None:
-            try:
-                self.adx.read()
-            except Exception:
-                pass
         pot_value = self.pot.read()
-        try:
-            import smirror
-            smirror.emit_inputs(
-                pot_value,
-                Pin(10).value(),
-                Pin(8).value(),
-                Pin(9).value(),
-            )
-        except Exception:
-            pass
         return pot_value
     
     def accel(self):
-        self.x =self.adx.xValue
-        self.y =self.adx.yValue
-        self.z =self.adx.zValue
+        (self.x, self.y, self.z) =self.adx.read()
         
 
     def readaccel(self):
@@ -122,7 +103,7 @@ class SENSORS:
         l=[]
         p=[]
         
-        for i in range(100):
+        for i in range(50):
             if self.attached:
                 l.append(self.readlight())
             p.append(self.readpot())
