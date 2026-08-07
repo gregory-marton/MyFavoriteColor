@@ -22,11 +22,13 @@ retrieval itself) is "newly-appeared" again the next time it's seen.
     ./healthcheck_host.py watch --no-auto-start # only retrieve/resume; never
                                                  # start a unit that wasn't
                                                  # hand-saluted
-    ./healthcheck_host.py once                  # act on whatever's connected, wait
-                                                 # for each started/resumed unit to
-                                                 # actually finish and be retrieved
-                                                 # (up to --max-wait, default 30 min),
-                                                 # then exit -- bounded, not open-ended
+    ./healthcheck_host.py once                  # act on whatever's connected (waiting
+                                                 # for an initial connection first if
+                                                 # nothing is plugged in yet), wait for
+                                                 # each started/resumed unit to actually
+                                                 # finish and be retrieved (up to
+                                                 # --max-wait, default 30 min), then
+                                                 # exit -- bounded, not open-ended
 
 Co-authored-by: Claude Sonnet 5, Aug 2026
 """
@@ -42,6 +44,7 @@ import time
 from datetime import datetime, timezone
 
 from smcheck.device import get_identity
+from healthcheck_logic import STAGES
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MPREMOTE = os.path.join(HERE, ".venv", "bin", "mpremote")
@@ -51,9 +54,11 @@ DEFAULT_RECORDINGS_ROOT = os.path.join(HERE, "recordings")
 STATE_FILENAME = "healthcheck_state.txt"
 LOG_FILENAME = "healthcheck_log.txt"
 
-# Must match len(healthcheck.STAGES) -- the sentinel a fresh run's stage
-# index reaches once healthcheck.py's OFFON stage writes its marker.
-NUM_STAGES = 17
+# The sentinel a fresh run's stage index reaches once healthcheck.py's
+# OFFON stage writes its marker. Derived from healthcheck_logic.STAGES --
+# the single source of truth shared with the on-device code -- instead of a
+# hand-maintained copy that can silently drift out of sync with it.
+NUM_STAGES = len(STAGES)
 
 # How long to let a just-reset board's native USB re-enumerate before the
 # next port scan. Confirmed on the bench: without this, a poll landing
@@ -68,22 +73,6 @@ def prompt_for_notes():
     # Bare input() shows no prompt text at all -- confirmed on the bench to
     # look indistinguishable from hung.
     return input("notes for this recording (Enter to skip): ")
-
-STAGE_ORDER = (
-    "SELECT", "UP", "DOWN",
-    "SCREEN_CHECK",
-    "DISCONNECT_PROMPT",
-    "ENSURE_ANALOG",
-    "POT",
-    "SERVO_CHECK",
-    "ACCEL_FLAT1", "ACCEL_FIG8", "ACCEL_FLAT2",
-    "LIGHT",
-    "FLIP",
-    "REBOOT_FOR_SENSOR_SWAP",
-    "COLOR_WHITE",
-    "SUSTAIN",
-    "OFFON",
-)
 
 
 # ---------------------------------------------------------------------------
@@ -240,7 +229,7 @@ def render_summary(summary):
         lines.append(f"  boot #{b['boot_num']}: reset_cause={b['reset_cause_name']}, "
                      f"resuming at stage {b['resume_stage']}")
     lines.append("\nStage results:")
-    for stage in STAGE_ORDER:
+    for stage in STAGES:
         n_reps = len(summary["stage_reps"].get(stage, []))
         if stage in summary["stage_done"]:
             lines.append(f"  {stage:14s} DONE    ({n_reps} rep(s) detected)")
@@ -480,14 +469,23 @@ def run_once(mpremote, recordings_root=DEFAULT_RECORDINGS_ROOT, poll_interval_s=
     unit to physically go away (unplug, per DISCONNECT_PROMPT) and come
     back minutes later with a finished recording; a single scan can't wait
     for that, and running forever like watch() does isn't "once" either.
-    Bounded to units seen this run, not open-ended like watch()."""
+    Bounded to units seen this run, not open-ended like watch().
+
+    If nothing is connected yet, also waits for an initial connection
+    instead of returning immediately -- the point of `once` is often to
+    catch a unit right as it boots, before it starts doing something that
+    makes a later Ctrl-C hard to land."""
     known = set()
     pending = set()  # ports started/resumed this run, not yet retrieved
+    seen_anything = False
     t0 = time.time()
 
     while True:
         current = filter_candidate_ports(mpremote.list_ports())
-        for port in classify_new_ports(known, current):
+        newly = classify_new_ports(known, current)
+        if newly:
+            seen_anything = True
+        for port in newly:
             try:
                 result = handle_new_port(mpremote, port, recordings_root=recordings_root,
                                           notes_fn=notes_fn, auto_start=auto_start,
@@ -502,10 +500,13 @@ def run_once(mpremote, recordings_root=DEFAULT_RECORDINGS_ROOT, poll_interval_s=
             # "skipped_start" -- nothing started, nothing to wait for
         known = set(current)
 
-        if not pending:
+        if seen_anything and not pending:
             return {"pending": []}
         if time.time() - t0 > max_wait_s:
-            verbose(f"gave up after {max_wait_s}s -- still waiting on: {sorted(pending)}")
+            if not seen_anything:
+                verbose(f"gave up after {max_wait_s}s -- no SmartMotor ever connected")
+            else:
+                verbose(f"gave up after {max_wait_s}s -- still waiting on: {sorted(pending)}")
             return {"pending": sorted(pending)}
         time.sleep(poll_interval_s)
 

@@ -525,11 +525,36 @@ def test_run_once_waits_across_a_disconnect_and_retrieves_on_reappear(tmp_path, 
     assert os.path.isdir(os.path.join(str(tmp_path), "deadbeef0001"))  # actually retrieved
 
 
-def test_run_once_returns_immediately_when_nothing_is_connected(tmp_path):
-    mp = ScriptedMPRemote(port_sequence=[[]])
+def test_run_once_waits_for_an_initial_connection_instead_of_returning_immediately(tmp_path, monkeypatch):
+    # The point of `once` is often to catch a unit right as it boots, before
+    # it starts doing something that makes a later Ctrl-C hard to land --
+    # so with nothing connected yet, it must keep polling rather than
+    # exiting on the first empty scan.
+    monkeypatch.setattr(hh.time, "sleep", lambda s: None)
+    marker_done = "%d|2079000|1900000" % hh.NUM_STAGES
+    log_text = "BOOT boot_num=1 reset_cause=1(PWRON_RESET) resume_stage=0\nWAITING_FOR_REBOOT stage=OFFON\n"
+
+    mp = ScriptedMPRemote(
+        port_sequence=[[], [], ["/dev/cu.usbmodem101"]],  # nothing yet, still nothing, now connected
+        file_patches={2: {"/dev/cu.usbmodem101": {"healthcheck_state.txt": marker_done, "healthcheck_log.txt": log_text}}},
+    )
+
     result = hh.run_once(mp, recordings_root=str(tmp_path), notes_fn=lambda: "", poll_interval_s=0)
 
     assert result["pending"] == []
+    assert os.path.isdir(os.path.join(str(tmp_path), "deadbeef0001"))  # actually retrieved
+
+
+def test_run_once_gives_up_waiting_for_an_initial_connection_after_max_wait(tmp_path, monkeypatch):
+    monkeypatch.setattr(hh.time, "sleep", lambda s: None)
+    mp = ScriptedMPRemote(port_sequence=[[]])
+    messages = []
+
+    result = hh.run_once(mp, recordings_root=str(tmp_path), notes_fn=lambda: "",
+                          poll_interval_s=0, max_wait_s=0, verbose=messages.append)
+
+    assert result["pending"] == []
+    assert any("no SmartMotor ever connected" in m for m in messages)
 
 
 def test_run_once_gives_up_after_max_wait_and_reports_pending(tmp_path, monkeypatch):
