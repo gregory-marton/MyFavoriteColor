@@ -129,3 +129,43 @@ def test_parses_light_summary():
 
     assert summary["stage"] == "LIGHT_DARK"
     assert summary["mean"] == 16
+
+
+def test_parses_full_sample_line_from_healthcheck():
+    # healthcheck.py's FULL_SAMPLE line -- superset of SUSTAIN_SAMPLE, plus
+    # port mode, attached-sensor value, buttons, and servo angle. See
+    # healthcheck_logic.format_full_sample_line().
+    log = (
+        "BOOT boot_num=1 reset_cause=1(PWRON_RESET) resume_stage=0\n"
+        "FULL_SAMPLE t=30 pot=2048 batt_raw=2894 batt_uv=2079000 accel=-9,1,-253 "
+        "port=alg sensor_attached=1 sensor=1500 btn=1,1,0 angle=90\n"
+    )
+    events = parse_guided_log(log)
+    sample = [e for e in events if e["type"] == "FULL_SAMPLE"][0]
+
+    assert sample["pot"] == 2048
+    assert sample["batt_raw"] == 2894
+    assert sample["battery_v"] == 2.079
+    assert sample["accel"] == (-9, 1, -253)
+    assert "orientation" in sample
+    assert sample["on_usb"] is True  # 2894 > 2850 charging threshold
+    assert sample["port_mode"] == "alg"
+    assert sample["sensor_attached"] is True
+    assert sample["sensor_value"] == 1500
+    assert sample["buttons"] == (1, 1, 0)
+    assert sample["angle"] == 90
+
+
+def test_parses_full_sample_line_with_no_sensor_or_accel():
+    log = (
+        "BOOT boot_num=1 reset_cause=1(PWRON_RESET) resume_stage=0\n"
+        "FULL_SAMPLE t=1 pot=0 batt_raw=0 batt_uv=0 accel=None,None,None "
+        "port=i2c sensor_attached=0 sensor=None btn=1,1,1 angle=0\n"
+    )
+    events = parse_guided_log(log)
+    sample = [e for e in events if e["type"] == "FULL_SAMPLE"][0]
+
+    assert sample["accel"] is None
+    assert sample["orientation"] is None
+    assert sample["sensor_attached"] is False
+    assert sample["sensor_value"] is None

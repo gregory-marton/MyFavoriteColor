@@ -170,6 +170,42 @@ def _parse_light_summary(line, boot_offset, last_t_in_boot):
     }
 
 
+def _parse_full_sample(line, boot_offset):
+    # healthcheck.py's FULL_SAMPLE line (healthcheck_logic.format_full_sample_line):
+    # superset of SUSTAIN_SAMPLE plus port mode, attached-sensor value,
+    # buttons, and servo angle -- the main replay/distribution data source.
+    m = re.search(
+        r"t=(\d+) pot=(\d+) batt_raw=(\d+) batt_uv=(\d+) "
+        r"accel=([\-\d]+|None),([\-\d]+|None),([\-\d]+|None) "
+        r"port=(\w+) sensor_attached=(\d) sensor=(\-?\d+|None) "
+        r"btn=([01]),([01]),([01]) angle=(\d+)",
+        line,
+    )
+    if not m:
+        return None
+    batt_raw = int(m.group(3))
+    accel = None if m.group(5) == "None" else (
+        int(m.group(5)), int(m.group(6)), int(m.group(7))
+    )
+    sensor_value = None if m.group(10) == "None" else int(m.group(10))
+    return {
+        "type": "FULL_SAMPLE",
+        "t": boot_offset + int(m.group(1)),
+        "pot": int(m.group(2)),
+        "batt_raw": batt_raw,
+        "batt_uv": int(m.group(4)),
+        "battery_v": int(m.group(4)) / 1e6,
+        "accel": accel,
+        "orientation": orientation_from_accel(accel),
+        "on_usb": batt_raw > ON_USB_CHARGING_THRESHOLD,
+        "port_mode": m.group(8),
+        "sensor_attached": m.group(9) == "1",
+        "sensor_value": sensor_value,
+        "buttons": (int(m.group(11)), int(m.group(12)), int(m.group(13))),
+        "angle": int(m.group(14)),
+    }
+
+
 def parse_guided_log(text):
     events = []
     boot_offset = 0
@@ -213,6 +249,13 @@ def parse_guided_log(text):
         elif line.startswith("START_SAMPLE ") or line.startswith("SUSTAIN_SAMPLE "):
             event_type = "START_SAMPLE" if line.startswith("START_SAMPLE ") else "SUSTAIN_SAMPLE"
             event = _parse_sample_line(line, event_type, boot_offset)
+            if event is not None:
+                t = event["t"] - boot_offset
+                last_t_in_boot = max(last_t_in_boot, t)
+                events.append(event)
+
+        elif line.startswith("FULL_SAMPLE "):
+            event = _parse_full_sample(line, boot_offset)
             if event is not None:
                 t = event["t"] - boot_offset
                 last_t_in_boot = max(last_t_in_boot, t)
@@ -266,10 +309,22 @@ def parse_guided_log(text):
 def render_screens(events):
     """Adds a base64-encoded 128x64 MONO_VLSB buffer to each SCREEN event,
     drawn through the real ssd1306.py driver -- same layout as
-    spikes/S7_guided/guided_test_device.py's Display.show()."""
+    healthcheck.py's (formerly spikes/S7_guided/guided_test_device.py's)
+    Display.show().
+
+    Installs its own throwaway Board/clock rather than relying on whatever
+    Pin._board happens to be left over from another test's Session -- this
+    is called from smotoremu/server.py's replay path with no Session of its
+    own, and process-wide test order previously made that ambient board's
+    clock unpredictably already stopped (SystemExit on the first sleep)."""
+    from smotoremu.clock import VirtualClock
+    from smotoremu.machine_shim import Board
+
     ssd1306 = load_real_ssd1306()
+    board = Board(clock=VirtualClock(mode="instant"))
+    Pin.use_board(board)
     i2c = SoftI2C(scl=Pin(7), sda=Pin(6))
-    Pin._board.i2c_bus.register(0x3C, I2CDevice())
+    board.i2c_bus.register(0x3C, I2CDevice())
     display = ssd1306.SSD1306_I2C(128, 64, i2c)
 
     rendered = []
