@@ -22,6 +22,9 @@ retrieval itself) is "newly-appeared" again the next time it's seen.
     ./healthcheck_host.py watch --no-auto-start # only retrieve/resume; never
                                                  # start a unit that wasn't
                                                  # hand-saluted
+    ./healthcheck_host.py once                  # act on whatever's connected right
+                                                 # now, then exit -- no polling loop,
+                                                 # e.g. for a script/cron invocation
 
 Co-authored-by: Claude Sonnet 5, Aug 2026
 """
@@ -442,24 +445,36 @@ def watch(mpremote, recordings_root=DEFAULT_RECORDINGS_ROOT, poll_interval_s=3.0
             time.sleep(poll_interval_s)
 
 
+def _add_watch_args(parser):
+    parser.add_argument("--recordings", default=DEFAULT_RECORDINGS_ROOT)
+    parser.add_argument("--auto-start", action="store_true", default=True)
+    parser.add_argument("--no-auto-start", dest="auto_start", action="store_false")
+    parser.add_argument("--deploy", dest="deploy_first", action="store_true",
+                         help="deploy.sh healthcheck a fresh unit first, instead of assuming "
+                              "healthcheck.py is already on it")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="SmartMotor healthcheck fleet manager")
     sub = ap.add_subparsers(dest="command", required=True)
 
-    watch_p = sub.add_parser("watch", help="Watch serial ports; remote-start and retrieve as they appear")
-    watch_p.add_argument("--recordings", default=DEFAULT_RECORDINGS_ROOT)
+    watch_p = sub.add_parser("watch", help="Watch serial ports continuously; act on ports as they appear")
     watch_p.add_argument("--poll-interval", type=float, default=3.0)
-    watch_p.add_argument("--auto-start", action="store_true", default=True)
-    watch_p.add_argument("--no-auto-start", dest="auto_start", action="store_false")
-    watch_p.add_argument("--deploy", dest="deploy_first", action="store_true",
-                          help="deploy.sh healthcheck a fresh unit first, instead of assuming "
-                               "healthcheck.py is already on it")
+    _add_watch_args(watch_p)
+
+    once_p = sub.add_parser("once", help="Act on whatever's currently connected, then exit -- no polling loop")
+    _add_watch_args(once_p)
 
     args = ap.parse_args(argv)
     if args.command == "watch":
         print(f"watching for SmartMotors -- recordings -> {args.recordings}")
         watch(MPRemote(), recordings_root=args.recordings, poll_interval_s=args.poll_interval,
               auto_start=args.auto_start, deploy_first=args.deploy_first)
+    elif args.command == "once":
+        print(f"checking currently-connected SmartMotors -- recordings -> {args.recordings}")
+        watch(MPRemote(), recordings_root=args.recordings, poll_interval_s=0,
+              auto_start=args.auto_start, deploy_first=args.deploy_first, max_iterations=1)
+        print("done")
     return 0
 
 

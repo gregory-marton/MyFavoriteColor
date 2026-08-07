@@ -441,3 +441,36 @@ def test_mpremote_reset_with_message_tolerates_the_expected_timeout():
 
     mp._run = fake_run
     mp.reset_with_message("/dev/a", ("retrieved!", "ready to reboot"))  # must not raise
+
+
+def test_cli_once_calls_watch_with_a_single_iteration_and_no_poll_delay(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_watch(mpremote, **kwargs):
+        calls.append(kwargs)
+
+    monkeypatch.setattr(hh, "watch", fake_watch)
+    monkeypatch.setattr(hh, "MPRemote", lambda: object())
+
+    hh.main(["once", "--recordings", str(tmp_path)])
+
+    assert len(calls) == 1
+    assert calls[0]["max_iterations"] == 1
+    assert calls[0]["poll_interval_s"] == 0
+    assert calls[0]["recordings_root"] == str(tmp_path)
+
+
+def test_cli_watch_calls_watch_with_no_iteration_cap(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_watch(mpremote, **kwargs):
+        calls.append(kwargs)
+
+    monkeypatch.setattr(hh, "watch", fake_watch)
+    monkeypatch.setattr(hh, "MPRemote", lambda: object())
+
+    hh.main(["watch", "--recordings", str(tmp_path), "--poll-interval", "5"])
+
+    assert len(calls) == 1
+    assert "max_iterations" not in calls[0]
+    assert calls[0]["poll_interval_s"] == 5.0
