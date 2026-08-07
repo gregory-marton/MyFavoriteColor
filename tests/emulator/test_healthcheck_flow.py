@@ -95,39 +95,43 @@ def test_pending_marker_forces_healthcheck_regardless_of_buttons(tmp_path, monke
     assert session.error is None
 
 
-def test_resume_after_offon_shows_verdict_then_clears_marker_and_resets(tmp_path, monkeypatch):
-    """A field-completed run (three-finger salute, no laptop) must not sit
-    stuck waiting to be plugged in: it shows the verdict briefly, clears its
-    own marker, and resets back to normal operation on its own. The log
-    stays on flash either way for healthcheck_host.py to retrieve later."""
+def test_resume_after_offon_computes_verdict_then_waits_indefinitely(tmp_path, monkeypatch):
+    """A completed run (reached OFFON, rebooted) computes and logs its
+    verdict, then hands off to run_wait_retrieval() -- which loops forever
+    by design (see its docstring: an earlier self-terminating version was
+    confirmed on the bench as an unrequested reboot). Since that loop has
+    no natural exit, this test stubs it out to verify the routing and
+    verdict computation without actually entering an infinite loop under
+    the emulator's instant clock. The marker and log are untouched here --
+    only healthcheck_host.py's retrieval clears them now."""
     write_module(
         tmp_path,
         "healthcheck_resume_program",
         "def main():\n"
         "    with open('healthcheck_state.txt', 'w') as f:\n"
-        "        f.write('14|2079000|1900000')\n"  # stage_idx==14 -- past OFFON
+        "        f.write('14|2084000|2064000')\n"  # stage_idx==14 -- past OFFON; small sag -> healthy
         "    import healthcheck\n"
-        "    healthcheck.VERDICT_DISPLAY_MS = 100\n"
-        "    healthcheck.main()\n",
+        "    calls = []\n"
+        "    healthcheck.run_wait_retrieval = lambda *a, **kw: calls.append((a, kw))\n"
+        "    healthcheck.main()\n"
+        "    assert len(calls) == 1, calls\n"
+        "    verdict = calls[0][0][-1]\n"
+        "    assert verdict['verdict'] == 'likely healthy', verdict\n",
     )
     monkeypatch.syspath_prepend(str(tmp_path))
     session = Session()
 
     session.boot("healthcheck_resume_program")
-    session.run_until_idle(timeout_ms=15000)
+    session.run_until_idle(timeout_ms=5000)
 
-    from smotoremu.machine_shim import DeviceReset
-    assert isinstance(session.error, DeviceReset), (
-        "expected healthcheck.py to self-trigger machine.reset() after showing the verdict"
-    )
+    assert session.error is None
 
     log = read_vfs_file(session, "healthcheck_log.txt")
     assert "VERDICT " in log
-    assert "SEQUENCE_COMPLETE" in log
+    assert "REP stage=OFFON rep=1" in log
 
-    assert not os.path.exists(os.path.join(session.vfs_dir, "healthcheck_state.txt")), (
-        "the marker must be cleared so the next real boot returns to normal dispatch"
-    )
+    # untouched -- only a real retrieval (healthcheck_host.py) clears these
+    assert os.path.exists(os.path.join(session.vfs_dir, "healthcheck_state.txt"))
 
 
 def test_no_marker_and_no_salute_falls_back_to_standalone(tmp_path, monkeypatch):

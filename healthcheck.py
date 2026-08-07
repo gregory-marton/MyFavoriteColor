@@ -22,22 +22,22 @@ The OFF/ON stage is inherently different: a power cycle stops this script
 entirely, so there's nothing to detect in the moment. Progress -- and the
 battery numbers needed for a verdict -- are persisted to
 HEALTHCHECK_STATE_PATH before that stage begins; the *next* boot recognizes
-it was waiting for a cycle, computes the verdict, and shows it briefly
-(alongside a live mirror-style readout) -- then clears the marker and
-resets back into *normal* operation on its own. Deliberately not an
-indefinite wait: a unit run via the three-finger salute in the field, with
-no laptop present, must not sit stuck on a screen forever. The recording
-(healthcheck_log.txt) stays on flash regardless, so healthcheck_host.py can
-retrieve it from any later connection -- live in the room, or picked up
-whenever that device is next plugged in.
+it was waiting for a cycle, computes the verdict, and shows it (alongside a
+live mirror-style readout) indefinitely -- see run_wait_retrieval(). It
+ends only when healthcheck_host.py retrieves the recording (interrupting
+the script, same as any mpremote connection does) or the board loses
+power. Nothing self-terminates this wait; an earlier version did, via a
+self-triggered machine.reset() after a bounded window, and that turned out
+to be wrong -- confirmed on the bench as an unrequested reboot no one
+asked for.
 
 ------------------------------------------------------------------------------
 SAFETY NOTE
 
 Each control-exercise stage has a timeout (STAGE_TIMEOUT_MS) so a broken
 button/pot/toggle can't hang the sequence forever -- it logs "TIMEOUT" for
-that stage and moves on. The post-OFFON verdict screen is bounded too
-(VERDICT_DISPLAY_MS), not an indefinite wait.
+that stage and moves on. run_wait_retrieval() is the deliberate exception:
+see its docstring for why.
 
 Co-authored-by: GPT-5, Aug 2026
 Co-authored-by: Claude Sonnet 5, Aug 2026
@@ -104,8 +104,8 @@ STAGE_TIMEOUT_MS = {
 BUTTON_PIN_NUMBERS = (10, 8, 9)  # matches (up, down, select)
 
 FULL_SAMPLE_PERIOD_MS = 500
-VERDICT_DISPLAY_MS = 20000  # bounded -- see show_verdict_and_finish()
-# The verdict/telemetry screen alternates, but not evenly: mostly telemetry,
+# The verdict/telemetry screen (run_wait_retrieval, indefinite) alternates,
+# but not evenly: mostly telemetry,
 # the verdict as a brief periodic reminder (~10% of the time), per bench
 # feedback that a 50/50 flip felt like it showed the verdict "half the
 # time."
@@ -147,18 +147,6 @@ def _state_exists():
         return True
     except OSError:
         return False
-
-
-def _clear_state():
-    """Removes only the marker (main.py's healthcheck_pending() check) --
-    healthcheck_log.txt is deliberately left on flash. That's "the saved
-    recording" for a field run with no laptop present: healthcheck_host.py
-    can retrieve it from any later connection, live or days from now."""
-    try:
-        import os
-        os.remove(STATE_PATH)
-    except OSError:
-        pass
 
 
 class Display:
@@ -224,16 +212,27 @@ def shake_head(s):
 
 
 def run_disconnect_prompt(display, battery, log):
-    """Returns calibrated V_rest (microvolts) once disconnect is confirmed,
-    or None on timeout. No continuous sweeper yet -- shake_head uses the
-    servo directly, a momentary gesture, not sustained load.
+    """Returns calibrated V_rest (microvolts) either way. No continuous
+    sweeper yet -- shake_head uses the servo directly, a momentary gesture,
+    not sustained load.
 
     There's no software way to read the physical battery-power switch (~)
     -- it isn't wired to a readable pin anywhere in this codebase, so this
     can only remind, not detect. Worth saying up front: unplugging USB
     while that switch is off cuts power entirely, which is confusing on
     the bench (looks like the board died, not like "please turn on
-    battery power first")."""
+    battery power first").
+
+    is_probably_on_usb() is a proxy (raw battery ADC > 2850), not a real
+    USB-presence sensor, and a genuinely healthy, well-charged battery can
+    read above that threshold even when truly unplugged -- indistinguishable
+    from "still on USB" by voltage alone. That used to mean a false timeout
+    here made rest_uv permanently None and the whole run's verdict silently
+    became "insufficient data" even when SUSTAIN got perfectly good loaded
+    data. The rest reading itself isn't actually blocked by that failure
+    mode -- only the *confirmation* is -- so a timeout now still takes and
+    returns the reading, just logged (and later reported) as unconfirmed
+    rather than thrown away."""
     from servo import Servo
     s = Servo(Pin(2))
     t0 = time.ticks_ms()
@@ -247,11 +246,13 @@ def run_disconnect_prompt(display, battery, log):
             # confirm it's not just a momentary dip
             if not is_probably_on_usb(battery):
                 rest_uv = battery.read_uv()
-                _log(log, "REST_SAMPLE t=%d batt_uv=%d" % (time.ticks_ms(), rest_uv))
+                _log(log, "REST_SAMPLE t=%d batt_uv=%d confirmed=1" % (time.ticks_ms(), rest_uv))
                 _log(log, "STAGE_DONE stage=DISCONNECT_PROMPT")
                 return rest_uv
+    rest_uv = battery.read_uv()
+    _log(log, "REST_SAMPLE t=%d batt_uv=%d confirmed=0" % (time.ticks_ms(), rest_uv))
     _log(log, "TIMEOUT stage=DISCONNECT_PROMPT")
-    return None
+    return rest_uv
 
 
 def run_confirm_stage(display, label, button_pins, log, sweeper, sample_fn, format_lines_fn, timeout_ms):
@@ -557,16 +558,18 @@ def run_sustain_stage(display, pot, battery, accel, i2c, i2c_sensor, button_pins
     return loaded_uv
 
 
-def show_verdict_and_finish(display, pot, battery, accel, i2c, i2c_sensor, button_pins, log,
-                             sweeper, verdict, duration_ms=VERDICT_DISPLAY_MS):
+def run_wait_retrieval(display, pot, battery, accel, i2c, i2c_sensor, button_pins, log, sweeper, verdict):
     """Shows the battery verdict, alternating with a live mirror-style
-    readout, for a bounded window -- then returns so main() can hand control
-    straight back to normal operation. Deliberately NOT an indefinite wait:
-    a field-deployed unit (three-finger salute, no laptop present) needs to
-    keep working, not sit stuck on this screen until someone eventually
-    plugs it in. The recording (healthcheck_log.txt) stays on flash either
-    way, so healthcheck_host.py can retrieve it whenever it next connects --
-    live in the room or days later, it doesn't matter which."""
+    readout, and loops indefinitely -- ends only when mpremote interrupts
+    the script during retrieval (healthcheck_host.py), or the board loses
+    power (a manual power-cycle). Deliberately NOT self-terminating: an
+    earlier version called machine.reset() after a bounded window to
+    return to normal operation on its own, which turned out to be the
+    wrong call -- confirmed on the bench as an unrequested, unexplained
+    reboot, not the intended behavior. The recording (healthcheck_log.txt)
+    and the marker both stay untouched until an actual retrieval clears
+    them, so a manual power-cycle just resumes this same screen again on
+    the next boot."""
     if verdict.get("verdict") == "insufficient data":
         verdict_lines = ("BATTERY", "insufficient data", "see", LOG_PATH)
     else:
@@ -584,7 +587,7 @@ def show_verdict_and_finish(display, pot, battery, accel, i2c, i2c_sensor, butto
     previous_accel = None
     t0 = time.ticks_ms()
 
-    while time.ticks_diff(time.ticks_ms(), t0) < duration_ms:
+    while True:
         sweeper.step()
         now = time.ticks_ms()
         if time.ticks_diff(now, last_sample) >= FULL_SAMPLE_PERIOD_MS:
@@ -671,19 +674,17 @@ def main():
 
         if stage_idx > 0 and STAGES[stage_idx - 1] == "OFFON":
             # resuming after the deliberate power cycle -- nothing left to
-            # detect. Show the verdict briefly, then hand back to normal
-            # operation on our own: a field-run unit (three-finger salute,
-            # no laptop) must not sit stuck waiting to be plugged in. The
-            # log itself stays on flash for whenever a host next connects.
+            # detect. Show the verdict + live readout and wait -- this call
+            # doesn't return on its own; only a retrieval (mpremote
+            # interrupting it) or losing power ends it. See
+            # run_wait_retrieval()'s docstring for why this isn't
+            # self-terminating.
             _log(log, "REP stage=OFFON rep=1 (confirmed by this reboot)")
             _log(log, "STAGE_DONE stage=OFFON")
             verdict = compute_battery_verdict(rest_uv, [loaded_p10_uv] if loaded_p10_uv is not None else [])
             _log(log, "VERDICT %s" % verdict)
-            show_verdict_and_finish(display, pot, battery, accel, i2c, i2c_sensor, button_pins, log,
-                                     ServoSweeper(servo.Servo(Pin(2)), log=log), verdict)
-            _log(log, "SEQUENCE_COMPLETE")
-            _clear_state()
-            machine.reset()
+            run_wait_retrieval(display, pot, battery, accel, i2c, i2c_sensor, button_pins, log,
+                                ServoSweeper(servo.Servo(Pin(2)), log=log), verdict)
             return
 
         sweeper = None
