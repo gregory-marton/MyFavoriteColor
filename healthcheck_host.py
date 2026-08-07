@@ -341,19 +341,21 @@ class MPRemote:
         return get_identity(port)
 
     def read_file(self, port, filename):
-        snippet = (
-            "try:\n"
-            f"    print(open('{filename}').read())\n"
-            "except OSError:\n"
-            "    print('__HEALTHCHECK_HOST_MISSING__')\n"
-        )
-        out = self._run(["exec", snippet], port=port)
-        if out.returncode != 0:
-            return None
-        text = out.stdout
-        if text.strip() == "__HEALTHCHECK_HOST_MISSING__":
-            return None
-        return text[:-1] if text.endswith("\n") else text
+        # `mpremote cp` (real file transfer), not `exec "print(open(f).read())"`
+        # -- confirmed on a real 352KB healthcheck_log.txt that the exec+print
+        # approach silently truncates to a couple hundred bytes (raw-REPL
+        # output buffering, not a device or content problem), which is
+        # exactly what produced an apparently-empty retrieved recording
+        # despite real data sitting on the device the whole time.
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            local_path = os.path.join(tmp_dir, "fetched")
+            out = self._run(["cp", f":{filename}", local_path], port=port,
+                             timeout=max(self.timeout, 120))
+            if out.returncode != 0:
+                return None
+            with open(local_path, "r", errors="replace") as f:
+                return f.read()
 
     def write_file(self, port, filename, content):
         # Explicit close() matters: the very next call is `mpremote reset`,
@@ -382,11 +384,21 @@ class MPRemote:
         subprocess.run(["bash", DEPLOY_SH, "healthcheck"], cwd=HERE, env=env,
                         capture_output=True, text=True, timeout=timeout)
 
-    def reset_with_message(self, port, lines):
+    def reset_with_message(self, port, lines, show_ms=1500):
         """Shows `lines` on the OLED for a moment before resetting -- so
         clearing a retrieved recording leaves a visible "ready to reboot"
         moment on the device instead of the screen just going dark
-        mid-whatever it happened to be showing."""
+        mid-whatever it happened to be showing.
+
+        machine.reset() inside the exec severs the USB/serial connection
+        before mpremote's raw-REPL protocol gets a clean "done" reply back
+        -- confirmed on real hardware: mpremote just hangs until its
+        subprocess timeout, even though the device-side script keeps
+        running regardless and resets on schedule either way. A short,
+        expected timeout here (a little past show_ms) is the normal
+        outcome, not a failure -- it isn't wrapped in a broader try/except
+        because a *different* exception (a real mpremote/connection error)
+        should still surface as one."""
         line_stmts = "\n".join(
             "d.text(%r, 4, %d, 1)" % (line[:16], 8 + i * 12) for i, line in enumerate(lines)
         )
@@ -398,10 +410,13 @@ class MPRemote:
             "d.fill(0)\n"
             f"{line_stmts}\n"
             "d.show()\n"
-            "time.sleep_ms(1500)\n"
+            f"time.sleep_ms({show_ms})\n"
             "machine.reset()\n"
         )
-        self._run(["exec", snippet], port=port)
+        try:
+            self._run(["exec", snippet], port=port, timeout=(show_ms / 1000.0) + 5)
+        except subprocess.TimeoutExpired:
+            pass
 
 
 # ---------------------------------------------------------------------------

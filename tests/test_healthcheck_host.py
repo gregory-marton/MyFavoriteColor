@@ -387,3 +387,57 @@ def test_mpremote_deploy_and_start_runs_deploy_sh_with_port_env():
     args, port_env = calls[0]
     assert args == ["bash", hh.DEPLOY_SH, "healthcheck"]
     assert port_env == "/dev/cu.usbmodem1101"
+
+
+def test_mpremote_read_file_uses_cp_not_exec_print(tmp_path):
+    # Regression: exec "print(open(f).read())" silently truncated a real
+    # 352KB healthcheck_log.txt to ~137 bytes on the bench (raw-REPL output
+    # buffering) -- mpremote cp is the real file-transfer path.
+    calls = []
+    mp = hh.MPRemote()
+
+    def fake_run(args, port=None, timeout=None):
+        calls.append(args)
+        assert args[0] == "cp"
+        local_path = args[2]
+        with open(local_path, "w") as f:
+            f.write("BOOT boot_num=1 reset_cause=1(PWRON_RESET) resume_stage=0\n")
+
+        class Result:
+            returncode = 0
+        return Result()
+
+    mp._run = fake_run
+    content = mp.read_file("/dev/a", "healthcheck_log.txt")
+
+    assert calls[0] == ["cp", ":healthcheck_log.txt", calls[0][2]]
+    assert "BOOT boot_num=1" in content
+
+
+def test_mpremote_read_file_returns_none_when_cp_fails():
+    mp = hh.MPRemote()
+
+    def fake_run(args, port=None, timeout=None):
+        class Result:
+            returncode = 1
+        return Result()
+
+    mp._run = fake_run
+    assert mp.read_file("/dev/a", "nonexistent.txt") is None
+
+
+def test_mpremote_reset_with_message_tolerates_the_expected_timeout():
+    # Regression: machine.reset() inside the exec severs the connection
+    # before mpremote's raw-REPL protocol completes cleanly -- confirmed on
+    # real hardware to hang the subprocess call until timeout even though
+    # the device resets on schedule regardless. That must not propagate as
+    # a crash out of handle_new_port's retrieve path.
+    import subprocess as subprocess_module
+
+    mp = hh.MPRemote()
+
+    def fake_run(args, port=None, timeout=None):
+        raise subprocess_module.TimeoutExpired(cmd=args, timeout=timeout)
+
+    mp._run = fake_run
+    mp.reset_with_message("/dev/a", ("retrieved!", "ready to reboot"))  # must not raise
