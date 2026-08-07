@@ -12,7 +12,7 @@ from smotoremu.machine_shim import (
     SOFT_RESET,
     WDT_RESET,
 )
-from smotoremu.machine_shim import reset_cause
+from smotoremu.machine_shim import mem32, reset_cause
 
 Pin.use_board(current_session().board)
 

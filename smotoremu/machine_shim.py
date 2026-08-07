@@ -23,6 +23,13 @@ class DeviceReset(RuntimeError):
     pass
 
 
+# ESP32-C3 USB Serial/JTAG controller SOF frame number register.
+# Increments every 1 ms while a USB host is connected; freezes when
+# disconnected.  Device code reads this via machine.mem32 to detect
+# USB presence without relying on battery-voltage proxies.
+USB_SERIAL_JTAG_FRAM_NUM_REG = 0x60043024
+
+
 class Board:
     ADC_SAMPLE_COST_US = 20  # GUESS: ESP32-C3 SAR ADC sample cost; needs bench data.
 
@@ -39,6 +46,8 @@ class Board:
         self._port_adc_stub = None
         self.i2c_bus = I2CBus(clock=self.clock, trace=self.trace)
         self.timer_handles = {}
+        self.usb_connected = True
+        self._sof_frame = 0
         self.set_unique_id(unique_id)
 
     def validate_pin(self, pin_id):
@@ -285,3 +294,23 @@ SOFT_RESET = 5
 
 def reset_cause():
     return PWRON_RESET
+
+
+class _Mem32:
+    """Emulates MicroPython's machine.mem32 -- subscript access to
+    memory-mapped hardware registers.  Only the USB Serial/JTAG SOF
+    frame-number register is modelled; everything else reads as 0."""
+
+    def __getitem__(self, address):
+        board = Pin._board
+        if address == USB_SERIAL_JTAG_FRAM_NUM_REG:
+            if board.usb_connected:
+                board._sof_frame = (board._sof_frame + 1) & 0x7FF
+            return board._sof_frame
+        return 0
+
+    def __setitem__(self, address, value):
+        pass  # writes are silently ignored in the emulator
+
+
+mem32 = _Mem32()

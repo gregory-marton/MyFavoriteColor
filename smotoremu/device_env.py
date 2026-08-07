@@ -62,6 +62,7 @@ def _install_machine_module():
         "Pin",
         "SoftI2C",
         "Timer",
+        "mem32",
         "reset",
         "unique_id",
     ):
